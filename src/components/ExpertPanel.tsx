@@ -1,5 +1,5 @@
 
-import { X, MessageSquare, Calendar } from 'lucide-react';
+import { X, MessageSquare, Calendar, User, Star } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -31,6 +31,7 @@ const experts: Expert[] = [
     experience: '15+ years exp.',
     languages: ['English', 'Nepali'],
     rating: 4.9,
+    image: '/lovable-uploads/0f958db4-ccac-4f66-a163-d97a14bd4953.png',
   },
   {
     id: '2',
@@ -62,7 +63,7 @@ export const ExpertPanel = ({ isOpen, onClose, title }: ExpertPanelProps) => {
   return (
     <div 
       className={cn(
-        "fixed right-0 top-0 h-full w-80 bg-cropsay-darkSecondary shadow-lg transition-transform duration-300 z-50",
+        "fixed right-0 top-0 h-full w-96 bg-cropsay-dark shadow-lg transition-transform duration-300 z-50",
         isOpen ? "translate-x-0" : "translate-x-full"
       )}
     >
@@ -80,7 +81,7 @@ export const ExpertPanel = ({ isOpen, onClose, title }: ExpertPanelProps) => {
       
       <div className="p-4">
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          <Button variant="secondary" className="rounded-full bg-cropsay-green text-white hover:bg-cropsay-green/90">
+          <Button variant="default" className="rounded-full bg-cropsay-green text-white hover:bg-cropsay-green/90">
             All
           </Button>
           <Button variant="outline" className="rounded-full">
@@ -92,12 +93,12 @@ export const ExpertPanel = ({ isOpen, onClose, title }: ExpertPanelProps) => {
         </div>
       </div>
       
-      <ScrollArea className="h-[calc(100%-64px)]">
+      <ScrollArea className="h-[calc(100%-132px)]">
         <div className="p-4 space-y-4">
           {experts.map(expert => (
-            <div key={expert.id} className="bg-cropsay-dark rounded-lg p-3">
+            <div key={expert.id} className="bg-cropsay-darkSecondary rounded-lg p-4">
               <div className="flex gap-3">
-                <div className="w-12 h-12 rounded-full bg-cropsay-grayDark flex items-center justify-center overflow-hidden flex-shrink-0">
+                <div className="w-14 h-14 rounded-full bg-cropsay-grayDark flex items-center justify-center overflow-hidden flex-shrink-0">
                   {expert.image ? (
                     <img src={expert.image} alt={expert.name} className="w-full h-full object-cover" />
                   ) : (
@@ -107,23 +108,23 @@ export const ExpertPanel = ({ isOpen, onClose, title }: ExpertPanelProps) => {
                   )}
                 </div>
                 <div className="flex-1">
-                  <div className="flex justify-between">
+                  <div className="flex justify-between items-center">
                     <h4 className="font-medium text-base">{expert.name}</h4>
                     <div className="flex items-center text-amber-400">
-                      <span className="mr-1">★</span>
-                      <span className="text-sm text-white">{expert.rating}</span>
+                      <Star size={16} className="fill-amber-400" />
+                      <span className="text-sm text-white ml-1">{expert.rating}</span>
                     </div>
                   </div>
-                  <p className="text-sm text-cropsay-grayText">{expert.role}</p>
+                  <p className="text-sm">{expert.role}</p>
                   <p className="text-xs text-cropsay-grayText mt-1">{expert.experience}</p>
                   <p className="text-xs text-cropsay-grayText">
                     {expert.languages.join(', ')}
                   </p>
-                  <div className="flex gap-2 mt-2">
-                    <Button className="flex-1 h-8 bg-cropsay-green hover:bg-cropsay-green/90 text-white">
+                  <div className="flex gap-2 mt-3">
+                    <Button className="flex-1 h-9 bg-cropsay-green hover:bg-cropsay-green/90 text-white rounded-md">
                       <MessageSquare size={16} className="mr-1" /> Chat Now
                     </Button>
-                    <Button variant="outline" className="flex-1 h-8">
+                    <Button variant="outline" className="flex-1 h-9 rounded-md">
                       <Calendar size={16} className="mr-1" /> Schedule
                     </Button>
                   </div>

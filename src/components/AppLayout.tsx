@@ -3,13 +3,12 @@ import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { ExpertPanel } from './ExpertPanel';
-import { BookOpen, ShoppingBag } from 'lucide-react';
+import { BookOpen, ShoppingBag, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 export const AppLayout = () => {
   const [expertPanelOpen, setExpertPanelOpen] = useState(false);
-  const [expertPanelType, setExpertPanelType] = useState<'sources' | 'products'>('sources');
+  const [expertPanelType, setExpertPanelType] = useState<'sources' | 'products' | 'experts'>('sources');
 
   const openSourcesPanel = () => {
     setExpertPanelType('sources');
@@ -20,12 +19,17 @@ export const AppLayout = () => {
     setExpertPanelType('products');
     setExpertPanelOpen(true);
   };
+  
+  const openExpertsPanel = () => {
+    setExpertPanelType('experts');
+    setExpertPanelOpen(true);
+  };
 
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
       <div className="relative flex-1 overflow-x-hidden">
-        <Outlet context={{ openSourcesPanel, openProductsPanel }} />
+        <Outlet context={{ openSourcesPanel, openProductsPanel, openExpertsPanel }} />
         
         {/* Right side floating buttons */}
         <div className="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-40">
@@ -46,6 +50,15 @@ export const AppLayout = () => {
             className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
           >
             <ShoppingBag size={20} />
+          </Button>
+          <Button 
+            variant="ghost"
+            size="icon"
+            onClick={openExpertsPanel}
+            aria-label="Chat with experts"
+            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
+          >
+            <Users size={20} />
           </Button>
         </div>
         
@@ -113,6 +126,12 @@ export const AppLayout = () => {
             />
           </div>
         </ExpertPanel>
+        
+        <ExpertPanel
+          isOpen={expertPanelOpen && expertPanelType === 'experts'}
+          onClose={() => setExpertPanelOpen(false)}
+          title="Available Experts"
+        />
       </div>
     </div>
   );

@@ -1,16 +1,18 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Image, Globe, PlusCircle, BookOpen, History, X, User, Bot, Trash2, Edit, Star } from 'lucide-react';
-import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
+import { Send, Mic, Image, History, X, User, Trash2, Edit, Star, MessageSquare, BookOpen, ShoppingBag, Users } from 'lucide-react';
+import { useOutletContext, useSearchParams } from 'react-router-dom';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
+import { Card, CardContent } from "@/components/ui/card";
 
 type ContextType = {
   openSourcesPanel: () => void;
   openProductsPanel: () => void;
+  openExpertsPanel: () => void;
 };
 
 type Message = {
@@ -30,14 +32,13 @@ type ChatSession = {
 };
 
 const ChatPage = () => {
-  const { openSourcesPanel, openProductsPanel } = useOutletContext<ContextType>();
+  const { openSourcesPanel, openProductsPanel, openExpertsPanel } = useOutletContext<ContextType>();
   const [searchParams] = useSearchParams();
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<Message[]>([]);
   const [chatSessions, setChatSessions] = useState<ChatSession[]>([]);
   const [currentChatId, setCurrentChatId] = useState<string>('');
   const [showChatHistory, setShowChatHistory] = useState(false);
-  const [isExpertMode, setIsExpertMode] = useState(searchParams.get('expert') === 'true');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -81,25 +82,16 @@ const ChatPage = () => {
     setInput('');
     
     setTimeout(() => {
-      const responseRole = isExpertMode ? 'expert' as const : 'assistant' as const;
-      const responseContent = isExpertMode 
-        ? `As an agricultural expert, I recommend looking at ${input.includes('wheat') ? 'locally adapted wheat varieties' : 'sustainable farming practices'} for your specific region. Based on my experience, the most effective approach would be...`
-        : `${input.includes('wheat') ? 'Wheat' : 'This crop'} is one of the major crops grown in Nepal, particularly in the Terai and mid-hill regions. Here are the best practices for cultivation in this region...`;
-      
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        role: responseRole,
-        content: responseContent,
+        role: 'assistant',
+        content: `${input.includes('wheat') ? 'Wheat' : 'This crop'} is one of the major crops grown in Nepal, particularly in the Terai and mid-hill regions. Here are the best practices for cultivation in this region...`,
         timestamp: new Date()
       };
       
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       updateChatSession(finalMessages);
-      
-      setTimeout(() => {
-        isExpertMode ? openProductsPanel() : openSourcesPanel();
-      }, 500);
     }, 1000);
   };
 
@@ -234,19 +226,18 @@ const ChatPage = () => {
     { icon: '🧪', text: 'Soil Testing' },
     { icon: '📅', text: 'Crop Calendar' },
   ];
+  
+  const handleActionButton = (type: 'sources' | 'products' | 'experts') => {
+    if (type === 'sources') openSourcesPanel();
+    else if (type === 'products') openProductsPanel();
+    else if (type === 'experts') openExpertsPanel();
+  };
 
   return (
-    <div className="h-screen flex flex-col relative">
-      <div className="p-4 flex justify-between items-center shadow-sm bg-cropsay-darkSecondary/50">
+    <div className="h-screen flex flex-col relative bg-black">
+      <div className="p-4 flex justify-between items-center shadow-sm bg-cropsay-dark border-b border-cropsay-grayDark/30">
         <div className="flex items-center space-x-3">
-          <h1 className="text-xl font-bold">
-            {isExpertMode ? 'Expert Consultation' : 'Cropsay AI Assistant'}
-          </h1>
-          {isExpertMode && (
-            <span className="bg-cropsay-green text-white text-xs px-2 py-1 rounded-full">
-              Expert Mode
-            </span>
-          )}
+          <h1 className="text-xl font-bold">Cropsay AI Assistant</h1>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -279,7 +270,7 @@ const ChatPage = () => {
                   size="icon"
                   onClick={startNewChat}
                 >
-                  <PlusCircle size={20} />
+                  <MessageSquare size={20} />
                 </Button>
               </TooltipTrigger>
               <TooltipContent>New Chat</TooltipContent>
@@ -289,8 +280,8 @@ const ChatPage = () => {
       </div>
       
       {showChatHistory && (
-        <div className="absolute top-16 right-0 w-72 h-[calc(100vh-64px)] bg-cropsay-darkSecondary z-10 shadow-lg animate-slide-in-right">
-          <div className="flex justify-between items-center p-4 border-b border-cropsay-grayDark">
+        <div className="absolute top-16 right-0 w-80 h-[calc(100vh-64px)] bg-cropsay-dark z-10 shadow-lg animate-slide-in-right">
+          <div className="flex justify-between items-center p-4 border-b border-cropsay-grayDark/30">
             <h3 className="font-medium">Chat History</h3>
             <Button variant="ghost" size="sm" onClick={() => setShowChatHistory(false)}>
               <X size={18} />
@@ -307,44 +298,46 @@ const ChatPage = () => {
                 <>
                   {/* Starred chats */}
                   {chatSessions.some(s => s.isStarred) && (
-                    <div className="mb-2">
+                    <div className="mb-4">
                       <h4 className="text-xs uppercase text-cropsay-grayText mb-2 px-2">Starred</h4>
                       {chatSessions
                         .filter(s => s.isStarred)
                         .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                         .map(session => (
-                          <div 
+                          <Card 
                             key={session.id}
                             onClick={() => switchToChat(session.id)}
                             className={cn(
-                              "p-3 rounded-lg cursor-pointer hover:bg-cropsay-grayDark transition-colors group relative",
-                              currentChatId === session.id ? "bg-cropsay-grayDark" : "bg-cropsay-dark"
+                              "mb-2 cursor-pointer hover:bg-cropsay-darkSecondary transition-colors group relative border-cropsay-grayDark/30",
+                              currentChatId === session.id ? "bg-cropsay-darkSecondary" : "bg-cropsay-dark"
                             )}
                           >
-                            <div className="flex justify-between items-start mb-1">
-                              <h4 className="font-medium truncate pr-2 flex-1">{session.title}</h4>
-                              <span className="text-xs text-cropsay-grayText">
-                                {session.timestamp.toLocaleDateString()}
-                              </span>
-                            </div>
-                            <p className="text-xs text-cropsay-grayText truncate">
-                              {session.lastMessage || "New conversation"}
-                            </p>
-                            <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1">
-                              <button 
-                                onClick={(e) => toggleStarChat(session.id, e)}
-                                className="p-1 hover:bg-cropsay-dark rounded-full"
-                              >
-                                <Star size={14} className="text-amber-400 fill-amber-400" />
-                              </button>
-                              <button 
-                                onClick={(e) => deleteChat(session.id, e)}
-                                className="p-1 hover:bg-cropsay-dark rounded-full text-red-500"
-                              >
-                                <Trash2 size={14} />
-                              </button>
-                            </div>
-                          </div>
+                            <CardContent className="p-3">
+                              <div className="flex justify-between items-start">
+                                <h4 className="font-medium truncate pr-2 flex-1">{session.title}</h4>
+                                <span className="text-xs text-cropsay-grayText">
+                                  {session.timestamp.toLocaleDateString()}
+                                </span>
+                              </div>
+                              <p className="text-xs text-cropsay-grayText truncate">
+                                {session.lastMessage || "New conversation"}
+                              </p>
+                              <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1">
+                                <button 
+                                  onClick={(e) => toggleStarChat(session.id, e)}
+                                  className="p-1 hover:bg-cropsay-dark rounded-full"
+                                >
+                                  <Star size={14} className="text-amber-400 fill-amber-400" />
+                                </button>
+                                <button 
+                                  onClick={(e) => deleteChat(session.id, e)}
+                                  className="p-1 hover:bg-cropsay-dark rounded-full text-red-500"
+                                >
+                                  <Trash2 size={14} />
+                                </button>
+                              </div>
+                            </CardContent>
+                          </Card>
                         ))}
                     </div>
                   )}
@@ -358,38 +351,40 @@ const ChatPage = () => {
                       .filter(s => !s.isStarred)
                       .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
                       .map(session => (
-                        <div 
+                        <Card 
                           key={session.id}
                           onClick={() => switchToChat(session.id)}
                           className={cn(
-                            "p-3 rounded-lg cursor-pointer hover:bg-cropsay-grayDark transition-colors group relative",
-                            currentChatId === session.id ? "bg-cropsay-grayDark" : "bg-cropsay-dark"
+                            "mb-2 cursor-pointer hover:bg-cropsay-darkSecondary transition-colors group relative border-cropsay-grayDark/30",
+                            currentChatId === session.id ? "bg-cropsay-darkSecondary" : "bg-cropsay-dark"
                           )}
                         >
-                          <div className="flex justify-between items-start mb-1">
-                            <h4 className="font-medium truncate pr-2 flex-1">{session.title}</h4>
-                            <span className="text-xs text-cropsay-grayText">
-                              {session.timestamp.toLocaleDateString()}
-                            </span>
-                          </div>
-                          <p className="text-xs text-cropsay-grayText truncate">
-                            {session.lastMessage || "New conversation"}
-                          </p>
-                          <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1">
-                            <button 
-                              onClick={(e) => toggleStarChat(session.id, e)}
-                              className="p-1 hover:bg-cropsay-dark rounded-full"
-                            >
-                              <Star size={14} className="text-cropsay-grayText" />
-                            </button>
-                            <button 
-                              onClick={(e) => deleteChat(session.id, e)}
-                              className="p-1 hover:bg-cropsay-dark rounded-full text-red-500"
-                            >
-                              <Trash2 size={14} />
-                            </button>
-                          </div>
-                        </div>
+                          <CardContent className="p-3">
+                            <div className="flex justify-between items-start">
+                              <h4 className="font-medium truncate pr-2 flex-1">{session.title}</h4>
+                              <span className="text-xs text-cropsay-grayText">
+                                {session.timestamp.toLocaleDateString()}
+                              </span>
+                            </div>
+                            <p className="text-xs text-cropsay-grayText truncate">
+                              {session.lastMessage || "New conversation"}
+                            </p>
+                            <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1">
+                              <button 
+                                onClick={(e) => toggleStarChat(session.id, e)}
+                                className="p-1 hover:bg-cropsay-dark rounded-full"
+                              >
+                                <Star size={14} className="text-cropsay-grayText" />
+                              </button>
+                              <button 
+                                onClick={(e) => deleteChat(session.id, e)}
+                                className="p-1 hover:bg-cropsay-dark rounded-full text-red-500"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </CardContent>
+                        </Card>
                       ))}
                   </div>
                 </>
@@ -399,51 +394,24 @@ const ChatPage = () => {
         </div>
       )}
       
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
+      <div className="flex-1 overflow-y-auto py-8 px-4 md:px-12 lg:px-24">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col justify-center items-center">
-            <div className="text-center max-w-lg">
-              <h2 className="text-3xl font-bold mb-8">
-                {isExpertMode ? 'Chat with Agricultural Experts' : 'How can I assist you with agriculture today?'}
+            <div className="text-center max-w-2xl">
+              <h2 className="text-4xl font-bold mb-8">
+                What do you want to know?
               </h2>
               
-              <div className="mb-8">
-                <p className="text-cropsay-grayText mb-6">
-                  {isExpertMode
-                    ? 'Our experts are ready to help with personalized advice for your farm.'
-                    : 'Ask me anything about farming, crops, or agricultural practices.'}
-                </p>
-                
-                <div className="flex justify-center">
-                  <Button 
-                    variant={isExpertMode ? "outline" : "default"} 
-                    className={cn("mx-2", !isExpertMode && "bg-cropsay-green hover:bg-cropsay-green/90")}
-                    onClick={() => setIsExpertMode(false)}
-                  >
-                    <Bot className="mr-2" size={18} />
-                    AI Assistant
-                  </Button>
-                  <Button 
-                    variant={isExpertMode ? "default" : "outline"}
-                    className={cn("mx-2", isExpertMode && "bg-cropsay-green hover:bg-cropsay-green/90")}
-                    onClick={() => setIsExpertMode(true)}
-                  >
-                    <User className="mr-2" size={18} />
-                    Expert Mode
-                  </Button>
-                </div>
-              </div>
-              
-              <div className="flex flex-wrap justify-center gap-3 max-w-2xl">
+              <div className="flex flex-wrap justify-center gap-3 max-w-2xl mt-10">
                 {suggestionTopics.map((topic) => (
                   <button 
                     key={topic.text}
-                    className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark text-cropsay-lightText px-4 py-2 rounded-lg transition-colors flex items-center gap-2"
+                    className="bg-black hover:bg-cropsay-darkSecondary text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2 border border-cropsay-grayDark/30"
                     onClick={() => {
                       setInput(topic.text);
                     }}
                   >
-                    <span>{topic.icon}</span>
+                    <span className="text-xl">{topic.icon}</span>
                     <span>{topic.text}</span>
                   </button>
                 ))}
@@ -451,28 +419,32 @@ const ChatPage = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-6 pb-4">
-            {messages.map((message) => (
-              <div key={message.id} className={cn(
-                "flex group/message",
-                message.role === 'user' ? "justify-end" : "justify-start"
-              )}>
+          <div className="space-y-8 pb-4 max-w-3xl mx-auto">
+            {messages.map((message, index) => (
+              <div 
+                key={message.id} 
+                className={cn(
+                  "flex group/message",
+                  message.role === 'user' ? "justify-end" : "justify-start",
+                  index > 0 && messages[index-1].role === message.role ? "mt-2" : "mt-6"
+                )}
+              >
                 {message.role !== 'user' && (
                   <div className={cn(
-                    "bg-cropsay-green rounded-full w-10 h-10 flex items-center justify-center mr-3 flex-shrink-0",
+                    "bg-cropsay-green rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0",
                     message.role === 'expert' && "bg-amber-500"
                   )}>
-                    {message.role === 'expert' ? <User size={18} /> : 'C'}
+                    {message.role === 'expert' ? <User size={16} /> : 'C'}
                   </div>
                 )}
                 
                 <div className={cn(
-                  "rounded-2xl p-4 max-w-[75%] relative",
+                  "rounded-2xl p-4 max-w-[85%] relative",
                   message.role === 'user' 
                     ? "bg-cropsay-green text-white rounded-tr-none" 
                     : message.role === 'expert'
                       ? "bg-gradient-to-br from-amber-600 to-amber-900 text-white rounded-tl-none"
-                      : "bg-cropsay-darkSecondary rounded-tl-none"
+                      : "bg-cropsay-darkSecondary text-white rounded-tl-none"
                 )}>
                   {editingMessageId === message.id ? (
                     <div className="space-y-2">
@@ -493,15 +465,44 @@ const ChatPage = () => {
                     </div>
                   ) : (
                     <>
-                      <p className="leading-relaxed">{message.content}</p>
+                      <p className="leading-relaxed whitespace-pre-wrap">{message.content}</p>
+                      
+                      {/* Message timestamp */}
                       <div className="text-right mt-1">
-                        <span className={cn(
-                          "text-xs",
-                          message.role === 'user' ? "text-cropsay-lightText/70" : "text-cropsay-grayText"
-                        )}>
+                        <span className="text-xs opacity-70">
                           {message.timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
                         </span>
                       </div>
+                      
+                      {/* Action buttons for AI responses */}
+                      {message.role === 'assistant' && (
+                        <div className="flex mt-3 space-x-2 justify-start">
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs bg-transparent border-cropsay-grayDark/30"
+                            onClick={() => handleActionButton('sources')}
+                          >
+                            <BookOpen size={14} className="mr-1" /> Sources
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs bg-transparent border-cropsay-grayDark/30"
+                            onClick={() => handleActionButton('products')}
+                          >
+                            <ShoppingBag size={14} className="mr-1" /> Products
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-8 text-xs bg-transparent border-cropsay-grayDark/30"
+                            onClick={() => handleActionButton('experts')}
+                          >
+                            <Users size={14} className="mr-1" /> Experts
+                          </Button>
+                        </div>
+                      )}
                       
                       {/* Message actions */}
                       {message.role === 'user' && (
@@ -529,8 +530,8 @@ const ChatPage = () => {
                 </div>
                 
                 {message.role === 'user' && (
-                  <div className="bg-cropsay-darkSecondary rounded-full w-10 h-10 flex items-center justify-center ml-3 flex-shrink-0">
-                    <User size={18} />
+                  <div className="bg-cropsay-darkSecondary rounded-full w-8 h-8 flex items-center justify-center ml-3 flex-shrink-0">
+                    <User size={16} />
                   </div>
                 )}
               </div>
@@ -540,35 +541,37 @@ const ChatPage = () => {
         )}
       </div>
       
-      <div className="p-4 bg-cropsay-dark">
-        <form onSubmit={handleSubmit} className="flex items-center w-full rounded-xl bg-cropsay-darkSecondary p-3 focus-within:ring-1 focus-within:ring-cropsay-green transition-all">
-          <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
-            <Image size={20} />
-          </button>
-          
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={isExpertMode ? "Ask our agricultural experts..." : "Message Cropsay..."}
-            className="flex-1 bg-transparent border-none outline-none px-3 py-1"
-          />
-          
-          <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
-            <Mic size={20} />
-          </button>
-          
-          <button 
-            type="submit" 
-            disabled={!input.trim()}
-            className={`p-2 rounded-lg ${input.trim() ? 'text-cropsay-green hover:bg-cropsay-grayDark' : 'text-cropsay-grayText'}`}
-          >
-            <Send size={20} />
-          </button>
-        </form>
-        <p className="text-xs text-center text-cropsay-grayText mt-2">
-          {isExpertMode ? 'Connecting you with agricultural experts.' : 'Cropsay can make mistakes. Check important information.'}
-        </p>
+      <div className="p-6 bg-black">
+        <div className="max-w-3xl mx-auto">
+          <form onSubmit={handleSubmit} className="flex items-center w-full rounded-xl bg-cropsay-dark p-3 focus-within:ring-1 focus-within:ring-cropsay-green transition-all border border-cropsay-grayDark/30">
+            <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
+              <Image size={20} />
+            </button>
+            
+            <input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Ask anything..."
+              className="flex-1 bg-transparent border-none outline-none px-3 py-1"
+            />
+            
+            <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
+              <Mic size={20} />
+            </button>
+            
+            <button 
+              type="submit" 
+              disabled={!input.trim()}
+              className={`p-2 rounded-lg ${input.trim() ? 'text-cropsay-green hover:bg-cropsay-grayDark' : 'text-cropsay-grayText'}`}
+            >
+              <Send size={20} />
+            </button>
+          </form>
+          <p className="text-xs text-center text-cropsay-grayText mt-2">
+            Cropsay can make mistakes. Check important information.
+          </p>
+        </div>
       </div>
     </div>
   );
