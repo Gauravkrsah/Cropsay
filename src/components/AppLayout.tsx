@@ -4,6 +4,8 @@ import { Outlet } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { ExpertPanel } from './ExpertPanel';
 import { BookOpen, ShoppingBag } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 export const AppLayout = () => {
   const [expertPanelOpen, setExpertPanelOpen] = useState(false);
@@ -27,20 +29,24 @@ export const AppLayout = () => {
         
         {/* Right side floating buttons */}
         <div className="fixed right-4 top-1/2 transform -translate-y-1/2 flex flex-col gap-2 z-40">
-          <button 
-            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark p-3 rounded-full shadow-lg"
+          <Button 
+            variant="ghost"
+            size="icon"
             onClick={openSourcesPanel}
             aria-label="Open expert sources"
+            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
           >
             <BookOpen size={20} />
-          </button>
-          <button 
-            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark p-3 rounded-full shadow-lg"
+          </Button>
+          <Button 
+            variant="ghost"
+            size="icon"
             onClick={openProductsPanel}
             aria-label="Open recommended products"
+            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
           >
             <ShoppingBag size={20} />
-          </button>
+          </Button>
         </div>
         
         {/* Expert panels */}
@@ -76,11 +82,11 @@ export const AppLayout = () => {
           onClose={() => setExpertPanelOpen(false)}
           title="Recommended Products"
         >
-          <div className="space-y-1 mb-4">
-            <button className="bg-cropsay-green text-white rounded-full px-4 py-1 text-sm mr-2">All</button>
-            <button className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full px-4 py-1 text-sm mr-2">Seeds</button>
-            <button className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full px-4 py-1 text-sm mr-2">Pesticides</button>
-            <button className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full px-4 py-1 text-sm">Equipment</button>
+          <div className="flex flex-wrap gap-2 mb-6">
+            <Button variant="default" size="sm" className="bg-cropsay-green rounded-full">All</Button>
+            <Button variant="outline" size="sm" className="rounded-full">Seeds</Button>
+            <Button variant="outline" size="sm" className="rounded-full">Pesticides</Button>
+            <Button variant="outline" size="sm" className="rounded-full">Equipment</Button>
           </div>
           
           <div className="space-y-4">
@@ -131,9 +137,9 @@ const ExpertSourceCard = ({ title, organization, docType, year }: ExpertSourceCa
         </div>
         <span className="text-xs text-cropsay-grayText">{year}</span>
       </div>
-      <button className="w-full mt-3 text-sm text-center text-cropsay-green hover:underline">
+      <Button variant="link" size="sm" className="w-full mt-2 text-cropsay-green p-0 h-auto">
         View Source
-      </button>
+      </Button>
     </div>
   );
 };
@@ -167,7 +173,7 @@ const ProductCard = ({ title, description, price, rating, inStock }: ProductCard
                 {inStock ? 'In Stock' : 'Low Stock'}
               </span>
             </div>
-            <button className="primary-button text-xs px-3 py-1">Add</button>
+            <Button size="sm" variant="default" className="bg-cropsay-green hover:bg-cropsay-green/90">Add</Button>
           </div>
         </div>
       </div>
