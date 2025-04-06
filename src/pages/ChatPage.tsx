@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Image, Globe, PlusCircle, BookOpen, History, X, User, Bot } from 'lucide-react';
 import { useNavigate, useOutletContext, useSearchParams } from 'react-router-dom';
@@ -37,7 +36,6 @@ const ChatPage = () => {
   const [isExpertMode, setIsExpertMode] = useState(searchParams.get('expert') === 'true');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
-  // Initialize with a default chat session if none exists
   useEffect(() => {
     if (chatSessions.length === 0) {
       const newChatId = Date.now().toString();
@@ -53,7 +51,6 @@ const ChatPage = () => {
     }
   }, []);
 
-  // Scroll to bottom of messages
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -63,10 +60,9 @@ const ChatPage = () => {
     
     if (!input.trim()) return;
     
-    // Add user message
-    const userMessage = {
+    const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user' as const,
+      role: 'user',
       content: input,
       timestamp: new Date()
     };
@@ -74,19 +70,17 @@ const ChatPage = () => {
     const updatedMessages = [...messages, userMessage];
     setMessages(updatedMessages);
     
-    // Update chat session
     updateChatSession(updatedMessages);
     
     setInput('');
     
-    // Simulate AI/expert response
     setTimeout(() => {
-      const responseRole = isExpertMode ? 'expert' : 'assistant';
+      const responseRole = isExpertMode ? 'expert' as const : 'assistant' as const;
       const responseContent = isExpertMode 
         ? `As an agricultural expert, I recommend looking at ${input.includes('wheat') ? 'locally adapted wheat varieties' : 'sustainable farming practices'} for your specific region. Based on my experience, the most effective approach would be...`
         : `${input.includes('wheat') ? 'Wheat' : 'This crop'} is one of the major crops grown in Nepal, particularly in the Terai and mid-hill regions. Here are the best practices for cultivation in this region...`;
       
-      const assistantMessage = {
+      const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: responseRole,
         content: responseContent,
@@ -97,7 +91,6 @@ const ChatPage = () => {
       setMessages(finalMessages);
       updateChatSession(finalMessages);
       
-      // Auto open sources panel after AI responds
       setTimeout(() => {
         openSourcesPanel();
       }, 500);
@@ -105,7 +98,6 @@ const ChatPage = () => {
   };
 
   const updateChatSession = (updatedMessages: Message[]) => {
-    // Find current chat session and update it
     setChatSessions(prev => prev.map(session => 
       session.id === currentChatId 
         ? { 
@@ -152,7 +144,6 @@ const ChatPage = () => {
 
   return (
     <div className="h-screen flex flex-col relative">
-      {/* Chat header */}
       <div className="p-4 flex justify-between items-center shadow-sm bg-cropsay-darkSecondary/50">
         <div className="flex items-center space-x-3">
           <h1 className="text-xl font-bold">
@@ -189,7 +180,6 @@ const ChatPage = () => {
         </div>
       </div>
       
-      {/* Chat history sidebar */}
       {showChatHistory && (
         <div className="absolute top-16 right-0 w-72 h-[calc(100vh-64px)] bg-cropsay-darkSecondary z-10 shadow-lg animate-slide-in-right">
           <div className="flex justify-between items-center p-4 border-b border-cropsay-grayDark">
@@ -225,7 +215,6 @@ const ChatPage = () => {
         </div>
       )}
       
-      {/* Chat messages */}
       <div className="flex-1 overflow-y-auto p-6 space-y-6">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col justify-center items-center">
@@ -324,7 +313,6 @@ const ChatPage = () => {
         )}
       </div>
       
-      {/* Chat input */}
       <div className="p-4 bg-cropsay-dark">
         <form onSubmit={handleSubmit} className="flex items-center w-full rounded-xl bg-cropsay-darkSecondary p-3 focus-within:ring-1 focus-within:ring-cropsay-green transition-all">
           <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
