@@ -96,7 +96,7 @@ export const AppLayout = () => {
           title="Recommended Products"
         >
           <div className="flex flex-wrap gap-2 mb-6">
-            <Button variant="default" size="sm" className="bg-cropsay-green rounded-full">All</Button>
+            <Button variant="default" size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">All</Button>
             <Button variant="outline" size="sm" className="rounded-full">Seeds</Button>
             <Button variant="outline" size="sm" className="rounded-full">Pesticides</Button>
             <Button variant="outline" size="sm" className="rounded-full">Equipment</Button>
@@ -156,7 +156,7 @@ const ExpertSourceCard = ({ title, organization, docType, year }: ExpertSourceCa
         </div>
         <span className="text-xs text-cropsay-grayText">{year}</span>
       </div>
-      <Button variant="link" size="sm" className="w-full mt-2 text-cropsay-green p-0 h-auto">
+      <Button variant="link" size="sm" className="w-full mt-2 text-green-500 p-0 h-auto">
         View Source
       </Button>
     </div>
@@ -192,7 +192,7 @@ const ProductCard = ({ title, description, price, rating, inStock }: ProductCard
                 {inStock ? 'In Stock' : 'Low Stock'}
               </span>
             </div>
-            <Button size="sm" variant="default" className="bg-cropsay-green hover:bg-cropsay-green/90">Add</Button>
+            <Button size="sm" variant="default" className="bg-green-500 hover:bg-green-600">Add</Button>
           </div>
         </div>
       </div>

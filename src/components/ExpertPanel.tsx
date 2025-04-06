@@ -81,7 +81,7 @@ export const ExpertPanel = ({ isOpen, onClose, title }: ExpertPanelProps) => {
       
       <div className="p-4">
         <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-          <Button variant="default" className="rounded-full bg-cropsay-green text-white hover:bg-cropsay-green/90">
+          <Button variant="default" className="rounded-full bg-green-500 text-white hover:bg-green-600">
             All
           </Button>
           <Button variant="outline" className="rounded-full">
@@ -121,7 +121,7 @@ export const ExpertPanel = ({ isOpen, onClose, title }: ExpertPanelProps) => {
                     {expert.languages.join(', ')}
                   </p>
                   <div className="flex gap-2 mt-3">
-                    <Button className="flex-1 h-9 bg-cropsay-green hover:bg-cropsay-green/90 text-white rounded-md">
+                    <Button className="flex-1 h-9 bg-green-500 hover:bg-green-600 text-white rounded-md">
                       <MessageSquare size={16} className="mr-1" /> Chat Now
                     </Button>
                     <Button variant="outline" className="flex-1 h-9 rounded-md">

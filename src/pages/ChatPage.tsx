@@ -69,7 +69,7 @@ const ChatPage = () => {
     
     const userMessage: Message = {
       id: Date.now().toString(),
-      role: 'user',
+      role: 'user' as const,
       content: input,
       timestamp: new Date()
     };
@@ -84,7 +84,7 @@ const ChatPage = () => {
     setTimeout(() => {
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
-        role: 'assistant',
+        role: 'assistant' as const,
         content: `${input.includes('wheat') ? 'Wheat' : 'This crop'} is one of the major crops grown in Nepal, particularly in the Terai and mid-hill regions. Here are the best practices for cultivation in this region...`,
         timestamp: new Date()
       };
@@ -252,7 +252,7 @@ const ChatPage = () => {
                 >
                   <History size={20} />
                   {chatSessions.length > 1 && (
-                    <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                       {chatSessions.length}
                     </span>
                   )}
@@ -431,7 +431,7 @@ const ChatPage = () => {
               >
                 {message.role !== 'user' && (
                   <div className={cn(
-                    "bg-cropsay-green rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0",
+                    "bg-green-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0",
                     message.role === 'expert' && "bg-amber-500"
                   )}>
                     {message.role === 'expert' ? <User size={16} /> : 'C'}
@@ -441,7 +441,7 @@ const ChatPage = () => {
                 <div className={cn(
                   "rounded-2xl p-4 max-w-[85%] relative",
                   message.role === 'user' 
-                    ? "bg-cropsay-green text-white rounded-tr-none" 
+                    ? "bg-green-500 text-white rounded-tr-none" 
                     : message.role === 'expert'
                       ? "bg-gradient-to-br from-amber-600 to-amber-900 text-white rounded-tl-none"
                       : "bg-cropsay-darkSecondary text-white rounded-tl-none"
@@ -510,7 +510,7 @@ const ChatPage = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-5 w-5 rounded-full bg-transparent hover:bg-cropsay-green/80"
+                            className="h-5 w-5 rounded-full bg-transparent hover:bg-green-600/80"
                             onClick={() => startEditingMessage(message)}
                           >
                             <Edit size={12} />
@@ -518,7 +518,7 @@ const ChatPage = () => {
                           <Button
                             variant="ghost"
                             size="icon"
-                            className="h-5 w-5 rounded-full bg-transparent hover:bg-cropsay-green/80 text-red-300 hover:text-red-100"
+                            className="h-5 w-5 rounded-full bg-transparent hover:bg-green-600/80 text-red-300 hover:text-red-100"
                             onClick={() => deleteMessage(message.id)}
                           >
                             <Trash2 size={12} />
@@ -543,7 +543,7 @@ const ChatPage = () => {
       
       <div className="p-6 bg-black">
         <div className="max-w-3xl mx-auto">
-          <form onSubmit={handleSubmit} className="flex items-center w-full rounded-xl bg-cropsay-dark p-3 focus-within:ring-1 focus-within:ring-cropsay-green transition-all border border-cropsay-grayDark/30">
+          <form onSubmit={handleSubmit} className="flex items-center w-full rounded-xl bg-cropsay-dark p-3 focus-within:ring-1 focus-within:ring-green-500 transition-all border border-cropsay-grayDark/30">
             <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
               <Image size={20} />
             </button>
@@ -563,7 +563,7 @@ const ChatPage = () => {
             <button 
               type="submit" 
               disabled={!input.trim()}
-              className={`p-2 rounded-lg ${input.trim() ? 'text-cropsay-green hover:bg-cropsay-grayDark' : 'text-cropsay-grayText'}`}
+              className={`p-2 rounded-lg ${input.trim() ? 'text-green-500 hover:bg-cropsay-grayDark' : 'text-cropsay-grayText'}`}
             >
               <Send size={20} />
             </button>
