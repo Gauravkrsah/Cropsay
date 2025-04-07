@@ -1,11 +1,12 @@
 
 import React from 'react';
-import { X, ShoppingBag, Info, Minus, Plus, Truck } from 'lucide-react';
+import { X, ShoppingBag, Info, Minus, Plus, Truck, ArrowLeft, Trash2, CreditCard } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export const ShoppingCartButton = () => {
   const { totalItems, totalPrice, openCart } = useCart();
@@ -32,21 +33,21 @@ export const CartItemQuantity: React.FC<{
   const { updateQuantity } = useCart();
   
   return (
-    <div className={cn("quantity-control", className)}>
+    <div className={cn("flex items-center bg-[#2A3143] rounded-full h-8", className)}>
       <button 
-        className="quantity-button"
+        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-l-full"
         onClick={() => updateQuantity(id, quantity - 1)}
         aria-label="Decrease quantity"
       >
-        <Minus size={16} />
+        <Minus size={14} />
       </button>
-      <span className="quantity-display">{quantity}</span>
+      <span className="w-6 text-center text-sm">{quantity}</span>
       <button 
-        className="quantity-button"
+        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-r-full"
         onClick={() => updateQuantity(id, quantity + 1)}
         aria-label="Increase quantity"
       >
-        <Plus size={16} />
+        <Plus size={14} />
       </button>
     </div>
   );
@@ -63,17 +64,19 @@ export const ShoppingCart = () => {
   
   return (
     <Dialog open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
-      <DialogContent className="p-0 max-w-2xl bg-[#10141E] text-gray-100 overflow-hidden border border-[#2A3143]">
+      <DialogContent className="p-0 max-w-3xl bg-[#10141E] text-gray-100 overflow-hidden border border-[#2A3143]">
         <div className="flex justify-between items-center p-4 border-b border-[#2A3143]">
-          <h2 className="text-xl font-bold">My Cart</h2>
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={closeCart}
-            className="rounded-full hover:bg-[#1E2735] h-8 w-8 text-gray-300"
-          >
-            <X size={18} />
-          </Button>
+          <div className="flex items-center">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={closeCart}
+              className="rounded-full hover:bg-[#1E2735] h-8 w-8 mr-2 text-gray-300"
+            >
+              <ArrowLeft size={16} />
+            </Button>
+            <h2 className="text-xl font-bold">My Cart ({totalItems})</h2>
+          </div>
         </div>
         
         {items.length === 0 ? (
@@ -91,106 +94,124 @@ export const ShoppingCart = () => {
             </Button>
           </div>
         ) : (
-          <>
-            <div className="bg-[#1E2735] p-4">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#2A3143] flex items-center justify-center">
-                  <Truck size={16} className="text-green-500" />
-                </div>
-                <div>
-                  <h3 className="font-medium">Delivery in 13 minutes</h3>
-                  <p className="text-sm text-gray-400">Shipment of {items.length} items</p>
+          <div className="flex flex-col md:flex-row max-h-[90vh] overflow-hidden">
+            <div className="flex-1 overflow-hidden flex flex-col">
+              <div className="bg-[#1E2735] p-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-[#2A3143] flex items-center justify-center">
+                    <Truck size={16} className="text-green-500" />
+                  </div>
+                  <div>
+                    <h3 className="font-medium">Delivery in 13 minutes</h3>
+                    <p className="text-sm text-gray-400">Shipment of {items.length} items</p>
+                  </div>
                 </div>
               </div>
+              
+              <ScrollArea className="flex-1 p-4">
+                <div className="space-y-4">
+                  {items.map((item) => (
+                    <div key={item.id} className="flex bg-[#1E2735] rounded-lg p-3 relative">
+                      <div className="w-16 h-16 bg-[#2A3143] rounded-md flex-shrink-0"></div>
+                      <div className="flex-1 ml-3">
+                        <div className="flex justify-between">
+                          <h4 className="font-medium">{item.name}</h4>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-gray-400 hover:text-white hover:bg-[#2A3143]"
+                            onClick={() => removeItem(item.id)}
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                        <p className="text-sm text-gray-400 mb-1">
+                          {item.description.split(' - ')[0]}
+                        </p>
+                        <div className="flex justify-between items-center">
+                          <div className="text-green-400 font-medium">₹{item.price}</div>
+                          <CartItemQuantity 
+                            id={item.id} 
+                            quantity={item.quantity}
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </ScrollArea>
             </div>
-            
-            <ScrollArea className="max-h-[30vh] p-4">
-              {items.map((item) => (
-                <div key={item.id} className="cart-item relative pr-7">
-                  <div className="w-14 h-14 bg-[#1E2735] rounded-md flex-shrink-0"></div>
-                  <div className="flex-1">
-                    <div className="flex justify-between">
-                      <h4 className="font-medium">{item.name}</h4>
+
+            <div className="w-full md:w-72 border-t md:border-t-0 md:border-l border-[#2A3143] bg-[#1E2735] flex flex-col">
+              <div className="p-4">
+                <h3 className="font-bold mb-4">Order Summary</h3>
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <div className="text-gray-300">Items total</div>
+                    <span>₹{totalPrice}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <div className="flex items-center gap-1 text-gray-300">
+                      <span>Delivery charge</span>
+                      <button className="text-gray-400">
+                        <Info size={12} />
+                      </button>
                     </div>
-                    <p className="text-sm text-gray-400 mb-1">
-                      {item.description.split(' - ')[0]}
-                    </p>
-                    <div className="flex justify-between items-center">
-                      <div className="text-green-400 font-medium">₹{item.price}</div>
-                      <CartItemQuantity 
-                        id={item.id} 
-                        quantity={item.quantity} 
-                        className="h-8"
-                      />
+                    <div className="flex items-center gap-1">
+                      <span className="text-gray-400 line-through">₹{deliveryCharge}</span>
+                      {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
                     </div>
                   </div>
-                  <button 
-                    onClick={() => removeItem(item.id)}
-                    className="absolute right-0 top-1 text-gray-400 hover:text-gray-200 p-1"
-                    aria-label="Remove item"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
-              ))}
-            </ScrollArea>
-            
-            <div className="p-4 bg-[#1E2735]">
-              <h3 className="font-bold mb-2">Bill details</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <div className="flex items-center gap-1">
-                    <span>Items total</span>
+                  <div className="flex justify-between">
+                    <div className="flex items-center gap-1 text-gray-300">
+                      <span>Handling charge</span>
+                      <button className="text-gray-400">
+                        <Info size={12} />
+                      </button>
+                    </div>
+                    <span>₹{handlingCharge}</span>
                   </div>
-                  <span>₹{totalPrice}</span>
-                </div>
-                <div className="flex justify-between">
-                  <div className="flex items-center gap-1">
-                    <span>Delivery charge</span>
-                    <button className="text-gray-400">
-                      <Info size={14} />
-                    </button>
+                  <div className="flex justify-between border-t border-[#2A3143] mt-3 pt-3 font-medium">
+                    <span>Grand total</span>
+                    <span>₹{grandTotal}</span>
                   </div>
-                  <div className="flex items-center gap-1">
-                    <span className="text-gray-400 line-through">₹{deliveryCharge}</span>
-                    {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <div className="flex items-center gap-1">
-                    <span>Handling charge</span>
-                    <button className="text-gray-400">
-                      <Info size={14} />
-                    </button>
-                  </div>
-                  <span>₹{handlingCharge}</span>
-                </div>
-                <div className="cart-total border-t border-[#2A3143] mt-2 pt-2">
-                  <span>Grand total</span>
-                  <span>₹{grandTotal}</span>
                 </div>
               </div>
+
+              <div className="p-4 border-t border-[#2A3143]">
+                <div className="space-y-2 text-sm">
+                  <h4 className="font-medium mb-2">Payment Methods</h4>
+                  <div className="bg-[#10141E] rounded-md p-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
+                        <CreditCard size={16} />
+                      </div>
+                      <span>Credit / Debit Card</span>
+                    </div>
+                    <input type="radio" className="accent-green-500" name="payment" defaultChecked />
+                  </div>
+                  <div className="bg-[#10141E] rounded-md p-3 flex items-center justify-between">
+                    <div className="flex items-center">
+                      <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <rect width="24" height="24" rx="12" fill="#2A3143" />
+                          <path d="M12 5L7 12H11L10 19L17 10H13L14 5H12Z" fill="#FFFFFF" />
+                        </svg>
+                      </div>
+                      <span>UPI</span>
+                    </div>
+                    <input type="radio" className="accent-green-500" name="payment" />
+                  </div>
+                </div>
+              </div>
+              
+              <div className="mt-auto p-4 border-t border-[#2A3143]">
+                <Button className="w-full bg-green-500 hover:bg-green-600 text-white h-11">
+                  Proceed to Payment • ₹{grandTotal}
+                </Button>
+              </div>
             </div>
-            
-            <div className="p-4 bg-[#1E2735] border-t border-[#2A3143]">
-              <h3 className="font-bold mb-2">Cancellation Policy</h3>
-              <p className="text-sm text-gray-400">
-                Orders cannot be cancelled once packed for delivery. In case of unexpected delays, a refund will be provided, if applicable.
-              </p>
-            </div>
-            
-            <div className="sticky bottom-0 left-0 right-0 p-4 border-t border-[#2A3143] bg-[#10141E]">
-              <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
-                <span className="flex-1 flex items-center justify-between px-4">
-                  <span className="font-semibold">₹{grandTotal}</span>
-                  <span className="flex items-center gap-1">
-                    Login to Proceed
-                    <span className="ml-1">→</span>
-                  </span>
-                </span>
-              </Button>
-            </div>
-          </>
+          </div>
         )}
       </DialogContent>
     </Dialog>

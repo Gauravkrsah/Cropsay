@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck } from 'lucide-react';
+import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { CartItemQuantity } from '@/components/ShoppingCart';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ExpertPanelProps {
   isOpen: boolean;
@@ -100,6 +101,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
   const [chatInput, setChatInput] = useState('');
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const { items, addItem, openCart } = useCart();
 
   const handleChatNow = (expert: Expert) => {
@@ -116,6 +118,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
       // Here you would normally send the message to the API
       // For now we just clear the input
       setChatInput('');
+      setShowAttachmentMenu(false);
     }
   };
   
@@ -126,12 +129,16 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const handleAddToCart = (product: any) => {
     addItem(product);
   };
+  
+  const toggleAttachmentMenu = () => {
+    setShowAttachmentMenu(!showAttachmentMenu);
+  };
 
   return (
     <>
       <div 
         className={cn(
-          "fixed right-0 top-0 h-full w-96 bg-[#1E2735] shadow-lg transition-transform duration-300 z-50",
+          "fixed right-0 top-0 h-full w-96 bg-[#10141E] shadow-lg transition-transform duration-300 z-50",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
@@ -349,7 +356,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
 
       {/* Expert Chat Dialog (WhatsApp-like) - centered and bigger */}
       <Dialog open={!!activeChatExpert} onOpenChange={(open) => !open && setActiveChatExpert(null)}>
-        <DialogContent className="sm:max-w-[500px] p-0 bg-[#0F1621] border-[#1E2A3B] overflow-hidden">
+        <DialogContent className="sm:max-w-[500px] p-0 bg-[#10141E] border-[#1E2A3B] overflow-hidden">
           <div className="bg-green-600 p-3 flex justify-between items-center">
             <div className="flex items-center">
               <div className="w-10 h-10 rounded-full bg-white mr-3 flex items-center justify-center overflow-hidden">
@@ -366,6 +373,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 <p className="text-white/80 text-xs">{activeChatExpert?.role}</p>
               </div>
             </div>
+            {/* Only showing one close button */}
             <Button 
               variant="ghost" 
               size="icon" 
@@ -403,6 +411,77 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
           </ScrollArea>
           
           <div className="p-3 bg-[#1E2A3B] border-t border-[#2E3A4B]">
+            {/* Call buttons */}
+            <div className="flex justify-between mb-3">
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-green-500 hover:bg-[#2E3A4B] p-2"
+              >
+                <Phone size={18} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-green-500 hover:bg-[#2E3A4B] p-2"
+              >
+                <Video size={18} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-green-500 hover:bg-[#2E3A4B] p-2"
+              >
+                <Mic size={18} />
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm"
+                className="text-green-500 hover:bg-[#2E3A4B] p-2"
+                onClick={toggleAttachmentMenu}
+              >
+                <Upload size={18} />
+              </Button>
+            </div>
+            
+            {/* Attachment menu */}
+            {showAttachmentMenu && (
+              <div className="bg-[#2E3A4B] mb-3 p-3 rounded-md">
+                <div className="grid grid-cols-3 gap-2 text-center">
+                  <div className="flex flex-col items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="bg-[#3E4A5B] mb-1 hover:bg-[#4E5A6B]"
+                    >
+                      <Upload size={18} />
+                    </Button>
+                    <span className="text-xs text-gray-300">Photo</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="bg-[#3E4A5B] mb-1 hover:bg-[#4E5A6B]"
+                    >
+                      <BookOpen size={18} />
+                    </Button>
+                    <span className="text-xs text-gray-300">Document</span>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <Button 
+                      variant="ghost" 
+                      size="icon"
+                      className="bg-[#3E4A5B] mb-1 hover:bg-[#4E5A6B]"
+                    >
+                      <Mic size={18} />
+                    </Button>
+                    <span className="text-xs text-gray-300">Audio</span>
+                  </div>
+                </div>
+              </div>
+            )}
+            
             <div className="flex">
               <input 
                 type="text" 
