@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Mic, Image, History, X, User, Trash2, Edit, Star, MessageSquare, BookOpen, ShoppingBag, Users } from 'lucide-react';
 import { useOutletContext, useSearchParams } from 'react-router-dom';
@@ -178,12 +177,12 @@ const ChatPage = () => {
       return;
     }
     
-    setChatSessions(prev => prev.filter(s => s.id !== deletingChatId));
+    const updatedSessions = chatSessions.filter(s => s.id !== deletingChatId);
+    setChatSessions(updatedSessions);
     
     // If we're deleting the current chat, switch to another one
     if (deletingChatId === currentChatId) {
-      const remainingSessions = chatSessions.filter(s => s.id !== deletingChatId);
-      const newCurrentChat = remainingSessions[0];
+      const newCurrentChat = updatedSessions[0];
       setCurrentChatId(newCurrentChat.id);
       setMessages(newCurrentChat.messages);
     }
@@ -245,7 +244,7 @@ const ChatPage = () => {
   };
 
   return (
-    <div className="h-screen flex flex-col relative bg-black">
+    <div className="h-screen flex flex-col relative bg-[#1E2735]">
       <div className="p-4 flex justify-between items-center shadow-sm bg-cropsay-dark border-b border-cropsay-grayDark/30">
         <div className="flex items-center space-x-3">
           <h1 className="text-xl font-bold">Cropsay AI Assistant</h1>
@@ -291,7 +290,7 @@ const ChatPage = () => {
       </div>
       
       {showChatHistory && (
-        <div className="absolute top-16 right-0 w-80 h-[calc(100vh-64px)] bg-cropsay-dark z-10 shadow-lg animate-slide-in-right">
+        <div className="absolute top-16 right-0 w-80 h-[calc(100vh-64px)] bg-[#1E2735] z-10 shadow-lg animate-slide-in-right">
           <div className="flex justify-between items-center p-4 border-b border-cropsay-grayDark/30">
             <h3 className="font-medium">Chat History</h3>
             <Button variant="ghost" size="sm" onClick={() => setShowChatHistory(false)}>
@@ -320,20 +319,20 @@ const ChatPage = () => {
                             onClick={() => switchToChat(session.id)}
                             className={cn(
                               "mb-2 cursor-pointer hover:bg-cropsay-darkSecondary transition-colors group relative border-cropsay-grayDark/30",
-                              currentChatId === session.id ? "bg-cropsay-darkSecondary" : "bg-cropsay-dark"
+                              currentChatId === session.id ? "bg-cropsay-darkSecondary" : "bg-[#1E2735]"
                             )}
                           >
                             <CardContent className="p-3">
-                              <div className="flex justify-between items-start">
-                                <h4 className="font-medium truncate pr-2 flex-1">{session.title}</h4>
-                                <span className="text-xs text-cropsay-grayText">
+                              <div className="flex justify-between items-start mb-1">
+                                <h4 className="font-medium truncate pr-8 flex-1">{session.title}</h4>
+                                <span className="text-xs text-cropsay-grayText ml-1">
                                   {session.timestamp.toLocaleDateString()}
                                 </span>
                               </div>
                               <p className="text-xs text-cropsay-grayText truncate">
                                 {session.lastMessage || "New conversation"}
                               </p>
-                              <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1">
+                              <div className="absolute right-3 top-3 hidden group-hover:flex space-x-1">
                                 <button 
                                   onClick={(e) => toggleStarChat(session.id, e)}
                                   className="p-1 hover:bg-cropsay-dark rounded-full"
@@ -367,20 +366,20 @@ const ChatPage = () => {
                           onClick={() => switchToChat(session.id)}
                           className={cn(
                             "mb-2 cursor-pointer hover:bg-cropsay-darkSecondary transition-colors group relative border-cropsay-grayDark/30",
-                            currentChatId === session.id ? "bg-cropsay-darkSecondary" : "bg-cropsay-dark"
+                            currentChatId === session.id ? "bg-cropsay-darkSecondary" : "bg-[#1E2735]"
                           )}
                         >
                           <CardContent className="p-3">
-                            <div className="flex justify-between items-start">
-                              <h4 className="font-medium truncate pr-2 flex-1">{session.title}</h4>
-                              <span className="text-xs text-cropsay-grayText">
+                            <div className="flex justify-between items-start mb-1">
+                              <h4 className="font-medium truncate pr-8 flex-1">{session.title}</h4>
+                              <span className="text-xs text-cropsay-grayText ml-1">
                                 {session.timestamp.toLocaleDateString()}
                               </span>
                             </div>
                             <p className="text-xs text-cropsay-grayText truncate">
                               {session.lastMessage || "New conversation"}
                             </p>
-                            <div className="absolute right-2 top-2 hidden group-hover:flex space-x-1">
+                            <div className="absolute right-3 top-3 hidden group-hover:flex space-x-1">
                               <button 
                                 onClick={(e) => toggleStarChat(session.id, e)}
                                 className="p-1 hover:bg-cropsay-dark rounded-full"
@@ -552,7 +551,7 @@ const ChatPage = () => {
         )}
       </div>
       
-      <div className="p-6 bg-black">
+      <div className="p-6 bg-[#1E2735]">
         <div className="max-w-3xl mx-auto">
           <form onSubmit={handleSubmit} className="flex items-center w-full rounded-xl bg-cropsay-dark p-3 focus-within:ring-1 focus-within:ring-green-500 transition-all border border-cropsay-grayDark/30">
             <button type="button" className="p-2 text-cropsay-grayText hover:text-cropsay-lightText">
@@ -586,7 +585,7 @@ const ChatPage = () => {
       </div>
 
       {/* Delete Chat Confirmation Dialog */}
-      <AlertDialog open={!!deletingChatId} onOpenChange={() => setDeletingChatId(null)}>
+      <AlertDialog open={!!deletingChatId} onOpenChange={(open) => !open && setDeletingChatId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Chat</AlertDialogTitle>

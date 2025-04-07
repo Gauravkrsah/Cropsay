@@ -1,6 +1,8 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, ShoppingCart } from 'lucide-react';
+import { Search, Filter, ShoppingBag, Plus, Minus } from 'lucide-react';
+import { useCart, CartItem } from '@/contexts/CartContext';
+import { CartItemQuantity, ShoppingCart, ShoppingCartButton } from '@/components/ShoppingCart';
 
 const categories = [
   'All Products',
@@ -71,6 +73,7 @@ const products = [
 const ShopPage = () => {
   const [activeCategory, setActiveCategory] = useState('All Products');
   const [searchQuery, setSearchQuery] = useState('');
+  const { items, addItem, openCart } = useCart();
   
   const filteredProducts = products.filter(product => {
     if (activeCategory !== 'All Products' && product.category !== activeCategory) {
@@ -81,6 +84,14 @@ const ShopPage = () => {
     }
     return true;
   });
+  
+  const handleAddToCart = (product: any) => {
+    addItem(product);
+  };
+  
+  const cartItemForProduct = (productId: number) => {
+    return items.find(item => item.id === productId);
+  };
 
   return (
     <div className="h-screen overflow-y-auto">
@@ -102,12 +113,28 @@ const ShopPage = () => {
             <Filter size={18} />
             <span>Filter</span>
           </button>
-          <button className="relative p-2 bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-lg transition-colors">
-            <ShoppingCart size={20} />
-            <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              0
-            </span>
-          </button>
+          {items.length > 0 ? (
+            <button 
+              onClick={openCart}
+              className="relative p-2 bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-lg transition-colors"
+              aria-label={`View cart with ${items.length} items`}
+            >
+              <ShoppingBag size={20} />
+              <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {items.reduce((total, item) => total + item.quantity, 0)}
+              </span>
+            </button>
+          ) : (
+            <button 
+              className="relative p-2 bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-lg transition-colors"
+              aria-label="Cart is empty"
+            >
+              <ShoppingBag size={20} />
+              <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                0
+              </span>
+            </button>
+          )}
         </div>
       </div>
       
@@ -131,37 +158,60 @@ const ShopPage = () => {
         
         {/* Products */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredProducts.map(product => (
-            <div key={product.id} className="bg-cropsay-darkSecondary rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="h-48 bg-cropsay-grayDark"></div>
-              <div className="p-4">
-                <div className="flex justify-between items-start">
-                  <h3 className="font-medium">{product.name}</h3>
-                  <div className="flex items-center">
-                    <span className="text-yellow-400 mr-1">★</span>
-                    <span className="text-sm">{product.rating}</span>
+          {filteredProducts.map(product => {
+            const cartItem = cartItemForProduct(product.id);
+            
+            return (
+              <div key={product.id} className="bg-cropsay-darkSecondary rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="h-48 bg-cropsay-grayDark"></div>
+                <div className="p-4">
+                  <div className="flex justify-between items-start">
+                    <h3 className="font-medium">{product.name}</h3>
+                    <div className="flex items-center">
+                      <span className="text-yellow-400 mr-1">★</span>
+                      <span className="text-sm">{product.rating}</span>
+                    </div>
                   </div>
-                </div>
-                <p className="text-sm text-cropsay-grayText mt-1 mb-3">{product.description}</p>
-                <div className="flex justify-between items-center">
-                  <div>
-                    <span className="font-bold text-lg">₹{product.price}</span>
-                    <span className={`text-xs ml-2 ${product.inStock ? 'text-green-500' : 'text-red-500'}`}>
-                      {product.inStock ? 'In Stock' : 'Out of Stock'}
-                    </span>
+                  <p className="text-sm text-cropsay-grayText mt-1 mb-3">{product.description}</p>
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <span className="font-bold text-lg">₹{product.price}</span>
+                      <span className={`text-xs ml-2 ${product.inStock ? 'text-green-500' : 'text-red-500'}`}>
+                        {product.inStock ? 'In Stock' : 'Out of Stock'}
+                      </span>
+                    </div>
+                    
+                    {cartItem ? (
+                      <CartItemQuantity 
+                        id={product.id} 
+                        quantity={cartItem.quantity} 
+                      />
+                    ) : (
+                      <button 
+                        className={`primary-button text-sm ${!product.inStock && 'opacity-50 cursor-not-allowed'}`}
+                        disabled={!product.inStock}
+                        onClick={() => handleAddToCart(product)}
+                      >
+                        Add to Cart
+                      </button>
+                    )}
                   </div>
-                  <button 
-                    className={`primary-button text-sm ${!product.inStock && 'opacity-50 cursor-not-allowed'}`}
-                    disabled={!product.inStock}
-                  >
-                    Add to Cart
-                  </button>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
+      
+      {/* Floating cart button for mobile view */}
+      {items.length > 0 && (
+        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-10 md:hidden">
+          <ShoppingCartButton />
+        </div>
+      )}
+      
+      {/* Shopping Cart Dialog */}
+      <ShoppingCart />
     </div>
   );
 };

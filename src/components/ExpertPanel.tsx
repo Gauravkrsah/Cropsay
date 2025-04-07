@@ -1,12 +1,14 @@
 
 import React, { useState } from 'react';
-import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag } from 'lucide-react';
+import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCart, CartItem } from '@/contexts/CartContext';
+import { CartItemQuantity } from '@/components/ShoppingCart';
 
 interface ExpertPanelProps {
   isOpen: boolean;
@@ -24,6 +26,37 @@ interface Expert {
   rating: number;
   image?: string;
 }
+
+// Sample recommended products data
+const recommendedProducts = [
+  {
+    id: 101,
+    name: 'Premium Seeds',
+    description: 'High-Yield Wheat Seeds',
+    price: 2550,
+    rating: 4.9,
+    category: 'Seeds',
+    inStock: true,
+  },
+  {
+    id: 102,
+    name: 'Roundup',
+    description: 'Roundup Herbicide',
+    price: 450,
+    rating: 4.8,
+    category: 'Pesticides',
+    inStock: true,
+  },
+  {
+    id: 103,
+    name: 'NPK Fertilizer',
+    description: 'Balanced Wheat Formula',
+    price: 1200,
+    rating: 4.7,
+    category: 'Fertilizers',
+    inStock: true,
+  },
+];
 
 // Sample experts data - in a real app this would come from an API
 const experts: Expert[] = [
@@ -67,6 +100,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
   const [chatInput, setChatInput] = useState('');
+  const { items, addItem, openCart } = useCart();
 
   const handleChatNow = (expert: Expert) => {
     setActiveChatExpert(expert);
@@ -84,22 +118,30 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
       setChatInput('');
     }
   };
+  
+  const cartItemForProduct = (productId: number) => {
+    return items.find(item => item.id === productId);
+  };
+  
+  const handleAddToCart = (product: any) => {
+    addItem(product);
+  };
 
   return (
     <>
       <div 
         className={cn(
-          "fixed right-0 top-0 h-full w-96 bg-[#0F1621] shadow-lg transition-transform duration-300 z-50",
+          "fixed right-0 top-0 h-full w-96 bg-[#1E2735] shadow-lg transition-transform duration-300 z-50",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
-        <div className="flex justify-between items-center p-4 border-b border-[#1E2A3B]">
+        <div className="flex justify-between items-center p-4 border-b border-[#2E3A4B]">
           <h3 className="font-medium text-lg">{title}</h3>
           <Button 
             variant="ghost"
             size="icon"
             onClick={onClose}
-            className="rounded-full hover:bg-[#1E2A3B] transition-colors"
+            className="rounded-full hover:bg-[#2E3A4B] transition-colors"
           >
             <X size={18} />
           </Button>
@@ -112,10 +154,10 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 <Button variant="default" className="rounded-full bg-green-500 text-white hover:bg-green-600">
                   All
                 </Button>
-                <Button variant="outline" className="rounded-full bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">
+                <Button variant="outline" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">
                   Agronomists
                 </Button>
-                <Button variant="outline" className="rounded-full bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">
+                <Button variant="outline" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">
                   Soil Specialists
                 </Button>
               </div>
@@ -124,9 +166,9 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
             <ScrollArea className="h-[calc(100%-132px)] custom-scrollbar">
               <div className="p-4 space-y-4">
                 {experts.map(expert => (
-                  <div key={expert.id} className="bg-[#182030] rounded-lg p-4">
+                  <div key={expert.id} className="bg-[#2E3A4B] rounded-lg p-4">
                     <div className="flex gap-3">
-                      <div className="w-14 h-14 rounded-full bg-[#232F40] flex items-center justify-center overflow-hidden flex-shrink-0">
+                      <div className="w-14 h-14 rounded-full bg-[#3E4A5B] flex items-center justify-center overflow-hidden flex-shrink-0">
                         {expert.image ? (
                           <img src={expert.image} alt={expert.name} className="w-full h-full object-cover" />
                         ) : (
@@ -157,7 +199,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                           </Button>
                           <Button 
                             variant="outline" 
-                            className="flex-1 h-9 rounded-md bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]"
+                            className="flex-1 h-9 rounded-md bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]"
                             onClick={() => handleSchedule(expert)}
                           >
                             <Calendar size={16} className="mr-1" /> Schedule
@@ -173,7 +215,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
         ) : title === "Relevant Sources" ? (
           <ScrollArea className="h-[calc(100%-64px)] custom-scrollbar">
             <div className="p-4 space-y-4">
-              <div className="bg-[#182030] rounded-lg p-4">
+              <div className="bg-[#2E3A4B] rounded-lg p-4">
                 <h4 className="font-medium text-white">Agricultural Best Practices</h4>
                 <p className="text-sm text-gray-300 mb-2">Indian Council of Agricultural Research</p>
                 <div className="flex justify-between items-center">
@@ -190,7 +232,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 </div>
               </div>
               
-              <div className="bg-[#182030] rounded-lg p-4">
+              <div className="bg-[#2E3A4B] rounded-lg p-4">
                 <h4 className="font-medium text-white">Modern Wheat Cultivation Methods</h4>
                 <p className="text-sm text-gray-300 mb-2">Punjab Agricultural University</p>
                 <div className="flex justify-between items-center">
@@ -207,7 +249,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 </div>
               </div>
               
-              <div className="bg-[#182030] rounded-lg p-4">
+              <div className="bg-[#2E3A4B] rounded-lg p-4">
                 <h4 className="font-medium text-white">Climate-Smart Agriculture in South Asia</h4>
                 <p className="text-sm text-gray-300 mb-2">National Agricultural Research Centre</p>
                 <div className="flex justify-between items-center">
@@ -228,82 +270,73 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
         ) : title === "Recommended Products" ? (
           <ScrollArea className="h-[calc(100%-64px)] custom-scrollbar">
             <div className="p-4">
-              <div className="flex flex-wrap gap-2 mb-6">
-                <Button variant="default" size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">All</Button>
-                <Button variant="outline" size="sm" className="rounded-full bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Seeds</Button>
-                <Button variant="outline" size="sm" className="rounded-full bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Pesticides</Button>
-                <Button variant="outline" size="sm" className="rounded-full bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Equipment</Button>
+              <div className="flex justify-between items-center mb-4">
+                <div className="flex flex-wrap gap-2">
+                  <Button variant="default" size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">All</Button>
+                  <Button variant="outline" size="sm" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">Seeds</Button>
+                  <Button variant="outline" size="sm" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">Pesticides</Button>
+                </div>
+                
+                {items.length > 0 && (
+                  <Button
+                    onClick={openCart}
+                    variant="outline"
+                    size="icon"
+                    className="relative p-2 bg-[#2E3A4B] hover:bg-[#3E4A5B] border-[#3E4A5B] rounded-full transition-colors"
+                  >
+                    <ShoppingBag size={18} />
+                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                      {items.reduce((total, item) => total + item.quantity, 0)}
+                    </span>
+                  </Button>
+                )}
               </div>
               
               <div className="space-y-4">
-                <div className="bg-[#182030] rounded-lg p-4">
-                  <div className="flex items-start">
-                    <div className="w-12 h-12 bg-[#232F40] rounded-md mr-3 flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <h4 className="font-medium">Premium Seeds</h4>
-                        <div className="flex items-center">
-                          <span className="text-yellow-400 mr-1">★</span>
-                          <span className="text-sm">4.9</span>
+                {recommendedProducts.map(product => {
+                  const cartItem = cartItemForProduct(product.id);
+                  
+                  return (
+                    <div key={product.id} className="bg-[#2E3A4B] rounded-lg p-4">
+                      <div className="flex items-start">
+                        <div className="w-12 h-12 bg-[#3E4A5B] rounded-md mr-3 flex-shrink-0"></div>
+                        <div className="flex-1">
+                          <div className="flex justify-between">
+                            <h4 className="font-medium">{product.name}</h4>
+                            <div className="flex items-center">
+                              <span className="text-yellow-400 mr-1">★</span>
+                              <span className="text-sm">{product.rating}</span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-gray-400 mb-2">{product.description}</p>
+                          <div className="flex justify-between items-center">
+                            <div>
+                              <span className="font-medium">₹{product.price}</span>
+                              <span className="text-xs ml-2 text-green-500">In Stock</span>
+                            </div>
+                            
+                            {cartItem ? (
+                              <CartItemQuantity 
+                                id={product.id} 
+                                quantity={cartItem.quantity}
+                                className="h-8" 
+                              />
+                            ) : (
+                              <Button 
+                                size="sm" 
+                                variant="default" 
+                                className="bg-green-500 hover:bg-green-600"
+                                onClick={() => handleAddToCart(product)}
+                              >
+                                Add
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">High-Yield Wheat Seeds</p>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">₹2550</span>
-                          <span className="text-xs ml-2 text-red-500">Low Stock</span>
-                        </div>
-                        <Button size="sm" variant="default" className="bg-green-500 hover:bg-green-600">Add</Button>
                       </div>
                     </div>
-                  </div>
-                </div>
-                
-                <div className="bg-[#182030] rounded-lg p-4">
-                  <div className="flex items-start">
-                    <div className="w-12 h-12 bg-[#232F40] rounded-md mr-3 flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <h4 className="font-medium">Roundup</h4>
-                        <div className="flex items-center">
-                          <span className="text-yellow-400 mr-1">★</span>
-                          <span className="text-sm">4.8</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">Roundup Herbicide</p>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">₹450</span>
-                          <span className="text-xs ml-2 text-green-500">In Stock</span>
-                        </div>
-                        <Button size="sm" variant="default" className="bg-green-500 hover:bg-green-600">Add</Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="bg-[#182030] rounded-lg p-4">
-                  <div className="flex items-start">
-                    <div className="w-12 h-12 bg-[#232F40] rounded-md mr-3 flex-shrink-0"></div>
-                    <div className="flex-1">
-                      <div className="flex justify-between">
-                        <h4 className="font-medium">NPK Fertilizer</h4>
-                        <div className="flex items-center">
-                          <span className="text-yellow-400 mr-1">★</span>
-                          <span className="text-sm">4.7</span>
-                        </div>
-                      </div>
-                      <p className="text-xs text-gray-400 mb-2">Balanced Wheat Formula</p>
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <span className="font-medium">₹1200</span>
-                          <span className="text-xs ml-2 text-green-500">In Stock</span>
-                        </div>
-                        <Button size="sm" variant="default" className="bg-green-500 hover:bg-green-600">Add</Button>
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                  );
+                })}
               </div>
             </div>
           </ScrollArea>
