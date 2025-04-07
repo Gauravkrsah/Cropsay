@@ -1,5 +1,4 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -103,6 +102,24 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [chatInput, setChatInput] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const { items, addItem, openCart } = useCart();
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  // Add click outside handler to close the panel
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (isOpen && 
+          panelRef.current && 
+          !panelRef.current.contains(event.target as Node) && 
+          !(event.target as Element).closest('[data-sidebar-toggle]')) {
+        onClose();
+      }
+    };
+    
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isOpen, onClose]);
 
   const handleChatNow = (expert: Expert) => {
     setActiveChatExpert(expert);
@@ -137,6 +154,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   return (
     <>
       <div 
+        ref={panelRef}
         className={cn(
           "fixed right-0 top-0 h-full w-96 bg-[#10141E] shadow-lg transition-transform duration-300 z-50",
           isOpen ? "translate-x-0" : "translate-x-full"
