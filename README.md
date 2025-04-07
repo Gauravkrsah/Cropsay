@@ -1,73 +1,92 @@
-# Welcome to your Lovable project
+# CropsayAI
 
-## Project info
+<div align="center">
+  <img src="./public/cropsay-icon.svg" alt="CropsayAI Logo" width="200" height="200">
+</div>
 
-**URL**: https://lovable.dev/projects/49ba16a9-78c9-4211-9a62-d810519b6776
+## 🌱 About CropsayAI
 
-## How can I edit this code?
+CropsayAI is an innovative chat-commerce platform designed specifically for the agricultural sector. It connects farmers with agricultural experts, provides product recommendations, and offers a seamless shopping experience for agricultural supplies.
 
-There are several ways of editing your application.
+## ✨ Features
 
-**Use Lovable**
+- **Expert Consultation**: Connect with agricultural specialists through chat
+- **Product Recommendations**: Get personalized product suggestions for your crops
+- **Shopping Integration**: Purchase agricultural supplies directly through the platform
+- **Multi-language Support**: Communicate in your preferred language
+- **Responsive Design**: Access from any device with a consistent experience
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/49ba16a9-78c9-4211-9a62-d810519b6776) and start prompting.
+## 🚀 Getting Started
 
-Changes made via Lovable will be committed automatically to this repo.
+### Prerequisites
 
-**Use your preferred IDE**
+- Node.js (v16 or higher)
+- npm or yarn
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+### Installation
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
-
+1. Clone the repository:
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
-
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
-
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+git clone https://github.com/yourusername/cropsayai.git
+cd cropsayai
 ```
 
-**Edit a file directly in GitHub**
+2. Install dependencies:
+```sh
+npm install
+# or
+yarn install
+```
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+3. Start the development server:
+```sh
+npm run dev
+# or
+yarn dev
+```
 
-**Use GitHub Codespaces**
+4. Open your browser and navigate to `http://localhost:8080`
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🛠️ Tech Stack
 
-## What technologies are used for this project?
+- **Frontend**: React, TypeScript, Tailwind CSS
+- **UI Components**: shadcn/ui
+- **State Management**: React Context API
+- **Routing**: React Router
+- **Backend Integration**: Supabase
+- **Build Tool**: Vite
 
-This project is built with:
+## 📱 Application Structure
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Chat Interface**: Real-time communication with agricultural experts
+- **Product Catalog**: Browse agricultural supplies with detailed information
+- **Shopping Cart**: Seamless checkout experience
+- **Expert Profiles**: Information about available agricultural specialists
+- **User Dashboard**: Track orders, consultations, and recommendations
 
-## How can I deploy this project?
+## 🔧 Development
 
-Simply open [Lovable](https://lovable.dev/projects/49ba16a9-78c9-4211-9a62-d810519b6776) and click on Share -> Publish.
+### Available Scripts
 
-## Can I connect a custom domain to my Lovable project?
+- `npm run dev` - Start development server
+- `npm run build` - Build for production
+- `npm run preview` - Preview production build
+- `npm run lint` - Run ESLint
 
-Yes it is!
+## 📄 License
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+This project is licensed under the MIT License - see the LICENSE file for details.
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+## 🤝 Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## 📞 Contact
+
+For questions or support, please reach out to us at [support@cropsayai.com](mailto:support@cropsayai.com).
+
+---
+
+<div align="center">
+  <p>Built with ❤️ for farmers everywhere</p>
+</div>

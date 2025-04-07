@@ -67,7 +67,7 @@ const experts: Expert[] = [
     experience: '15+ years exp.',
     languages: ['English', 'Nepali'],
     rating: 4.9,
-    image: '/lovable-uploads/0f958db4-ccac-4f66-a163-d97a14bd4953.png',
+    image: '/assets/experts/sarah-chen.png',
   },
   {
     id: '2',
