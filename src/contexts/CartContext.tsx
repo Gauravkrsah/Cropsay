@@ -70,6 +70,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             : item
         );
       } else {
+        setIsCartOpen(true); // Open cart when adding new item
         return [...prevItems, { ...product, quantity: 1 }];
       }
     });

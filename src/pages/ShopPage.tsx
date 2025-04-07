@@ -94,8 +94,8 @@ const ShopPage = () => {
   };
 
   return (
-    <div className="h-screen overflow-y-auto">
-      <div className="border-b border-cropsay-grayDark p-4">
+    <div className="h-screen overflow-y-auto bg-[#1E2735]">
+      <div className="border-b border-[#2A3143] p-4">
         <h1 className="text-2xl font-bold mb-4">Shop Agricultural Products</h1>
         
         <div className="flex items-center space-x-2">
@@ -106,35 +106,23 @@ const ShopPage = () => {
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-cropsay-darkSecondary border border-cropsay-grayDark rounded-lg py-2 pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"
+              className="w-full bg-[#10141E] border border-[#2A3143] rounded-lg py-2 pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"
             />
           </div>
-          <button className="action-button">
+          <button className="action-button bg-[#10141E] hover:bg-[#2A3143]">
             <Filter size={18} />
             <span>Filter</span>
           </button>
-          {items.length > 0 ? (
-            <button 
-              onClick={openCart}
-              className="relative p-2 bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-lg transition-colors"
-              aria-label={`View cart with ${items.length} items`}
-            >
-              <ShoppingBag size={20} />
-              <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {items.reduce((total, item) => total + item.quantity, 0)}
-              </span>
-            </button>
-          ) : (
-            <button 
-              className="relative p-2 bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-lg transition-colors"
-              aria-label="Cart is empty"
-            >
-              <ShoppingBag size={20} />
-              <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                0
-              </span>
-            </button>
-          )}
+          <button 
+            onClick={openCart}
+            className="relative p-2 bg-[#10141E] hover:bg-[#2A3143] rounded-lg transition-colors"
+            aria-label={`View cart with ${items.length} items`}
+          >
+            <ShoppingBag size={20} />
+            <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+              {items.reduce((total, item) => total + item.quantity, 0)}
+            </span>
+          </button>
         </div>
       </div>
       
@@ -147,7 +135,7 @@ const ShopPage = () => {
               className={`px-4 py-2 rounded-full whitespace-nowrap ${
                 activeCategory === category 
                   ? 'bg-cropsay-green text-white' 
-                  : 'bg-cropsay-darkSecondary hover:bg-cropsay-grayDark'
+                  : 'bg-[#10141E] hover:bg-[#2A3143]'
               }`}
               onClick={() => setActiveCategory(category)}
             >
@@ -162,8 +150,8 @@ const ShopPage = () => {
             const cartItem = cartItemForProduct(product.id);
             
             return (
-              <div key={product.id} className="bg-cropsay-darkSecondary rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="h-48 bg-cropsay-grayDark"></div>
+              <div key={product.id} className="bg-[#10141E] rounded-lg overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="h-48 bg-[#2A3143]"></div>
                 <div className="p-4">
                   <div className="flex justify-between items-start">
                     <h3 className="font-medium">{product.name}</h3>

@@ -5,10 +5,12 @@ import { AppSidebar } from './AppSidebar';
 import { ExpertPanel } from './ExpertPanel';
 import { BookOpen, ShoppingBag, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useCart } from '@/contexts/CartContext';
 
 export const AppLayout = () => {
   const [expertPanelOpen, setExpertPanelOpen] = useState(false);
   const [panelType, setPanelType] = useState<'sources' | 'products' | 'experts'>('sources');
+  const { openCart } = useCart();
 
   const openSourcesPanel = () => {
     setPanelType('sources');
@@ -28,7 +30,7 @@ export const AppLayout = () => {
   return (
     <div className="flex h-screen overflow-hidden">
       <AppSidebar />
-      <div className="relative flex-1 overflow-x-hidden">
+      <div className="relative flex-1 overflow-x-hidden bg-[#1E2735]">
         <Outlet context={{ openSourcesPanel, openProductsPanel, openExpertsPanel }} />
         
         {/* Right side floating buttons */}
@@ -38,7 +40,7 @@ export const AppLayout = () => {
             size="icon"
             onClick={openSourcesPanel}
             aria-label="Open expert sources"
-            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
+            className="bg-[#10141E] hover:bg-[#1E2735] rounded-full shadow-lg w-10 h-10"
           >
             <BookOpen size={20} />
           </Button>
@@ -47,7 +49,7 @@ export const AppLayout = () => {
             size="icon"
             onClick={openProductsPanel}
             aria-label="Open recommended products"
-            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
+            className="bg-[#10141E] hover:bg-[#1E2735] rounded-full shadow-lg w-10 h-10"
           >
             <ShoppingBag size={20} />
           </Button>
@@ -56,7 +58,7 @@ export const AppLayout = () => {
             size="icon"
             onClick={openExpertsPanel}
             aria-label="Chat with experts"
-            className="bg-cropsay-darkSecondary hover:bg-cropsay-grayDark rounded-full shadow-lg w-10 h-10"
+            className="bg-[#10141E] hover:bg-[#1E2735] rounded-full shadow-lg w-10 h-10"
           >
             <Users size={20} />
           </Button>
@@ -108,7 +110,7 @@ export const AppLayout = () => {
               description="High-Yield Wheat Seeds" 
               price={2550}
               rating={4.9}
-              inStock={false}
+              inStock={true}
             />
             <ProductCard 
               title="Roundup" 
@@ -146,7 +148,7 @@ interface ExpertSourceCardProps {
 
 const ExpertSourceCard = ({ title, organization, docType, year }: ExpertSourceCardProps) => {
   return (
-    <div className="bg-cropsay-dark rounded-lg p-4 hover:bg-cropsay-grayDark transition-colors">
+    <div className="bg-[#10141E] rounded-lg p-4 hover:bg-[#1E2735] transition-colors">
       <h4 className="font-medium mb-1">{title}</h4>
       <p className="text-sm text-cropsay-grayText mb-2">{organization}</p>
       <div className="flex justify-between items-center">
@@ -172,10 +174,22 @@ interface ProductCardProps {
 }
 
 const ProductCard = ({ title, description, price, rating, inStock }: ProductCardProps) => {
+  const { addItem } = useCart();
+  
+  const handleAddToCart = () => {
+    addItem({
+      id: Math.floor(Math.random() * 10000), // Generate random ID for example
+      name: title,
+      description,
+      price,
+      category: '',
+    });
+  };
+  
   return (
-    <div className="bg-cropsay-dark rounded-lg p-4 hover:bg-cropsay-grayDark transition-colors">
+    <div className="bg-[#10141E] rounded-lg p-4 hover:bg-[#1E2735] transition-colors">
       <div className="flex items-start">
-        <div className="w-12 h-12 bg-cropsay-grayDark rounded-md mr-3 flex-shrink-0"></div>
+        <div className="w-12 h-12 bg-[#1E2735] rounded-md mr-3 flex-shrink-0"></div>
         <div className="flex-1">
           <div className="flex justify-between">
             <h4 className="font-medium">{title}</h4>
@@ -192,7 +206,14 @@ const ProductCard = ({ title, description, price, rating, inStock }: ProductCard
                 {inStock ? 'In Stock' : 'Low Stock'}
               </span>
             </div>
-            <Button size="sm" variant="default" className="bg-green-500 hover:bg-green-600">Add</Button>
+            <Button 
+              size="sm" 
+              variant="default" 
+              className="bg-green-500 hover:bg-green-600"
+              onClick={handleAddToCart}
+            >
+              Add
+            </Button>
           </div>
         </div>
       </div>

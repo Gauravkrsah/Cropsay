@@ -19,14 +19,14 @@ export const AppSidebar = () => {
 
   return (
     <div className={cn(
-      "transition-all duration-300 bg-sidebar flex flex-col h-screen relative",
+      "transition-all duration-300 bg-[#10141E] flex flex-col h-screen relative",
       collapsed ? "w-20" : "w-64"
     )}>
       <div className="flex justify-between items-center p-4">
         {!collapsed && <h1 className="text-xl font-bold">Cropsay</h1>}
         <button 
           onClick={() => setCollapsed(!collapsed)}
-          className="p-2 rounded-md hover:bg-cropsay-grayDark transition-colors"
+          className="p-2 rounded-md hover:bg-[#1E2735] transition-colors"
         >
           {collapsed ? <Menu size={20} /> : <X size={20} />}
         </button>

@@ -63,14 +63,14 @@ export const ShoppingCart = () => {
   
   return (
     <Dialog open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
-      <DialogContent className="p-0 max-w-md bg-white text-gray-900 overflow-hidden">
-        <div className="flex justify-between items-center p-4 border-b border-gray-200">
+      <DialogContent className="p-0 max-w-2xl bg-[#10141E] text-gray-100 overflow-hidden border border-[#2A3143]">
+        <div className="flex justify-between items-center p-4 border-b border-[#2A3143]">
           <h2 className="text-xl font-bold">My Cart</h2>
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={closeCart}
-            className="rounded-full hover:bg-gray-100 h-8 w-8"
+            className="rounded-full hover:bg-[#1E2735] h-8 w-8 text-gray-300"
           >
             <X size={18} />
           </Button>
@@ -79,10 +79,10 @@ export const ShoppingCart = () => {
         {items.length === 0 ? (
           <div className="p-6 text-center">
             <div className="flex justify-center mb-4">
-              <ShoppingBag size={48} className="text-gray-300" />
+              <ShoppingBag size={48} className="text-gray-500" />
             </div>
             <h3 className="text-lg font-medium">Your cart is empty</h3>
-            <p className="text-gray-500 mt-1">Add items to get started</p>
+            <p className="text-gray-400 mt-1">Add items to get started</p>
             <Button 
               className="mt-4 bg-green-500 hover:bg-green-600"
               onClick={closeCart}
@@ -92,31 +92,31 @@ export const ShoppingCart = () => {
           </div>
         ) : (
           <>
-            <div className="bg-gray-50 p-4">
+            <div className="bg-[#1E2735] p-4">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center">
+                <div className="w-8 h-8 rounded-full bg-[#2A3143] flex items-center justify-center">
                   <Truck size={16} className="text-green-500" />
                 </div>
                 <div>
                   <h3 className="font-medium">Delivery in 13 minutes</h3>
-                  <p className="text-sm text-gray-500">Shipment of {items.length} items</p>
+                  <p className="text-sm text-gray-400">Shipment of {items.length} items</p>
                 </div>
               </div>
             </div>
             
-            <ScrollArea className="max-h-[40vh] p-4">
+            <ScrollArea className="max-h-[30vh] p-4">
               {items.map((item) => (
-                <div key={item.id} className="cart-item">
-                  <div className="w-14 h-14 bg-gray-100 rounded-md flex-shrink-0"></div>
+                <div key={item.id} className="cart-item relative pr-7">
+                  <div className="w-14 h-14 bg-[#1E2735] rounded-md flex-shrink-0"></div>
                   <div className="flex-1">
                     <div className="flex justify-between">
                       <h4 className="font-medium">{item.name}</h4>
                     </div>
-                    <p className="text-sm text-gray-500 mb-1">
+                    <p className="text-sm text-gray-400 mb-1">
                       {item.description.split(' - ')[0]}
                     </p>
                     <div className="flex justify-between items-center">
-                      <div className="text-green-700 font-medium">₹{item.price}</div>
+                      <div className="text-green-400 font-medium">₹{item.price}</div>
                       <CartItemQuantity 
                         id={item.id} 
                         quantity={item.quantity} 
@@ -124,11 +124,18 @@ export const ShoppingCart = () => {
                       />
                     </div>
                   </div>
+                  <button 
+                    onClick={() => removeItem(item.id)}
+                    className="absolute right-0 top-1 text-gray-400 hover:text-gray-200 p-1"
+                    aria-label="Remove item"
+                  >
+                    <X size={16} />
+                  </button>
                 </div>
               ))}
             </ScrollArea>
             
-            <div className="p-4 bg-gray-50">
+            <div className="p-4 bg-[#1E2735]">
               <h3 className="font-bold mb-2">Bill details</h3>
               <div className="space-y-2 text-sm">
                 <div className="flex justify-between">
@@ -145,8 +152,8 @@ export const ShoppingCart = () => {
                     </button>
                   </div>
                   <div className="flex items-center gap-1">
-                    <span className="text-gray-500 line-through">₹{deliveryCharge}</span>
-                    {isFreeDelivery && <span className="text-green-500 font-medium">FREE</span>}
+                    <span className="text-gray-400 line-through">₹{deliveryCharge}</span>
+                    {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
                   </div>
                 </div>
                 <div className="flex justify-between">
@@ -158,21 +165,21 @@ export const ShoppingCart = () => {
                   </div>
                   <span>₹{handlingCharge}</span>
                 </div>
-                <div className="cart-total border-t border-gray-200 mt-2 pt-2">
+                <div className="cart-total border-t border-[#2A3143] mt-2 pt-2">
                   <span>Grand total</span>
                   <span>₹{grandTotal}</span>
                 </div>
               </div>
             </div>
             
-            <div className="p-4 bg-gray-50 border-t border-gray-200">
+            <div className="p-4 bg-[#1E2735] border-t border-[#2A3143]">
               <h3 className="font-bold mb-2">Cancellation Policy</h3>
-              <p className="text-sm text-gray-500">
+              <p className="text-sm text-gray-400">
                 Orders cannot be cancelled once packed for delivery. In case of unexpected delays, a refund will be provided, if applicable.
               </p>
             </div>
             
-            <div className="sticky bottom-0 left-0 right-0 p-4 border-t border-gray-200 bg-white">
+            <div className="sticky bottom-0 left-0 right-0 p-4 border-t border-[#2A3143] bg-[#10141E]">
               <Button className="w-full bg-green-500 hover:bg-green-600 text-white">
                 <span className="flex-1 flex items-center justify-between px-4">
                   <span className="font-semibold">₹{grandTotal}</span>
