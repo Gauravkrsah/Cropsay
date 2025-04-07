@@ -8,6 +8,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 
 type ContextType = {
   openSourcesPanel: () => void;
@@ -41,6 +42,8 @@ const ChatPage = () => {
   const [showChatHistory, setShowChatHistory] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [deletingChatId, setDeletingChatId] = useState<string | null>(null);
+  
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   useEffect(() => {
@@ -157,8 +160,13 @@ const ChatPage = () => {
     }
   };
 
-  const deleteChat = (chatId: string, e: React.MouseEvent) => {
+  const confirmDeleteChat = (chatId: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setDeletingChatId(chatId);
+  };
+
+  const deleteChat = () => {
+    if (!deletingChatId) return;
     
     if (chatSessions.length === 1) {
       toast({
@@ -166,18 +174,21 @@ const ChatPage = () => {
         description: "You must have at least one chat session.",
         variant: "destructive"
       });
+      setDeletingChatId(null);
       return;
     }
     
-    setChatSessions(prev => prev.filter(s => s.id !== chatId));
+    setChatSessions(prev => prev.filter(s => s.id !== deletingChatId));
     
     // If we're deleting the current chat, switch to another one
-    if (chatId === currentChatId) {
-      const remainingSessions = chatSessions.filter(s => s.id !== chatId);
+    if (deletingChatId === currentChatId) {
+      const remainingSessions = chatSessions.filter(s => s.id !== deletingChatId);
       const newCurrentChat = remainingSessions[0];
       setCurrentChatId(newCurrentChat.id);
       setMessages(newCurrentChat.messages);
     }
+    
+    setDeletingChatId(null);
   };
   
   const toggleStarChat = (chatId: string, e: React.MouseEvent) => {
@@ -330,7 +341,7 @@ const ChatPage = () => {
                                   <Star size={14} className="text-amber-400 fill-amber-400" />
                                 </button>
                                 <button 
-                                  onClick={(e) => deleteChat(session.id, e)}
+                                  onClick={(e) => confirmDeleteChat(session.id, e)}
                                   className="p-1 hover:bg-cropsay-dark rounded-full text-red-500"
                                 >
                                   <Trash2 size={14} />
@@ -377,7 +388,7 @@ const ChatPage = () => {
                                 <Star size={14} className="text-cropsay-grayText" />
                               </button>
                               <button 
-                                onClick={(e) => deleteChat(session.id, e)}
+                                onClick={(e) => confirmDeleteChat(session.id, e)}
                                 className="p-1 hover:bg-cropsay-dark rounded-full text-red-500"
                               >
                                 <Trash2 size={14} />
@@ -573,6 +584,24 @@ const ChatPage = () => {
           </p>
         </div>
       </div>
+
+      {/* Delete Chat Confirmation Dialog */}
+      <AlertDialog open={!!deletingChatId} onOpenChange={() => setDeletingChatId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Chat</AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete this chat? This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteChat} className="bg-red-500 hover:bg-red-600">
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

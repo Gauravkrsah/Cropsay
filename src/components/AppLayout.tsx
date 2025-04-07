@@ -8,20 +8,20 @@ import { Button } from '@/components/ui/button';
 
 export const AppLayout = () => {
   const [expertPanelOpen, setExpertPanelOpen] = useState(false);
-  const [expertPanelType, setExpertPanelType] = useState<'sources' | 'products' | 'experts'>('sources');
+  const [panelType, setPanelType] = useState<'sources' | 'products' | 'experts'>('sources');
 
   const openSourcesPanel = () => {
-    setExpertPanelType('sources');
+    setPanelType('sources');
     setExpertPanelOpen(true);
   };
 
   const openProductsPanel = () => {
-    setExpertPanelType('products');
+    setPanelType('products');
     setExpertPanelOpen(true);
   };
   
   const openExpertsPanel = () => {
-    setExpertPanelType('experts');
+    setPanelType('experts');
     setExpertPanelOpen(true);
   };
 
@@ -62,9 +62,9 @@ export const AppLayout = () => {
           </Button>
         </div>
         
-        {/* Expert panels */}
+        {/* Panels */}
         <ExpertPanel
-          isOpen={expertPanelOpen && expertPanelType === 'sources'}
+          isOpen={expertPanelOpen && panelType === 'sources'}
           onClose={() => setExpertPanelOpen(false)}
           title="Relevant Sources"
         >
@@ -91,7 +91,7 @@ export const AppLayout = () => {
         </ExpertPanel>
 
         <ExpertPanel
-          isOpen={expertPanelOpen && expertPanelType === 'products'}
+          isOpen={expertPanelOpen && panelType === 'products'}
           onClose={() => setExpertPanelOpen(false)}
           title="Recommended Products"
         >
@@ -128,7 +128,7 @@ export const AppLayout = () => {
         </ExpertPanel>
         
         <ExpertPanel
-          isOpen={expertPanelOpen && expertPanelType === 'experts'}
+          isOpen={expertPanelOpen && panelType === 'experts'}
           onClose={() => setExpertPanelOpen(false)}
           title="Available Experts"
         />
