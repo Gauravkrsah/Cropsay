@@ -123,13 +123,12 @@ export const AppLayout = () => {
               </TooltipTrigger>
               <TooltipContent side="left">
                 {sourcesAvailable 
-                  ? "View relevant sources for your query" 
-                  : "Sources will be available after you ask a question"}
+                  ? 'View expert sources for this answer' 
+                  : 'No sources available yet. Ask a question first.'}
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>
           
-          {/* Product Recommendations Button */}
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -144,36 +143,7 @@ export const AppLayout = () => {
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="left">
-                View recommended products based on your conversation
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-          
-          {/* Shopping Cart Button */}
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost"
-                  size="icon"
-                  onClick={openCart}
-                  aria-label="Open shopping cart"
-                  className="bg-[#10141E] hover:bg-[#1E2735] rounded-full shadow-lg w-10 h-10 relative"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="8" cy="21" r="1"></circle>
-                    <circle cx="19" cy="21" r="1"></circle>
-                    <path d="M2.05 2.05h2l2.66 12.42a2 2 0 0 0 2 1.58h9.78a2 2 0 0 0 1.95-1.57l1.65-7.43H5.12"></path>
-                  </svg>
-                  {totalItems > 0 && (
-                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {totalItems}
-                    </span>
-                  )}
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="left">
-                View your shopping cart
+                View recommended products
               </TooltipContent>
             </Tooltip>
           </TooltipProvider>

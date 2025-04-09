@@ -18,7 +18,7 @@ export const ShoppingCartButton = () => {
       <ShoppingBag size={18} />
       <div className="flex items-center">
         <span>{totalItems} items</span>
-        <span className="ml-1">₹{totalPrice}</span>
+        <span className="ml-1">रु {totalPrice}</span>
       </div>
     </Button>
   );
@@ -124,8 +124,8 @@ export const ShoppingCart = () => {
                             <p className="text-sm text-gray-400">{item.category}</p>
                           </div>
                           <div className="text-right">
-                            <div className="font-medium">₹{item.price * item.quantity}</div>
-                            <div className="text-sm text-gray-400">₹{item.price} each</div>
+                            <div className="font-medium">रु {item.price * item.quantity}</div>
+                            <div className="text-sm text-gray-400">रु {item.price} each</div>
                           </div>
                         </div>
                         <div className="flex justify-between items-center mt-2">
@@ -152,7 +152,7 @@ export const ShoppingCart = () => {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <div className="text-gray-300">Items total</div>
-                    <span>₹{totalPrice}</span>
+                    <span>रु {totalPrice}</span>
                   </div>
                   <div className="flex justify-between">
                     <div className="flex items-center gap-1 text-gray-300">
@@ -162,7 +162,7 @@ export const ShoppingCart = () => {
                       </button>
                     </div>
                     <div className="flex items-center gap-1">
-                      <span className="text-gray-400 line-through">₹{deliveryCharge}</span>
+                      <span className="text-gray-400 line-through">रु {deliveryCharge}</span>
                       {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
                     </div>
                   </div>
@@ -173,11 +173,11 @@ export const ShoppingCart = () => {
                         <Info size={12} />
                       </button>
                     </div>
-                    <span>₹{handlingCharge}</span>
+                    <span>रु {handlingCharge}</span>
                   </div>
                   <div className="flex justify-between border-t border-[#2A3143] mt-3 pt-3 font-medium">
                     <span>Grand total</span>
-                    <span>₹{grandTotal}</span>
+                    <span>रु {grandTotal}</span>
                   </div>
                 </div>
               </div>
@@ -247,7 +247,7 @@ export const ShoppingCart = () => {
               
               <div className="mt-auto p-4 border-t border-[#2A3143]">
                 <Button className="w-full bg-green-500 hover:bg-green-600 text-white h-11">
-                  Proceed to Payment • ₹{grandTotal}
+                  Proceed to Payment • रु {grandTotal}
                 </Button>
               </div>
             </div>

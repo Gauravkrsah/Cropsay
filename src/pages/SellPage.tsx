@@ -84,7 +84,7 @@ const SellPage = () => {
               
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div>
-                  <label className="block text-sm font-medium mb-1">Price (₹) *</label>
+                  <label className="block text-sm font-medium mb-1">Price (रु ) *</label>
                   <input 
                     type="number" 
                     className="w-full bg-cropsay-dark border border-cropsay-grayDark rounded-lg py-2 px-3 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"

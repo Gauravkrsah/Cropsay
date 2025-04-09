@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Search, Filter, ShoppingBag, Plus, Minus } from 'lucide-react';
+import { Search, Filter, ShoppingBag, Plus, Minus, ShoppingCartIcon } from 'lucide-react';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { CartItemQuantity, ShoppingCart, ShoppingCartButton } from '@/components/ShoppingCart';
 
@@ -118,7 +118,7 @@ const ShopPage = () => {
             className="relative p-2 bg-[#10141E] hover:bg-[#2A3143] rounded-lg transition-colors"
             aria-label={`View cart with ${items.length} items`}
           >
-            <ShoppingBag size={20} />
+            <ShoppingCartIcon size={20} />
             <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
               {items.reduce((total, item) => total + item.quantity, 0)}
             </span>
@@ -163,7 +163,7 @@ const ShopPage = () => {
                   <p className="text-sm text-cropsay-grayText mt-1 mb-3">{product.description}</p>
                   <div className="flex justify-between items-center">
                     <div>
-                      <span className="font-bold text-lg">₹{product.price}</span>
+                      <span className="font-bold text-lg">रु {product.price}</span>
                       <span className={`text-xs ml-2 ${product.inStock ? 'text-green-500' : 'text-red-500'}`}>
                         {product.inStock ? 'In Stock' : 'Out of Stock'}
                       </span>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic } from 'lucide-react';
+import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic, ShoppingCartIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -103,6 +103,8 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const { items, addItem, openCart } = useCart();
   const panelRef = useRef<HTMLDivElement>(null);
+  const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [activeProductCategory, setActiveProductCategory] = useState<string>("all");
 
   // Add click outside handler to close the panel
   useEffect(() => {
@@ -151,83 +153,134 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
     setShowAttachmentMenu(!showAttachmentMenu);
   };
 
+  // Filter experts based on selected category
+  const filteredExperts = experts.filter(expert => {
+    if (activeCategory === "all") return true;
+    if (activeCategory === "agronomists") return expert.role.toLowerCase().includes("agronomist");
+    if (activeCategory === "soil specialists") return expert.role.toLowerCase().includes("soil");
+    return true;
+  });
+
+  // Filter products based on selected category
+  const filteredProducts = recommendedProducts.filter(product => {
+    if (activeProductCategory === "all") return true;
+    return product.category.toLowerCase() === activeProductCategory.toLowerCase();
+  });
+
   return (
     <>
       <div 
         ref={panelRef}
         className={cn(
-          "fixed right-0 top-0 h-full w-96 bg-[#10141E] shadow-lg transition-transform duration-300 z-50",
+          "fixed top-0 right-0 h-full w-80 bg-[#10141E] border-l border-[#1E2A3B] z-50 transform transition-transform duration-300 ease-in-out shadow-xl",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
-        <div className="flex justify-between items-center p-4 border-b border-[#2E3A4B]">
-          <h3 className="font-medium text-lg">{title}</h3>
-          <Button 
-            variant="ghost"
-            size="icon"
+        <div className="flex justify-between items-center bg-[#10141E] border-b border-[#1E2A3B] p-4">
+          <h2 className="text-lg font-medium text-white">{title}</h2>
+          {title === "Recommended Products" && (
+            <button 
+              onClick={openCart}
+              className="relative p-1.5 bg-[#1E2735] hover:bg-[#2A3143] rounded-lg transition-colors"
+              aria-label={`View cart with ${items.length} items`}
+            >
+              <ShoppingCartIcon size={18} />
+              {items.length > 0 && (
+                <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {items.reduce((total, item) => total + item.quantity, 0)}
+                </span>
+              )}
+            </button>
+          )}
+          <button 
             onClick={onClose}
-            className="rounded-full hover:bg-[#2E3A4B] transition-colors"
+            className="p-1.5 rounded-md hover:bg-[#2A3143] transition-colors"
           >
             <X size={18} />
-          </Button>
+          </button>
         </div>
         
         {title === "Available Experts" ? (
           <>
-            <div className="p-4">
-              <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
-                <Button variant="default" className="rounded-full bg-green-500 text-white hover:bg-green-600">
+            <div className="p-3 bg-[#10141E]">
+              <div className="flex gap-2 mb-3 overflow-x-auto pb-1 no-scrollbar">
+                <Button 
+                  variant={activeCategory === "all" ? "default" : "outline"} 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeCategory === "all" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveCategory("all")}
+                >
                   All
                 </Button>
-                <Button variant="outline" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">
+                <Button 
+                  variant={activeCategory === "agronomists" ? "default" : "outline"} 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeCategory === "agronomists" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveCategory("agronomists")}
+                >
                   Agronomists
                 </Button>
-                <Button variant="outline" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">
+                <Button 
+                  variant={activeCategory === "soil specialists" ? "default" : "outline"} 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeCategory === "soil specialists" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveCategory("soil specialists")}
+                >
                   Soil Specialists
                 </Button>
               </div>
             </div>
             
-            <ScrollArea className="h-[calc(100%-132px)] custom-scrollbar">
-              <div className="p-4 space-y-4">
-                {experts.map(expert => (
-                  <div key={expert.id} className="bg-[#2E3A4B] rounded-lg p-4">
-                    <div className="flex gap-3">
-                      <div className="w-14 h-14 rounded-full bg-[#3E4A5B] flex items-center justify-center overflow-hidden flex-shrink-0">
+            <div className="h-[calc(100%-118px)] overflow-y-auto px-3 custom-scrollbar hide-scrollbar">
+              <div className="space-y-2 pb-3">
+                {filteredExperts.map(expert => (
+                  <div key={expert.id} className="bg-[#1E2735] rounded-lg p-3 hover:bg-[#252F3F] transition-colors relative">
+                    <div className="absolute top-2 right-2 text-amber-400">
+                      <Star size={14} className="fill-amber-400" />
+                    </div>
+                    
+                    <div className="flex gap-2">
+                      <div className="w-10 h-10 rounded-full bg-[#2A3143] flex items-center justify-center overflow-hidden flex-shrink-0">
                         {expert.image ? (
                           <img src={expert.image} alt={expert.name} className="w-full h-full object-cover" />
                         ) : (
-                          <span className="text-sm font-medium">
+                          <span className="text-xs font-medium">
                             {expert.name.split(' ').map(name => name[0]).join('')}
                           </span>
                         )}
                       </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-center">
-                          <h4 className="font-medium text-base">{expert.name}</h4>
-                          <div className="flex items-center text-amber-400">
-                            <Star size={16} className="fill-amber-400" />
-                            <span className="text-sm text-white ml-1">{expert.rating}</span>
-                          </div>
-                        </div>
-                        <p className="text-sm">{expert.role}</p>
-                        <p className="text-xs text-gray-400 mt-1">{expert.experience}</p>
-                        <p className="text-xs text-gray-400">
+                      <div className="flex-1 pr-3">
+                        <h4 className="font-medium text-sm text-white pr-4 truncate">{expert.name}</h4>
+                        <p className="text-xs text-gray-200 leading-tight truncate">{expert.role}</p>
+                        <p className="text-xs text-gray-400 leading-tight truncate">{expert.experience}</p>
+                        <p className="text-xs text-gray-400 leading-tight mb-2 truncate">
                           {expert.languages.join(', ')}
                         </p>
-                        <div className="flex gap-2 mt-3">
+                        <div className="flex gap-2">
                           <Button 
-                            className="flex-1 h-9 bg-green-500 hover:bg-green-600 text-white rounded-md"
+                            className="flex-1 h-7 bg-green-500 hover:bg-green-600 text-white rounded-md text-xs font-medium py-0 px-2"
                             onClick={() => handleChatNow(expert)}
                           >
-                            <MessageSquare size={16} className="mr-1" /> Chat Now
+                            <MessageSquare size={12} className="mr-1" /> Chat
                           </Button>
                           <Button 
                             variant="outline" 
-                            className="flex-1 h-9 rounded-md bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]"
+                            className="flex-1 h-7 rounded-md bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-xs font-medium whitespace-nowrap py-0 px-2"
                             onClick={() => handleSchedule(expert)}
                           >
-                            <Calendar size={16} className="mr-1" /> Schedule
+                            <Calendar size={12} className="mr-1" /> Schedule
                           </Button>
                         </div>
                       </div>
@@ -235,7 +288,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                   </div>
                 ))}
               </div>
-            </ScrollArea>
+            </div>
           </>
         ) : title === "Relevant Sources" ? (
           <ScrollArea className="h-[calc(100%-64px)] custom-scrollbar">
@@ -293,50 +346,102 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
             </div>
           </ScrollArea>
         ) : title === "Recommended Products" ? (
-          <ScrollArea className="h-[calc(100%-64px)] custom-scrollbar">
-            <div className="p-4">
-              <div className="flex justify-between items-center mb-4">
-                <div className="flex flex-wrap gap-2">
-                  <Button variant="default" size="sm" className="bg-green-500 hover:bg-green-600 rounded-full">All</Button>
-                  <Button variant="outline" size="sm" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">Seeds</Button>
-                  <Button variant="outline" size="sm" className="rounded-full bg-[#2E3A4B] border-[#3E4A5B] hover:bg-[#3E4A5B]">Pesticides</Button>
-                </div>
-                
-                {items.length > 0 && (
-                  <Button
-                    onClick={openCart}
-                    variant="outline"
-                    size="icon"
-                    className="relative p-2 bg-[#2E3A4B] hover:bg-[#3E4A5B] border-[#3E4A5B] rounded-full transition-colors"
-                  >
-                    <ShoppingBag size={18} />
-                    <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                      {items.reduce((total, item) => total + item.quantity, 0)}
-                    </span>
-                  </Button>
-                )}
+          <div className="h-[calc(100%-64px)] overflow-hidden flex flex-col">
+            <div className="p-3">
+              <div className="flex flex-wrap gap-2 mb-3">
+                <Button 
+                  variant={activeProductCategory === "all" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "all" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("all")}
+                >
+                  All
+                </Button>
+                <Button 
+                  variant={activeProductCategory === "seeds" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "seeds" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("seeds")}
+                >
+                  Seeds
+                </Button>
+                <Button 
+                  variant={activeProductCategory === "pesticides" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "pesticides" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("pesticides")}
+                >
+                  Pesticides
+                </Button>
+                <Button 
+                  variant={activeProductCategory === "fertilizers" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "fertilizers" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("fertilizers")}
+                >
+                  Fertilizers
+                </Button>
               </div>
               
-              <div className="space-y-4">
-                {recommendedProducts.map(product => {
+              {items.length > 0 && (
+                <div 
+                  className="flex items-center justify-between bg-[#1E2735] p-2 rounded-md mb-3 cursor-pointer hover:bg-[#2A3143] transition-colors" 
+                  onClick={openCart}
+                >
+                  <div className="flex items-center">
+                    <ShoppingBag size={16} className="text-green-500 mr-2" />
+                    <span className="text-xs text-white">
+                      {items.reduce((total, item) => total + item.quantity, 0)} items in cart
+                    </span>
+                  </div>
+                  <span className="text-xs font-medium text-green-500">
+                    रु {items.reduce((total, item) => total + (item.price * item.quantity), 0).toLocaleString()}
+                  </span>
+                </div>
+              )}
+            </div>
+            
+            <div className="flex-1 overflow-y-auto px-3 custom-scrollbar hide-scrollbar">
+              <div className="space-y-2 pb-3">
+                {filteredProducts.map(product => {
                   const cartItem = cartItemForProduct(product.id);
                   
                   return (
-                    <div key={product.id} className="bg-[#2E3A4B] rounded-lg p-4">
+                    <div key={product.id} className="bg-[#1E2735] rounded-lg p-3">
                       <div className="flex items-start">
-                        <div className="w-12 h-12 bg-[#3E4A5B] rounded-md mr-3 flex-shrink-0"></div>
+                        <div className="w-10 h-10 bg-[#2A3143] rounded-md mr-2 flex-shrink-0"></div>
                         <div className="flex-1">
                           <div className="flex justify-between">
-                            <h4 className="font-medium">{product.name}</h4>
+                            <h4 className="font-medium text-sm">{product.name}</h4>
                             <div className="flex items-center">
                               <span className="text-yellow-400 mr-1">★</span>
-                              <span className="text-sm">{product.rating}</span>
+                              <span className="text-xs">{product.rating}</span>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-400 mb-2">{product.description}</p>
+                          <p className="text-xs text-gray-400 mb-1 truncate">{product.description}</p>
                           <div className="flex justify-between items-center">
                             <div>
-                              <span className="font-medium">₹{product.price}</span>
+                              <span className="font-medium text-sm">रु {product.price}</span>
                               <span className="text-xs ml-2 text-green-500">In Stock</span>
                             </div>
                             
@@ -344,13 +449,13 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                               <CartItemQuantity 
                                 id={product.id} 
                                 quantity={cartItem.quantity}
-                                className="h-8" 
+                                className="h-7" 
                               />
                             ) : (
                               <Button 
                                 size="sm" 
                                 variant="default" 
-                                className="bg-green-500 hover:bg-green-600"
+                                className="bg-green-500 hover:bg-green-600 h-7 text-xs px-3"
                                 onClick={() => handleAddToCart(product)}
                               >
                                 Add
@@ -364,9 +469,9 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 })}
               </div>
             </div>
-          </ScrollArea>
+          </div>
         ) : (
-          <div className="p-4 h-[calc(100%-64px)] overflow-y-auto custom-scrollbar">
+          <div className="p-4 h-[calc(100%-64px)] overflow-y-auto custom-scrollbar hide-scrollbar">
             {children}
           </div>
         )}
@@ -528,28 +633,28 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
           
           <div className="space-y-4 mt-2">
             <div className="grid grid-cols-3 gap-2">
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Today</Button>
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Tomorrow</Button>
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Pick a date</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">Today</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">Tomorrow</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">Pick a date</Button>
             </div>
             
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">9:00 AM</Button>
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">10:00 AM</Button>
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">2:00 PM</Button>
-              <Button variant="outline" className="text-sm bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">4:00 PM</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">9:00 AM</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">10:00 AM</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">2:00 PM</Button>
+              <Button variant="outline" className="text-sm bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">4:00 PM</Button>
             </div>
             
             <div>
               <label className="block text-sm mb-1">Reason for consultation</label>
               <textarea 
-                className="w-full bg-[#1E2A3B] border-[#2E3A4B] rounded-md p-2 h-20 text-sm focus:outline-none focus:ring-1 focus:ring-green-500" 
+                className="w-full bg-[#1E2735] border-[#2A3143] rounded-md p-2 h-20 text-sm focus:outline-none focus:ring-1 focus:ring-green-500" 
                 placeholder="Briefly describe your issue..."
               ></textarea>
             </div>
             
             <div className="flex justify-end space-x-2 pt-2">
-              <Button variant="outline" onClick={() => setScheduleDialogOpen(false)} className="bg-[#1E2A3B] border-[#2E3A4B] hover:bg-[#2E3A4B]">Cancel</Button>
+              <Button variant="outline" onClick={() => setScheduleDialogOpen(false)} className="bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143]">Cancel</Button>
               <Button className="bg-green-500 hover:bg-green-600">
                 Schedule Meeting
               </Button>
