@@ -1,156 +1,105 @@
-# CropsayAI System Analysis and Design Diagrams
+# CropsayAI Product Recommendation System Analysis and Design Diagrams
 
 ## 3.1.1 Use-Case Modeling
 
 ### Use-Case Diagram
 
-The following use-case diagram illustrates the main actors and use cases in the CropsayAI system:
-
 ```mermaid
-actor Farmer
-actor "Agricultural Expert" as Expert
-actor Administrator
-
-rectangle "CropsayAI System" {
-  usecase "Register/Login" as UC1
-  usecase "Chat with Expert" as UC2
-  usecase "View Recommendations" as UC3
-  usecase "Add Products to Cart" as UC4
-  usecase "Manage Profile" as UC5
-  usecase "Provide Expert Advice" as UC6
-  usecase "Schedule Consultation" as UC7
-  usecase "Manage Product Catalog" as UC8
-  usecase "Monitor System" as UC9
-}
-
-Farmer --> UC1
-Farmer --> UC2
-Farmer --> UC3
-Farmer --> UC4
-Farmer --> UC5
-Farmer --> UC7
-
-Expert --> UC1
-Expert --> UC2
-Expert --> UC6
-Expert --> UC7
-
-Administrator --> UC1
-Administrator --> UC8
-Administrator --> UC9
+graph LR
+    %% Actors
+    Farmer([👨‍🌾 Farmer])
+    Admin([👨‍💼 Administrator])
+    
+    %% Use Cases in the middle
+    subgraph CropsayAI Product Recommendation System
+        UC1((Chat for Recommendations))
+        UC2((View Recommendations))
+        UC3((Filter Recommendations))
+        UC4((Add Products to Cart))
+        UC5((View Product Details))
+        UC6((Manage Product Catalog))
+        UC7((Configure Recommendation Algorithms))
+    end
+    
+    %% Relationships with straight lines
+    Farmer --- UC1
+    Farmer --- UC2
+    Farmer --- UC3
+    Farmer --- UC4
+    Farmer --- UC5
+    
+    Admin --- UC6
+    Admin --- UC7
 ```
 
 ### Use-Case Descriptions
 
-#### UC1: Register/Login
-**Actor:** Farmer, Expert, Administrator  
-**Description:** Users can create an account or log in to an existing account.  
-**Preconditions:** User has internet access and has downloaded the application.  
-**Main Flow:**
-1. User opens the application
-2. User selects "Register" or "Login"
-3. For registration:
-   - User provides email, password, and profile information
-   - System validates the information
-   - System creates a new account
-4. For login:
-   - User provides email and password
-   - System validates credentials
-   - System grants access to the application
-**Alternative Flows:**
-- If validation fails, system displays appropriate error message
-- User can request password reset if forgotten
-**Postconditions:** User is authenticated and can access the system.
-
-#### UC2: Chat with Expert
-**Actor:** Farmer, Expert  
-**Description:** Farmers can chat with agricultural experts to get advice on farming issues.  
+#### UC1: Chat for Recommendations
+**Actor:** Farmer  
+**Description:** Farmers can chat about their agricultural needs to receive personalized recommendations.  
 **Preconditions:** User is logged in.  
 **Main Flow:**
-1. Farmer navigates to the chat section
-2. Farmer selects an available expert
-3. Farmer sends messages describing their agricultural situation
-4. Expert receives messages and responds with advice
-5. System analyzes chat content for product recommendations
+1. Farmer navigates to chat interface
+2. Farmer describes their agricultural situation or needs
+3. System analyzes the chat content
+4. System generates personalized product recommendations based on the chat
+5. Farmer views recommended products
 **Alternative Flows:**
-- If no experts are available, farmer can schedule a consultation for later
-- If farmer prefers, they can chat with AI assistant instead of human expert
-**Postconditions:** Farmer receives expert advice and system generates relevant product recommendations.
+- If chat content is unclear, system asks clarifying questions
+- If no relevant products are found, system suggests alternatives
+**Postconditions:** Farmer receives product recommendations based on their chat input.
 
-#### UC3: View Recommendations
+#### UC2: View Recommendations
 **Actor:** Farmer  
 **Description:** Farmers can view personalized product recommendations based on their chat history.  
-**Preconditions:** User is logged in and has chat history.  
+**Preconditions:** User has completed a chat session.  
 **Main Flow:**
 1. Farmer navigates to recommendations panel
-2. System analyzes farmer's chat history
-3. System generates personalized product recommendations
-4. Farmer views recommended products with details
-5. Farmer can filter recommendations by category
+2. System displays personalized product recommendations
+3. Farmer browses through recommended products
 **Alternative Flows:**
-- If farmer has no chat history, system shows default recommendations
-- Farmer can refresh recommendations after new chat interactions
+- If no chat history exists, system shows default recommendations
 **Postconditions:** Farmer sees relevant agricultural products that address their needs.
+
+#### UC3: Filter Recommendations
+**Actor:** Farmer  
+**Description:** Farmers can filter recommendations by category, price, or rating.  
+**Preconditions:** User is viewing recommendations.  
+**Main Flow:**
+1. Farmer selects filter criteria
+2. System applies filters to recommendations
+3. System displays filtered recommendations
+**Alternative Flows:**
+- If no products match filters, system shows a message
+**Postconditions:** Farmer sees filtered recommendations.
 
 #### UC4: Add Products to Cart
 **Actor:** Farmer  
 **Description:** Farmers can add recommended products to their shopping cart.  
-**Preconditions:** User is logged in and viewing product recommendations.  
+**Preconditions:** User is viewing product recommendations.  
 **Main Flow:**
 1. Farmer selects a recommended product
 2. Farmer clicks "Add to Cart" button
 3. System adds product to farmer's cart
 4. System updates cart count and total
-5. Farmer can continue shopping or proceed to checkout
 **Alternative Flows:**
 - Farmer can adjust quantity of products in cart
 - Farmer can remove products from cart
 **Postconditions:** Selected products are added to farmer's shopping cart.
 
-#### UC5: Manage Profile
+#### UC5: View Product Details
 **Actor:** Farmer  
-**Description:** Farmers can view and update their profile information.  
-**Preconditions:** User is logged in.  
+**Description:** Farmers can view detailed information about a product.  
+**Preconditions:** User is viewing recommendations.  
 **Main Flow:**
-1. Farmer navigates to profile section
-2. Farmer views current profile information
-3. Farmer edits information as needed
-4. System validates and saves changes
+1. Farmer clicks on a product
+2. System displays detailed product information
+3. Farmer reviews product details
 **Alternative Flows:**
-- If validation fails, system displays appropriate error message
-**Postconditions:** Farmer's profile information is updated.
+- Farmer can return to recommendations list
+**Postconditions:** Farmer has detailed information about the product.
 
-#### UC6: Provide Expert Advice
-**Actor:** Expert  
-**Description:** Agricultural experts can provide advice to farmers through the chat interface.  
-**Preconditions:** Expert is logged in.  
-**Main Flow:**
-1. Expert views list of active chat requests
-2. Expert selects a chat to respond to
-3. Expert reads farmer's messages
-4. Expert provides advice and recommendations
-5. System records the interaction
-**Alternative Flows:**
-- Expert can schedule follow-up consultations if needed
-- Expert can refer farmer to other experts for specialized advice
-**Postconditions:** Farmer receives expert advice for their agricultural issues.
-
-#### UC7: Schedule Consultation
-**Actor:** Farmer, Expert  
-**Description:** Users can schedule consultations for more in-depth discussions.  
-**Preconditions:** User is logged in.  
-**Main Flow:**
-1. User navigates to scheduling section
-2. User selects available time slot
-3. User provides consultation topic and details
-4. System confirms the appointment
-5. System sends notifications to both parties
-**Alternative Flows:**
-- If selected time is no longer available, system suggests alternative times
-- Users can reschedule or cancel appointments
-**Postconditions:** Consultation is scheduled and both parties are notified.
-
-#### UC8: Manage Product Catalog
+#### UC6: Manage Product Catalog
 **Actor:** Administrator  
 **Description:** Administrators can add, update, or remove products from the catalog.  
 **Preconditions:** Administrator is logged in.  
@@ -165,32 +114,30 @@ Administrator --> UC9
 - Administrator can categorize products
 **Postconditions:** Product catalog is updated with changes.
 
-#### UC9: Monitor System
+#### UC7: Configure Recommendation Algorithms
 **Actor:** Administrator  
-**Description:** Administrators can monitor system performance and usage.  
+**Description:** Administrators can configure and tune recommendation algorithms.  
 **Preconditions:** Administrator is logged in.  
 **Main Flow:**
-1. Administrator navigates to monitoring dashboard
-2. Administrator views system metrics and statistics
-3. Administrator can generate reports
-4. Administrator can identify and address issues
+1. Administrator navigates to recommendation settings
+2. Administrator selects algorithm parameters
+3. Administrator adjusts weights and thresholds
+4. System applies new configuration
 **Alternative Flows:**
-- Administrator can set up alerts for critical issues
-- Administrator can optimize system performance
-**Postconditions:** Administrator has insights into system performance and usage.
+- Administrator can reset to default settings
+- Administrator can A/B test different configurations
+**Postconditions:** Recommendation algorithms are configured according to administrator's specifications.
 
 ## 3.1.3 Object Modeling: Object & Class Diagram
 
-The class diagram illustrates the key classes and their relationships in the CropsayAI system:
+The class diagram illustrates the key classes and their relationships in the CropsayAI Product Recommendation System:
 
 ```mermaid
 classDiagram
     class User {
         +id: string
         +email: string
-        +password: string
         +role: string
-        +register(): void
         +login(): void
         +logout(): void
     }
@@ -199,21 +146,12 @@ classDiagram
         +profile: Profile
         +viewRecommendations(): void
         +addToCart(product: Product): void
-        +scheduleConsultation(expert: Expert): void
-    }
-    
-    class Expert {
-        +specialization: string
-        +rating: number
-        +availability: boolean
-        +provideAdvice(chat: ChatSession): void
-        +updateAvailability(): void
+        +sendChatMessage(message: string): void
     }
     
     class Administrator {
         +manageProducts(): void
-        +monitorSystem(): void
-        +generateReports(): void
+        +configureAlgorithms(): void
     }
     
     class Product {
@@ -228,18 +166,9 @@ classDiagram
         +getDetails(): ProductDetails
     }
     
-    class AgriculturalKnowledgeGraph {
-        +crops: Crop[]
-        +problems: Problem[]
-        +activities: Activity[]
-        +findRelatedProducts(entity: string): Product[]
-        +getEntityRelationships(entityId: string): Relationship[]
-    }
-    
     class ChatSession {
         +id: string
         +userId: string
-        +expertId: string
         +timestamp: Date
         +messages: ChatMessage[]
         +addMessage(message: ChatMessage): void
@@ -254,8 +183,15 @@ classDiagram
         +timestamp: Date
     }
     
+    class AgriculturalKnowledgeGraph {
+        +crops: Crop[]
+        +problems: Problem[]
+        +activities: Activity[]
+        +findRelatedProducts(entity: string): Product[]
+    }
+    
     class RecommendationService {
-        +getRecommendationsFromChat(userId: string): Product[]
+        +getRecommendationsFromChat(chatId: string): Product[]
         +analyzeIntent(text: string): Intent
         +extractEntities(text: string): Entity[]
         +rankProducts(entities: Entity[], intent: Intent): Product[]
@@ -278,12 +214,9 @@ classDiagram
     }
     
     User <|-- Farmer
-    User <|-- Expert
     User <|-- Administrator
     
     Farmer --> ChatSession: participates in
-    Expert --> ChatSession: participates in
-    
     ChatSession "1" *-- "many" ChatMessage: contains
     
     Farmer --> CartContext: has
@@ -299,16 +232,20 @@ classDiagram
 
 ### State Diagram
 
-The state diagram illustrates the states of the recommendation system:
+The state diagram illustrates the states of the chat-based recommendation system:
 
 ```mermaid
 stateDiagram-v2
     [*] --> Idle
     
-    Idle --> ProcessingQuery: User sends message
+    Idle --> ChatActive: User starts chat
     
-    ProcessingQuery --> AnalyzingIntent: Extract query
-    AnalyzingIntent --> ExtractingEntities: Determine intent
+    ChatActive --> ProcessingMessage: User sends message
+    ProcessingMessage --> ChatActive: Display response
+    
+    ChatActive --> AnalyzingChat: User requests recommendations
+    
+    AnalyzingChat --> ExtractingEntities: Analyze chat content
     ExtractingEntities --> SelectingStrategy: Identify entities
     
     SelectingStrategy --> UsingNLPService: NLP available
@@ -323,35 +260,39 @@ stateDiagram-v2
     DisplayingRecommendations --> Idle: User continues
     DisplayingDefaults --> Idle: User continues
     
+    ChatActive --> Idle: User ends chat
+    
     Idle --> [*]: Session ends
 ```
 
 ### Sequence Diagram
 
-The sequence diagram illustrates the process of generating product recommendations based on user chat:
+The sequence diagram illustrates the process of generating product recommendations from chat:
 
 ```mermaid
 sequenceDiagram
     actor Farmer
     participant UI as User Interface
-    participant ChatSvc as ChatService
+    participant ChatSvc as Chat Service
     participant RecSvc as RecommendationService
     participant NLP as NLP Service
     participant KG as Knowledge Graph
     participant DB as Product Database
     
-    Farmer->>UI: Send message
+    Farmer->>UI: Start chat
     activate UI
     
+    Farmer->>UI: Send message about needs
     UI->>ChatSvc: addMessage(sessionId, message)
     activate ChatSvc
     ChatSvc-->>UI: Confirmation
     deactivate ChatSvc
     
-    UI->>RecSvc: getRecommendations(userId)
+    Farmer->>UI: Request recommendations
+    UI->>RecSvc: getRecommendationsFromChat(chatId)
     activate RecSvc
     
-    RecSvc->>ChatSvc: getChatHistory(userId)
+    RecSvc->>ChatSvc: getChatHistory(chatId)
     activate ChatSvc
     ChatSvc-->>RecSvc: chatHistory
     deactivate ChatSvc
@@ -360,7 +301,7 @@ sequenceDiagram
     RecSvc->>RecSvc: extractEntities(chatHistory)
     
     alt NLP Service Available
-        RecSvc->>NLP: getSemanticAnalysis(query)
+        RecSvc->>NLP: getSemanticAnalysis(entities)
         activate NLP
         NLP-->>RecSvc: semanticAnalysis
         deactivate NLP
@@ -390,17 +331,21 @@ sequenceDiagram
 
 ## 3.1.5 Process Modeling: Activity Diagram
 
-The activity diagram illustrates the process of generating and displaying recommendations:
+The activity diagram illustrates the process of generating recommendations from chat:
 
 ```mermaid
-graph TD
-    Start([Start]) --> CheckHistory{Has chat history?}
+flowchart TD
+    Start([Start]) --> StartChat[Start chat session]
     
-    CheckHistory -->|No| ShowDefaults[Display default recommendations]
-    CheckHistory -->|Yes| ExtractQuery[Extract query from chat history]
+    StartChat --> SendMessage[User sends message about needs]
+    SendMessage --> AnalyzeMessage[System analyzes message]
     
-    ExtractQuery --> AnalyzeIntent[Analyze user intent]
-    AnalyzeIntent --> ExtractEntities[Extract agricultural entities]
+    AnalyzeMessage --> MoreInfo{Need more info?}
+    MoreInfo -->|Yes| AskQuestion[Ask clarifying question]
+    AskQuestion --> SendMessage
+    
+    MoreInfo -->|No| RequestRecs[User requests recommendations]
+    RequestRecs --> ExtractEntities[Extract agricultural entities]
     
     ExtractEntities --> CheckNLP{NLP Service available?}
     
@@ -411,19 +356,19 @@ graph TD
     UseKG --> GetProducts
     
     GetProducts --> RankProducts[Rank products by relevance]
-    ShowDefaults --> DisplayRecs[Display recommendations to user]
-    RankProducts --> DisplayRecs
+    RankProducts --> DisplayRecs[Display recommendations to user]
     
     DisplayRecs --> UserAction{User action?}
     
     UserAction -->|Add to cart| UpdateCart[Add product to cart]
     UserAction -->|Filter| ApplyFilter[Apply category filter]
-    UserAction -->|Continue chat| NewMessage[Process new message]
-    UserAction -->|Close| End([End])
+    UserAction -->|View details| ShowDetails[Show product details]
+    UserAction -->|Continue chat| SendMessage
+    UserAction -->|End session| End([End])
     
     UpdateCart --> UserAction
     ApplyFilter --> DisplayRecs
-    NewMessage --> ExtractQuery
+    ShowDetails --> UserAction
 ```
 
 ## 3.2.1 Refinement of Classes and Objects
@@ -434,31 +379,31 @@ The refined class diagram shows the strategy pattern implementation for recommen
 classDiagram
     class RecommendationStrategy {
         <<interface>>
-        +getRecommendations(query: string, limit: number): Product[]
+        +getRecommendations(chatHistory: ChatMessage[], limit: number): Product[]
     }
     
     class KNNRecommendationStrategy {
         -extractFeatures(text: string): number[]
         -calculateDistance(vector1: number[], vector2: number[]): number
-        +getRecommendations(query: string, limit: number): Product[]
+        +getRecommendations(chatHistory: ChatMessage[], limit: number): Product[]
     }
     
     class NLPRecommendationStrategy {
         -calculateTfIdf(document: string, allDocuments: string[]): Map<string, number>
         -cosineSimilarity(vector1: Map<string, number>, vector2: Map<string, number>): number
-        +getRecommendations(query: string, limit: number): Product[]
+        +getRecommendations(chatHistory: ChatMessage[], limit: number): Product[]
     }
     
     class KnowledgeGraphRecommendationStrategy {
         -extractEntities(text: string): Entity[]
         -scoreProducts(entities: Entity[], products: Product[]): ScoredProduct[]
-        +getRecommendations(query: string, limit: number): Product[]
+        +getRecommendations(chatHistory: ChatMessage[], limit: number): Product[]
     }
     
     class GeminiRecommendationStrategy {
-        -generatePrompt(query: string, categories: string[]): string
+        -generatePrompt(chatHistory: ChatMessage[], categories: string[]): string
         -parseResponse(response: string): AnalysisResult
-        +getRecommendations(query: string, limit: number): Product[]
+        +getRecommendations(chatHistory: ChatMessage[], limit: number): Product[]
     }
     
     class RecommendationService {
@@ -466,8 +411,8 @@ classDiagram
         -productRepository: ProductRepository
         -knowledgeGraph: AgriculturalKnowledgeGraphService
         +registerStrategy(name: string, strategy: RecommendationStrategy): void
-        +getRecommendationsFromChat(userId: string, limit: number): Product[]
-        -selectStrategy(query: string): RecommendationStrategy
+        +getRecommendationsFromChat(chatId: string, limit: number): Product[]
+        -selectStrategy(chatHistory: ChatMessage[]): RecommendationStrategy
         -fallbackToDefault(limit: number): Product[]
     }
     
@@ -484,7 +429,13 @@ classDiagram
         +getProblems(): Problem[]
         +getActivities(): Activity[]
         +findRelatedProducts(entity: string, type: string): string[]
-        +findRelatedEntities(entityId: string, type: string): Entity[]
+    }
+    
+    class ChatService {
+        +createSession(userId: string): ChatSession
+        +addMessage(sessionId: string, content: string, role: string): ChatMessage
+        +getSessionHistory(sessionId: string): ChatMessage[]
+        +analyzeChat(sessionId: string): ChatAnalysis
     }
     
     RecommendationStrategy <|.. KNNRecommendationStrategy
@@ -495,106 +446,111 @@ classDiagram
     RecommendationService --> RecommendationStrategy: uses
     RecommendationService --> ProductRepository: uses
     RecommendationService --> AgriculturalKnowledgeGraphService: uses
+    RecommendationService --> ChatService: uses
     
     KnowledgeGraphRecommendationStrategy --> AgriculturalKnowledgeGraphService: uses
 ```
 
 ## 3.2.2 Component Diagram
 
-The component diagram illustrates the main components of the CropsayAI system and their interactions:
+The component diagram illustrates the main components of the CropsayAI Chat-based Product Recommendation System:
 
 ```mermaid
-component "User Interface Layer" as UI {
-    component "React Components" as RC
-    component "State Management" as SM
-    component "Routing" as RT
-}
+flowchart TD
+    subgraph UI["User Interface Layer"]
+        CC["Chat Components"]
+        RC["Recommendation Components"]
+        PC["Product Components"]
+        SC["Shopping Cart Components"]
+    end
 
-component "Service Layer" as SL {
-    component "Recommendation Services" as RS
-    component "Chat Services" as CS
-    component "Authentication Services" as AS
-    component "Product Services" as PS
-}
+    subgraph SL["Service Layer"]
+        CS["Chat Service"]
+        RS["Recommendation Services"]
+        PS["Product Services"]
+    end
 
-component "Data Access Layer" as DAL {
-    component "API Clients" as AC
-    component "Data Models" as DM
-    component "Repository Interfaces" as RI
-}
+    subgraph DAL["Data Access Layer"]
+        PR["Product Repository"]
+        CR["Chat Repository"]
+        KGR["Knowledge Graph Repository"]
+    end
 
-component "External Services" as ES {
-    component "NLP Service" as NLP
-    component "Gemini API" as GA
-    component "Supabase" as SB
-}
+    subgraph ES["External Services"]
+        NLP["NLP Service"]
+        GA["Gemini API"]
+        SB["Supabase"]
+    end
 
-UI --> SL : uses
-SL --> DAL : uses
-DAL --> ES : integrates with
+    UI --> SL
+    SL --> DAL
+    DAL --> ES
 
-RC --> SM : updates
-SM --> RC : notifies
-RC --> RT : navigates
+    CC --> CS
+    RC --> RS
+    PC --> PS
+    SC --> PS
 
-RS --> CS : analyzes
-RS --> PS : retrieves
-AS --> SB : authenticates
-CS --> SB : stores
+    CS --> CR
+    RS --> PR
+    RS --> KGR
+    RS --> CS
+    PS --> PR
 
-AC --> NLP : calls
-AC --> GA : calls
-AC --> SB : queries
-RI --> DM : manipulates
+    CR --> SB
+    PR --> SB
+    KGR --> SB
+    RS --> NLP
+    RS --> GA
 ```
 
 ## 3.2.3 Deployment Diagram
 
-The deployment diagram illustrates how the CropsayAI system is deployed:
+The deployment diagram illustrates how the CropsayAI Chat-based Product Recommendation System is deployed:
 
 ```mermaid
-graph TD
-    subgraph "Client Device"
-        Browser["Web Browser
-        (React Application)"]
+flowchart TD
+    subgraph CD["Client Device"]
+        Browser["Web Browser\n(React Application)"]
     end
     
-    subgraph "Web Server"
-        WebApp["Web Application Server
-        (Node.js)"]
+    subgraph WS["Web Server"]
+        WebApp["Web Application Server\n(Node.js)"]
         
-        subgraph "Frontend"
+        subgraph FE["Frontend"]
             ReactApp["React Application"]
-            StateManagement["State Management"]
+            ChatUI["Chat UI Components"]
+            RecommendationUI["Recommendation UI Components"]
         end
         
-        subgraph "Backend Services"
-            APIServices["API Services"]
-            AuthService["Authentication Service"]
-            RecommendationEngine["Recommendation Engine"]
+        subgraph BE["Backend Services"]
+            ChatService["Chat Service"]
+            RecEngine["Recommendation Engine"]
+            ProductService["Product Service"]
         end
     end
     
-    subgraph "NLP Server"
-        PythonService["Python NLP Service
-        (FastAPI)"]
+    subgraph NS["NLP Server"]
+        PythonService["Python NLP Service\n(FastAPI)"]
         TransformerModels["Transformer Models"]
         Embeddings["Text Embeddings"]
     end
     
-    subgraph "External Services"
+    subgraph ES["External Services"]
         GeminiAPI["Google Gemini API"]
         SupabaseDB["Supabase Database"]
     end
     
-    Browser <--> WebApp: "HTTPS"
-    ReactApp --> StateManagement: "Internal"
-    WebApp --> APIServices: "Internal"
-    APIServices --> AuthService: "Internal"
-    APIServices --> RecommendationEngine: "Internal"
-    RecommendationEngine <--> PythonService: "HTTP/REST"
-    PythonService --> TransformerModels: "Internal"
-    PythonService --> Embeddings: "Internal"
-    RecommendationEngine <--> GeminiAPI: "HTTPS/REST"
-    AuthService <--> SupabaseDB: "HTTPS/REST"
-    APIServices <--> SupabaseDB: "HTTPS/REST"
+    Browser <--> WebApp
+    ReactApp --> ChatUI
+    ReactApp --> RecommendationUI
+    WebApp --> ChatService
+    WebApp --> RecEngine
+    WebApp --> ProductService
+    ChatService --> RecEngine
+    RecEngine <--> PythonService
+    PythonService --> TransformerModels
+    PythonService --> Embeddings
+    RecEngine <--> GeminiAPI
+    ChatService <--> SupabaseDB
+    ProductService <--> SupabaseDB
