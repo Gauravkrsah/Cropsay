@@ -9,6 +9,10 @@
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
     "preview": "vite preview"
+,
+    "start:gemini": "node start-gemini-proxy.js",
+    "start:nlp": "node start-nlp-service.js",
+    "start:all": "concurrently \"npm run dev\" \"npm run start:gemini\" \"npm run start:nlp\""
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.2.5",
@@ -47,6 +51,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cmdk": "^1.0.0",
+    "concurrently": "^8.2.2",
     "cors": "^2.8.5",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",

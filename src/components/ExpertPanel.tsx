@@ -9,8 +9,11 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { CartItemQuantity } from '@/components/ShoppingCart';
 import { useNavigate } from 'react-router-dom';
-import { getGeminiRecommendations } from '@/services/geminiRecommendationService';
+import { getNLPRecommendations } from '@/services/nlpBridgeService';
+import { getAIRecommendationsFromQuery } from '@/services/aiRecommendationService';
+import { getDynamicRecommendations } from '@/services/dynamicRecommendationService';
 import { getUserId } from '@/integrations/supabase/supabaseClient';
+import { chatService } from '@/services/chatService';
 import { Product } from '@/data/productData';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
@@ -82,6 +85,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
   const [hasChats, setHasChats] = useState<boolean>(true);
+  const [usingNLPService, setUsingNLPService] = useState<boolean>(false);
   const navigate = useNavigate();
   const [activeProductCategory, setActiveProductCategory] = useState<string>("all");
 
@@ -110,7 +114,49 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
         try {
           // Get user ID using the getUserId function
           const userId = getUserId();
-          const recommendations = await getGeminiRecommendations("What are the best products for " + document.querySelector('input[placeholder="Ask anything..."]')?.value || "agriculture", 3);
+          
+          // Get actual chat sessions to check if there's chat history
+          const chatSessions = await chatService.getChatSessions(userId);
+          
+          if (!chatSessions || chatSessions.length === 0 || 
+              !chatSessions[0].messages || chatSessions[0].messages.length === 0) {
+            console.log('No chat history found, showing empty recommendations');
+            setHasChats(false);
+            setLoadingProducts(false);
+            return;
+          }
+          
+          // Get the most recent session with messages
+          const recentSession = chatSessions[0];
+          
+          // Extract user messages from the chat history
+          const userMessages = recentSession.messages
+            .filter(msg => msg.role === 'user')
+            .map(msg => msg.content);
+            
+          if (userMessages.length === 0) {
+            console.log('No user messages found in chat history');
+            setHasChats(false);
+            setLoadingProducts(false);
+            return;
+          }
+          
+          // Use the last 3 user messages for context
+          const query = userMessages.slice(-3).join(' ');
+          
+          // Try to use NLP service first
+          try {
+            const nlpRecommendations = await getDynamicRecommendations(query, 10);
+            setRecommendedProducts(nlpRecommendations);
+            setUsingNLPService(true);
+            setHasChats(true);
+            console.log('Using NLP service for recommendations');
+            return;
+          } catch (nlpError) {
+            console.log('NLP service unavailable, falling back to AI recommendations:', nlpError);
+          }
+          
+          const recommendations = await getDynamicRecommendations(query, 10);
           
           if (recommendations.length === 0) {
             // No chat data available
@@ -118,6 +164,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
           } else {
             setHasChats(true);
             setRecommendedProducts(recommendations);
+            setUsingNLPService(false);
           }
         } catch (error) {
           console.error('Error loading product recommendations:', error);
@@ -380,6 +427,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 </div>
               </div>
             ) : (
+            <div className="h-full flex flex-col">
             <div className="p-3">
               <div className="flex flex-wrap gap-2 mb-3">
                 <Button 
@@ -453,7 +501,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 </div>
               )}
             </div>
-)}
+
             
             <div className="flex-1 overflow-y-auto px-3 custom-scrollbar hide-scrollbar">
               <div className="space-y-2 pb-3">
@@ -503,6 +551,8 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 })}
               </div>
             </div>
+            </div>
+            )}
           </div>
         ) : (
           <div className="p-4 h-[calc(100%-64px)] overflow-y-auto custom-scrollbar hide-scrollbar">
