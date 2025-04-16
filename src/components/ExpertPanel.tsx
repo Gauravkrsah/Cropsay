@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic, ShoppingCartIcon } from 'lucide-react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic, ShoppingCartIcon, PlusCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +8,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { useCart, CartItem } from '@/contexts/CartContext';
 import { CartItemQuantity } from '@/components/ShoppingCart';
+import { useNavigate } from 'react-router-dom';
+import { getGeminiRecommendations } from '@/services/geminiRecommendationService';
+import { getUserId } from '@/integrations/supabase/supabaseClient';
+import { Product } from '@/data/productData';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface ExpertPanelProps {
@@ -27,36 +31,7 @@ interface Expert {
   image?: string;
 }
 
-// Sample recommended products data
-const recommendedProducts = [
-  {
-    id: 101,
-    name: 'Premium Seeds',
-    description: 'High-Yield Wheat Seeds',
-    price: 2550,
-    rating: 4.9,
-    category: 'Seeds',
-    inStock: true,
-  },
-  {
-    id: 102,
-    name: 'Roundup',
-    description: 'Roundup Herbicide',
-    price: 450,
-    rating: 4.8,
-    category: 'Pesticides',
-    inStock: true,
-  },
-  {
-    id: 103,
-    name: 'NPK Fertilizer',
-    description: 'Balanced Wheat Formula',
-    price: 1200,
-    rating: 4.7,
-    category: 'Fertilizers',
-    inStock: true,
-  },
-];
+
 
 // Sample experts data - in a real app this would come from an API
 const experts: Expert[] = [
@@ -104,6 +79,10 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const { items, addItem, openCart } = useCart();
   const panelRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
+  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
+  const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
+  const [hasChats, setHasChats] = useState<boolean>(true);
+  const navigate = useNavigate();
   const [activeProductCategory, setActiveProductCategory] = useState<string>("all");
 
   // Add click outside handler to close the panel
@@ -122,6 +101,34 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
+
+  // Load product recommendations when panel opens
+  useEffect(() => {
+    const loadRecommendations = async () => {
+      if (isOpen && title === "Recommended Products") {
+        setLoadingProducts(true);
+        try {
+          // Get user ID using the getUserId function
+          const userId = getUserId();
+          const recommendations = await getGeminiRecommendations("What are the best products for " + document.querySelector('input[placeholder="Ask anything..."]')?.value || "agriculture", 3);
+          
+          if (recommendations.length === 0) {
+            // No chat data available
+            setHasChats(false);
+          } else {
+            setHasChats(true);
+            setRecommendedProducts(recommendations);
+          }
+        } catch (error) {
+          console.error('Error loading product recommendations:', error);
+          setHasChats(false);
+        } finally {
+          setLoadingProducts(false);
+        }
+      }
+    };
+    loadRecommendations();
+  }, [isOpen, title]);
 
   const handleChatNow = (expert: Expert) => {
     setActiveChatExpert(expert);
@@ -147,6 +154,11 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   
   const handleAddToCart = (product: any) => {
     addItem(product);
+  };
+
+  const handleCreateChat = () => {
+    onClose(); // Close the panel
+    navigate('/chat'); // Navigate to chat page
   };
   
   const toggleAttachmentMenu = () => {
@@ -347,6 +359,27 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
           </ScrollArea>
         ) : title === "Recommended Products" ? (
           <div className="h-[calc(100%-64px)] overflow-hidden flex flex-col">
+            {loadingProducts ? (
+              <div className="flex items-center justify-center h-full">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-500"></div>
+              </div>
+            ) : !hasChats ? (
+              <div className="flex flex-col items-center justify-center h-full p-4">
+                <div className="bg-[#1E2735] rounded-lg p-6 text-center max-w-xs">
+                  <ShoppingBag size={48} className="mx-auto mb-4 text-green-500" />
+                  <h3 className="text-lg font-medium mb-2">No Recommendations Yet</h3>
+                  <p className="text-sm text-gray-400 mb-4">
+                    Start a chat with our AI assistant to get personalized product recommendations based on your needs.
+                  </p>
+                  <Button 
+                    className="bg-green-500 hover:bg-green-600 w-full"
+                    onClick={handleCreateChat}
+                  >
+                    <PlusCircle size={16} className="mr-2" /> Create Chat
+                  </Button>
+                </div>
+              </div>
+            ) : (
             <div className="p-3">
               <div className="flex flex-wrap gap-2 mb-3">
                 <Button 
@@ -420,6 +453,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 </div>
               )}
             </div>
+)}
             
             <div className="flex-1 overflow-y-auto px-3 custom-scrollbar hide-scrollbar">
               <div className="space-y-2 pb-3">
@@ -427,18 +461,18 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                   const cartItem = cartItemForProduct(product.id);
                   
                   return (
-                    <div key={product.id} className="bg-[#1E2735] rounded-lg p-3">
+                    <div key={product.id} className="bg-[#1E2735] rounded-lg p-3 flex flex-col">
                       <div className="flex items-start">
                         <div className="w-10 h-10 bg-[#2A3143] rounded-md mr-2 flex-shrink-0"></div>
-                        <div className="flex-1">
-                          <div className="flex justify-between">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex justify-between items-start">
                             <h4 className="font-medium text-sm">{product.name}</h4>
-                            <div className="flex items-center">
+                            <div className="flex items-center flex-shrink-0 ml-1">
                               <span className="text-yellow-400 mr-1">★</span>
-                              <span className="text-xs">{product.rating}</span>
+                              <span className="text-xs whitespace-nowrap">{product.rating}</span>
                             </div>
                           </div>
-                          <p className="text-xs text-gray-400 mb-1 truncate">{product.description}</p>
+                          <p className="text-xs text-gray-400 mb-1 line-clamp-2 overflow-hidden text-ellipsis">{product.description}</p>
                           <div className="flex justify-between items-center">
                             <div>
                               <span className="font-medium text-sm">रु {product.price}</span>

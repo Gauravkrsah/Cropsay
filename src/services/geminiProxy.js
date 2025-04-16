@@ -1,7 +1,7 @@
 // Simple Express server to proxy Gemini API requests (avoiding CORS issues)
-const express = require('express');
-const cors = require('cors');
-const { GoogleGenerativeAI } = require('@google/generative-ai');
+import express from 'express';
+import cors from 'cors';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 const app = express();
 const port = 3000;
@@ -26,7 +26,7 @@ app.post('/api/generate', async (req, res) => {
     console.log('Received request with message:', message);
     
     // Get the Gemini model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
     
     // Generate content
     const result = await model.generateContent(message);

@@ -13,7 +13,8 @@ const GEMINI_API_KEY = '***REMOVED***';
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Use the correct model name as identified by Google
-const MODEL_NAME = 'gemini-2.5-pro-exp-03-25';
+const MODEL_NAME = 'gemini-1.5-flash'; // Using the free Gemini 1.5 Flash model
+const RETRY_ATTEMPTS = 2; // Number of retry attempts if the API call fails
 
 // Interface for structured product recommendations
 interface ProductRecommendation {
@@ -26,85 +27,6 @@ interface GeminiResponse {
   answer: string;
   productRecommendations: ProductRecommendation[];
 }
-
-// Fallback responses for common agricultural queries
-const FALLBACK_RESPONSES: Record<string, GeminiResponse> = {
-  'fertilizer': {
-    answer: "For wheat crops, the best fertilizers typically include nitrogen-rich options like urea or ammonium nitrate, as wheat is a heavy nitrogen feeder. Phosphorus and potassium are also important. A balanced NPK fertilizer with ratios like 20-10-10 is often recommended during the growing season. Always soil test before application to determine specific needs for your field.",
-    productRecommendations: [
-      {
-        productId: "fert-001",
-        productName: "WheatBoost NPK 20-10-10",
-        reason: "Balanced nutrition specifically formulated for wheat crops"
-      },
-      {
-        productId: "fert-002",
-        productName: "UltraGrow Nitrogen Plus",
-        reason: "High nitrogen content ideal for wheat's vegetative growth stage"
-      }
-    ]
-  },
-  'pest': {
-    answer: "Common pests affecting wheat crops include aphids, armyworms, and wheat stem sawfly. Integrated pest management (IPM) approaches are recommended, combining biological controls, crop rotation, and targeted pesticide applications when necessary. Regular field monitoring is essential for early detection.",
-    productRecommendations: [
-      {
-        productId: "pest-001",
-        productName: "NaturalGuard Aphid Control",
-        reason: "Effective against common wheat aphids while being eco-friendly"
-      },
-      {
-        productId: "pest-002",
-        productName: "CropShield Insecticide",
-        reason: "Broad-spectrum protection against multiple wheat pests"
-      }
-    ]
-  },
-  'water': {
-    answer: "Wheat typically requires about 12-15 inches of water throughout its growing season. The most critical irrigation periods are during tillering, stem extension, and grain filling stages. Over-watering can increase disease pressure, while under-watering during critical growth stages can significantly reduce yield.",
-    productRecommendations: [
-      {
-        productId: "irr-001",
-        productName: "SmartDrip Irrigation System",
-        reason: "Water-efficient irrigation solution ideal for wheat fields"
-      },
-      {
-        productId: "irr-002",
-        productName: "SoilMoist Retention Granules",
-        reason: "Helps retain soil moisture during critical growth stages"
-      }
-    ]
-  },
-  'crop': {
-    answer: "When selecting wheat varieties, consider factors like disease resistance, climate adaptation, end-use quality, and yield potential. Popular varieties include hard red winter wheat, soft white winter wheat, and hard red spring wheat, each suited to different growing conditions and market purposes.",
-    productRecommendations: [
-      {
-        productId: "seed-001",
-        productName: "Premium Hard Red Winter Wheat Seeds",
-        reason: "High-yielding variety with excellent disease resistance"
-      },
-      {
-        productId: "seed-002",
-        productName: "Organic Soft White Wheat Seeds",
-        reason: "Perfect for organic farming with good drought tolerance"
-      }
-    ]
-  },
-  'soil': {
-    answer: "Wheat grows best in well-drained loamy soils with a pH between 6.0 and 7.0. Soil preparation should include proper tillage to create a firm seedbed. Regular soil testing is recommended to monitor nutrient levels and adjust fertility programs accordingly.",
-    productRecommendations: [
-      {
-        productId: "soil-001",
-        productName: "SoilRight pH Balancer",
-        reason: "Adjusts soil pH to the optimal range for wheat growth"
-      },
-      {
-        productId: "soil-002",
-        productName: "MicroNutrient Soil Enhancer",
-        reason: "Adds essential micronutrients often missing in depleted soils"
-      }
-    ]
-  }
-};
 
 export const geminiService = {
   /**
@@ -131,9 +53,113 @@ export const geminiService = {
       .join('\n');
 
     try {
-      console.log('Sending to Gemini model:', MODEL_NAME);
+      // Direct API call
+      console.log('Making direct API call to Gemini...');
+      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
       
+      const prompt = `
+You are an expert agricultural assistant for CropsayAI. Answer the following question about farming, agriculture, or plants:
+
+${userQuestion}
+
+${recentChatHistory ? `Recent conversation context: ${recentChatHistory}` : ''}
+
+Provide a helpful, informative response with practical advice.
+`;
+      
+      const result = await model.generateContent(prompt);
+      const response = await result.response;
+      const text = response.text();
+      
+      if (text && text.trim() !== '') {
+        console.log('Successfully received response from Gemini API');
+        return text;
+      }
+      
+      throw new Error('Empty response from Gemini API');
+    } catch (error) {
+      console.error('Error in Gemini API call:', error);
+      
+      // Instead of using fallback responses, return an error message
+      // Try a direct API call as a last resort
+      try {
+        console.log('Attempting direct API call without structured output...');
+        const model = genAI.getGenerativeModel({
+          model: 'gemini-1.5-flash' // Fallback to gemini-1.5-flash which is free
+        });
+        
+        const simplePrompt = `
+You are an expert agricultural assistant for CropsayAI. Answer the following question about farming, agriculture, or plants:
+
+${userQuestion}
+
+Provide a helpful, informative response with practical advice.
+`;
+        
+        const result = await model.generateContent(simplePrompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        if (text && text.trim() !== '') {
+          return text;
+        }
+      } catch (directError) {
+        console.error('Direct API call also failed:', directError);
+      }
+      
+      return "I'm sorry, I couldn't generate a response using the Gemini API. Please check your internet connection and try again.";
+    }
+  },
+
+  /**
+   * Generate a title for a chat session based on the first message
+   * @param message - The first user message in the chat
+   * @returns A generated title for the chat
+   */
+  generateChatTitle: async (message: string): Promise<string> => {
+    try {
       // Get the model with the correct name
+      const model = genAI.getGenerativeModel({
+        model: MODEL_NAME
+      });
+      
+      const prompt = `Create a very short title (3-5 words) for a chat conversation that starts with this message: "${message}"`;
+      
+      const result = await model.generateContent(prompt);
+      const responseText = await result.response;
+      const title = responseText.text().replace(/["']/g, '').trim();
+      
+      if (title && title.length > 0) {
+        return title;
+      } else {
+        // Fallback to simple title extraction
+        const words = message.split(' ').slice(0, 3).join(' ');
+        return words + (message.split(' ').length > 3 ? '...' : '');
+      }
+    } catch (error) {
+      console.error('Error generating chat title:', error);
+      // Simple fallback
+      const words = message.split(' ').slice(0, 3).join(' ');
+      return words + (message.split(' ').length > 3 ? '...' : '');
+    }
+  }
+};
+
+/**
+ * Helper function to generate a response from Gemini API with retry logic
+ * @param userQuestion - The user's question
+ * @param chatHistory - Recent chat history for context
+ * @returns Formatted response from Gemini
+ */
+async function generateGeminiResponse(userQuestion: string, chatHistory: string): Promise<string> {
+  let lastError: any = null;
+  
+  // Try multiple times in case of temporary API issues
+  for (let attempt = 0; attempt <= RETRY_ATTEMPTS; attempt++) {
+    try {
+      console.log(`Sending to Gemini model (attempt ${attempt + 1}/${RETRY_ATTEMPTS + 1}):`, MODEL_NAME);
+      
+      // Get the model
       const model = genAI.getGenerativeModel({
         model: MODEL_NAME
       });
@@ -150,7 +176,7 @@ You are an expert agricultural assistant for CropsayAI. Provide a clear and conc
 }
 
 User Question: ${userQuestion}
-Chat History: ${recentChatHistory}
+Chat History: ${chatHistory}
 
 Remember to make your product recommendations specifically related to farming and agriculture products.
 `;
@@ -159,13 +185,18 @@ Remember to make your product recommendations specifically related to farming an
       console.log('Structured prompt:', structuredPrompt);
       const result = await model.generateContent(structuredPrompt);
       const response = await result.response;
-      const text = response.text();
+      let text = response.text();
       
       console.log('Gemini response received');
       
       if (!text || text.trim() === '') {
         console.error('Received empty response from Gemini');
-        throw new Error('Empty response from Gemini API');
+        // If we're on the last attempt, throw an error
+        if (attempt === RETRY_ATTEMPTS) {
+          throw new Error('Empty response from Gemini API');
+        }
+        // Otherwise, try again
+        continue;
       }
       
       // Try to parse the response as JSON
@@ -197,99 +228,18 @@ Remember to make your product recommendations specifically related to farming an
         // If can't parse, return the raw text as fallback
         return text;
       }
-      
     } catch (error) {
-      console.error('Error in Gemini API call:', error);
+      console.error(`Attempt ${attempt + 1}/${RETRY_ATTEMPTS + 1} failed:`, error);
+      lastError = error;
       
-      // Use fallback responses based on keywords in the user's question
-      const userQuestionLower = userQuestion.toLowerCase();
-      
-      // Check for keywords and return appropriate fallback responses
-      for (const [keyword, response] of Object.entries(FALLBACK_RESPONSES)) {
-        if (userQuestionLower.includes(keyword)) {
-          console.log(`Using fallback response for keyword: ${keyword}`);
-          
-          // Format the fallback response like we would for a real API response
-          let formattedResponse = response.answer + "\n\n";
-          
-          if (response.productRecommendations && 
-              response.productRecommendations.length > 0) {
-            formattedResponse += "**Recommended Products:**\n\n";
-            
-            for (const product of response.productRecommendations) {
-              formattedResponse += `**${product.productName}**\n${product.reason}\n\n`;
-            }
-          }
-          
-          return formattedResponse;
-        }
+      // If this is not the last attempt, wait a bit before retrying
+      if (attempt < RETRY_ATTEMPTS) {
+        await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1))); // Exponential backoff
+        continue;
       }
-      
-      // If no specific fallback matches, check if it's about crops in general
-      if (userQuestionLower.includes('wheat') || 
-          userQuestionLower.includes('farm') || 
-          userQuestionLower.includes('grow') || 
-          userQuestionLower.includes('plant')) {
-        const generalResponse: GeminiResponse = {
-          answer: "As an agriculture assistant, I can tell you that successful farming depends on many factors including climate, soil conditions, water availability, and proper management practices. For specific crops like wheat, it's important to choose varieties adapted to your region, prepare soil properly, plant at the optimal time, and monitor for pests and diseases throughout the growing season.",
-          productRecommendations: [
-            {
-              productId: "gen-001",
-              productName: "Complete Farming Guide eBook",
-              reason: "Comprehensive resource covering all aspects of wheat farming"
-            },
-            {
-              productId: "gen-002",
-              productName: "Soil Testing Kit",
-              reason: "Essential tool for evaluating your soil before planting"
-            }
-          ]
-        };
-        
-        let formattedResponse = generalResponse.answer + "\n\n";
-        formattedResponse += "**Recommended Products:**\n\n";
-        
-        for (const product of generalResponse.productRecommendations) {
-          formattedResponse += `**${product.productName}**\n${product.reason}\n\n`;
-        }
-        
-        return formattedResponse;
-      }
-      
-      return "I'm sorry, I encountered an issue generating a response. Please try again or contact support if the problem persists.";
-    }
-  },
-
-  /**
-   * Generate a title for a chat session based on the first message
-   * @param message - The first user message in the chat
-   * @returns A generated title for the chat
-   */
-  generateChatTitle: async (message: string): Promise<string> => {
-    try {
-      // Get the model with the correct name
-      const model = genAI.getGenerativeModel({
-        model: MODEL_NAME
-      });
-      
-      const prompt = `Create a very short title (3-5 words) for a chat conversation that starts with this message: "${message}"`;
-      
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const title = response.text().replace(/["']/g, '').trim();
-      
-      if (title && title.length > 0) {
-        return title;
-      } else {
-        // Fallback to simple title extraction
-        const words = message.split(' ').slice(0, 3).join(' ');
-        return words + (message.split(' ').length > 3 ? '...' : '');
-      }
-    } catch (error) {
-      console.error('Error generating chat title:', error);
-      // Simple fallback
-      const words = message.split(' ').slice(0, 3).join(' ');
-      return words + (message.split(' ').length > 3 ? '...' : '');
     }
   }
-};
+  
+  // If we've exhausted all retry attempts, throw the last error
+  throw lastError || new Error('Failed to generate response from Gemini API after multiple attempts');
+}
