@@ -20,16 +20,21 @@
    3. [Technologies Used](#23-technologies-used)
    4. [Theoretical Framework](#24-theoretical-framework)
 
-3. [Analysis & Design](#3-analysis--design)
-   1. [Requirements Analysis](#31-requirements-analysis)
-   2. [System Architecture](#32-system-architecture)
-   3. [Class Diagram](#33-class-diagram)
-   4. [Sequence Diagrams](#34-sequence-diagrams)
-   5. [State Diagram](#35-state-diagram)
-   6. [Activity Diagram](#36-activity-diagram)
-   7. [Component & Deployment Diagrams](#37-component--deployment-diagrams)
-   8. [Database Design](#38-database-design)
-   9. [UI/UX Design](#39-uiux-design)
+3. [System Analysis and Design](#3-system-analysis-and-design)
+   1. [System Analysis (Object-Oriented Approach)](#31-system-analysis-object-oriented-approach)
+      1. [Requirement Analysis](#311-requirement-analysis)
+         1. [Functional Requirements](#3111-functional-requirements)
+         2. [Non-functional Requirements](#3112-non-functional-requirements)
+      2. [Feasibility Analysis](#312-feasibility-analysis)
+      3. [Object Modeling: Object & Class Diagram](#313-object-modeling-object--class-diagram)
+      4. [Dynamic Modeling: State & Sequence Diagrams](#314-dynamic-modeling-state--sequence-diagrams)
+      5. [Process Modeling: Activity Diagram](#315-process-modeling-activity-diagram)
+   2. [System Design (Object-Oriented Approach)](#32-system-design-object-oriented-approach)
+      1. [Refinement of Classes and Objects](#321-refinement-of-classes-and-objects)
+      2. [Component Diagram](#322-component-diagram)
+      3. [Deployment Diagram](#323-deployment-diagram)
+      4. [Database Design](#324-database-design)
+      5. [Interface Design (UI/UX)](#325-interface-design-uiux)
 
 4. [Implementation & Testing](#4-implementation--testing)
    1. [Development Environment](#41-development-environment)
@@ -197,11 +202,15 @@ CropsayAI implements multiple recommendation strategies (pattern-based, NLP-base
 
 ---
 
-# 3. Analysis & Design
+# 3. System Analysis and Design
 
-## 3.1 Requirements Analysis
+## 3.1 System Analysis (Object-Oriented Approach)
 
-### Functional Requirements
+### 3.1.1 Requirement Analysis
+
+#### 3.1.1.1 Functional Requirements
+
+The functional requirements of CropsayAI are illustrated using the following use cases:
 
 1. **User Authentication**
    - The system shall allow users to register and log in
@@ -227,7 +236,7 @@ CropsayAI implements multiple recommendation strategies (pattern-based, NLP-base
    - The system shall allow users to add recommended products to cart
    - The system shall display cart contents and total price
 
-### Non-Functional Requirements
+#### 3.1.1.2 Non-functional Requirements
 
 1. **Performance**
    - The system shall respond to user queries within 3 seconds
@@ -249,58 +258,27 @@ CropsayAI implements multiple recommendation strategies (pattern-based, NLP-base
    - The system shall secure user data and chat history
    - The system shall implement authentication and authorization
 
-## 3.2 System Architecture
+### 3.1.2 Feasibility Analysis
 
-The CropsayAI system follows a modern web application architecture with specialized components for AI and NLP processing.
+**Technical Feasibility**
+- The project uses established technologies (React, TypeScript, Python, NLP models)
+- The team has expertise in web development and AI/ML
+- Integration with external services (Gemini API, Supabase) is well-documented
+- The system architecture is modular, allowing for incremental development
 
-```mermaid
-graph TD
-    Client[Client Browser] --> Frontend[Frontend React Application]
-    Frontend --> AuthService[Authentication Service]
-    Frontend --> ChatService[Chat Service]
-    Frontend --> RecommendationService[Recommendation Service]
-    Frontend --> ProductService[Product Service]
-    
-    RecommendationService --> BasicRecommendation[Basic Recommendation]
-    RecommendationService --> PatternRecommendation[Pattern Recommendation]
-    RecommendationService --> AIRecommendation[AI Recommendation]
-    RecommendationService --> NLPBridge[NLP Bridge Service]
-    
-    AIRecommendation --> GeminiAPI[Google Gemini API]
-    NLPBridge --> NLPService[Python NLP Service]
-    
-    NLPService --> TransformerModels[Transformer Models]
-    
-    AuthService --> Supabase[(Supabase Database)]
-    ChatService --> Supabase
-    ProductService --> Supabase
-    
-    subgraph "AI and NLP Components"
-        GeminiAPI
-        NLPService
-        TransformerModels
-    end
-    
-    subgraph "Core Services"
-        AuthService
-        ChatService
-        RecommendationService
-        ProductService
-    end
-```
+**Operational Feasibility**
+- The system addresses a clear need in agricultural communities
+- The user interface is designed to be accessible to users with varying levels of technical literacy
+- The system can operate in environments with limited connectivity through fallback mechanisms
+- The recommendation system is designed to improve over time with more user interactions
 
-**Figure 3.1: System Architecture Diagram**
+**Economic Feasibility**
+- Development costs are manageable due to the use of open-source technologies
+- The system can be monetized through commission on product sales
+- The scalable architecture allows for cost-effective growth
+- The potential market is large, with millions of farmers seeking agricultural advice
 
-The architecture consists of:
-
-1. **Frontend Layer**: React application with UI components and state management
-2. **Service Layer**: Core services for authentication, chat, recommendations, and products
-3. **AI and NLP Layer**: Specialized services for advanced recommendation generation
-4. **Data Layer**: Supabase database for persistent storage
-
-The system uses a microservices-inspired approach, with separate services for different recommendation strategies. This allows for flexibility, fault tolerance, and the ability to evolve different components independently.
-
-## 3.3 Class Diagram
+### 3.1.3 Object Modeling: Object & Class Diagram
 
 The following class diagram illustrates the key classes and their relationships in the CropsayAI system:
 
@@ -410,7 +388,7 @@ classDiagram
     CartContext --> Product: contains
 ```
 
-**Figure 3.2: Class Diagram**
+**Figure 3.1: Class Diagram**
 
 The class diagram shows the core domain model and service classes. The system is organized around:
 
@@ -420,10 +398,9 @@ The class diagram shows the core domain model and service classes. The system is
 
 This object-oriented design allows for clear separation of concerns, with each class having specific responsibilities.
 
+### 3.1.4 Dynamic Modeling: State & Sequence Diagrams
 
-## 3.4 Sequence Diagrams
-
-### Product Recommendation Sequence
+#### Sequence Diagrams
 
 The following sequence diagram illustrates the process of generating product recommendations based on user chat:
 
@@ -481,11 +458,9 @@ sequenceDiagram
     deactivate UI
 ```
 
-**Figure 3.3: Product Recommendation Sequence Diagram**
+**Figure 3.2: Product Recommendation Sequence Diagram**
 
 This sequence diagram shows the fallback mechanism where the system first attempts to use the advanced NLP service, and if unavailable, falls back to the AI recommendation service using Gemini.
-
-### User Chat with Expert Sequence
 
 The following sequence diagram illustrates the process of a user chatting with an agricultural expert:
 
@@ -519,9 +494,15 @@ sequenceDiagram
     
     UI->>UI: Update recommendations panel
     UI-->>User: Display updated chat and recommendations
+    
+    deactivate UI
+```
 
+**Figure 3.3: User Chat with Expert Sequence Diagram**
 
-## 3.5 State Diagram
+This sequence diagram shows how user chat interactions trigger updates to both the chat interface and the recommendation panel.
+
+#### State Diagram
 
 The following state diagram illustrates the states of the recommendation system:
 
@@ -547,19 +528,19 @@ stateDiagram-v2
     Idle --> [*]: Application closed
 ```
 
-**Figure 3.5: Recommendation System State Diagram**
+**Figure 3.4: Recommendation System State Diagram**
 
 The state diagram shows the different states the recommendation system can be in, including the fallback mechanisms when certain services are unavailable.
 
-## 3.6 Activity Diagram
+### 3.1.5 Process Modeling: Activity Diagram
 
 The following activity diagram illustrates the process of generating and displaying recommendations:
 
 ```mermaid
 graph TD
     A[Start] --> B{Has chat history?}
-    B -->|No| C[Show default recommendations]
-    B -->|Yes| D[Extract recent messages]
+    B -->|No| C[Create new chat]
+    B -->|Yes| D[Load existing chat]
     D --> E[Create query from messages]
     E --> F{Try NLP Service}
     
@@ -581,22 +562,39 @@ graph TD
     O --> P[End]
 ```
 
-**Figure 3.6: Recommendation Generation Activity Diagram**
+**Figure 3.5: Recommendation Generation Activity Diagram**
 
 This activity diagram shows the decision points and flow of activities in the recommendation generation process.
-    
-    deactivate UI
-```
 
-**Figure 3.4: User Chat with Expert Sequence Diagram**
+## 3.2 System Design (Object-Oriented Approach)
 
-This sequence diagram shows how user chat interactions trigger updates to both the chat interface and the recommendation panel.
+### 3.2.1 Refinement of Classes and Objects
 
+The CropsayAI system refines the classes and objects identified in the object modeling phase to ensure they meet the system requirements. Key refinements include:
 
+1. **Product Class Refinement**:
+   - Added metadata field to store additional product information
+   - Implemented methods for filtering products by category and subcategory
+   - Added rating calculation based on user reviews
 
-## 3.7 Component & Deployment Diagrams
+2. **RecommendationService Refinement**:
+   - Implemented strategy pattern to switch between different recommendation approaches
+   - Added caching mechanism for frequently requested recommendations
+   - Implemented fallback mechanisms for service unavailability
 
-### Component Diagram
+3. **AgriculturalKnowledgeGraph Refinement**:
+   - Optimized data structure for efficient querying
+   - Implemented methods for finding relationships between entities
+   - Added versioning for knowledge graph updates
+
+4. **ChatService Refinement**:
+   - Added message processing pipeline for entity extraction
+   - Implemented real-time updates using WebSockets
+   - Added support for message attachments (images, files)
+
+These refinements ensure that the classes and objects are optimized for performance, maintainability, and extensibility.
+
+### 3.2.2 Component Diagram
 
 The following component diagram illustrates the main components of the CropsayAI system and their interactions:
 
@@ -662,11 +660,11 @@ graph TD
     PatternRecService --> KnowledgeGraph
 ```
 
-**Figure 3.7: Component Diagram**
+**Figure 3.6: Component Diagram**
 
 This component diagram shows the main components of the system and their dependencies, highlighting the modular architecture.
 
-### Deployment Diagram
+### 3.2.3 Deployment Diagram
 
 The following deployment diagram illustrates how the CropsayAI system is deployed:
 
@@ -699,127 +697,38 @@ graph TD
     PythonService <--> TransformerModels: Internal
 ```
 
-**Figure 3.8: Deployment Diagram**
+**Figure 3.7: Deployment Diagram**
 
 This deployment diagram shows how the different components are deployed across different servers and how they communicate.
 
-## 3.8 Database Design
+### 3.2.4 Database Design
 
 The CropsayAI system uses Supabase as its database solution. The database schema is designed to support the core functionalities of the application, including user management, chat sessions, and product recommendations.
 
-```mermaid
-erDiagram
-    USERS {
-        uuid id PK
-        string email
-        string full_name
-        timestamp created_at
-        string role
-    }
-    
-    CHAT_SESSIONS {
-        uuid id PK
-        uuid user_id FK
-        timestamp created_at
-        timestamp updated_at
-        string title
-    }
-    
-    CHAT_MESSAGES {
-        uuid id PK
-        uuid session_id FK
-        string content
-        string sender_type
-        timestamp created_at
-        jsonb metadata
-    }
-    
-    PRODUCTS {
-        int id PK
-        string name
-        string description
-        string category
-        string subcategory
-        float price
-        float rating
-        string image
-        jsonb metadata
-    }
-    
-    CART_ITEMS {
-        uuid id PK
-        uuid user_id FK
-        int product_id FK
-        int quantity
-        timestamp added_at
-    }
-    
-    EXPERTS {
-        uuid id PK
-        string name
-        string specialization
-        string bio
-        string image
-        boolean is_available
-    }
-    
-    USERS ||--o{ CHAT_SESSIONS : "has"
-    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "contains"
-    USERS ||--o{ CART_ITEMS : "has"
-    PRODUCTS ||--o{ CART_ITEMS : "in"
-```
 
-**Figure 3.9: Entity-Relationship Diagram**
 
-The database schema includes the following key tables:
 
-1. **USERS**: Stores user information and authentication details
-2. **CHAT_SESSIONS**: Represents chat conversations between users and experts
-3. **CHAT_MESSAGES**: Contains individual messages within chat sessions
-4. **PRODUCTS**: Stores agricultural product information
-5. **CART_ITEMS**: Represents products added to a user's shopping cart
-6. **EXPERTS**: Contains information about agricultural experts available for consultation
+---
 
-This schema supports the core functionalities of user authentication, chat history, product recommendations, and shopping cart management.
+# 5. Conclusion
 
-## 3.9 UI/UX Design
+## 5.1 Summary
 
-The CropsayAI user interface is designed to be intuitive, accessible, and responsive, catering to users with varying levels of technical literacy. The design follows modern web application principles with a focus on simplicity and clarity.
+The CropsayAI project has successfully developed an intelligent agricultural recommendation system that bridges the gap between farmers and agricultural products. The system leverages advanced artificial intelligence, natural language processing, and machine learning techniques to provide personalized product recommendations based on farmers' needs, crop conditions, and agricultural challenges.
 
-### Key UI Components
+Key achievements of the project include:
 
-1. **Expert Panel**: The central interface for user interaction with agricultural experts and product recommendations.
+1. **Intelligent Recommendation System**: Implemented multiple recommendation approaches (pattern-based, NLP-based, AI-based) that understand agricultural context and farmer intent.
 
-```mermaid
-graph TD
-    subgraph "Expert Panel"
-        ExpertHeader[Expert Profile Header]
-        ChatInterface[Chat Interface]
-        RecommendationPanel[Product Recommendations]
-    end
-    
-    ExpertHeader --> ChatInterface
-    ChatInterface --> RecommendationPanel
-```
+2. **User-Friendly Interface**: Created an accessible interface that enables farmers with varying levels of technical literacy to chat with agricultural experts and receive tailored recommendations.
 
-**Figure 3.10: Expert Panel Component Structure**
+3. **Agricultural Knowledge Integration**: Developed a structured agricultural knowledge graph that captures relationships between crops, problems, activities, and products.
 
-2. **Navigation Structure**: The application's navigation is designed to be intuitive and accessible.
+4. **Robust Architecture**: Designed a flexible, fault-tolerant architecture with fallback mechanisms to ensure continuous operation even when certain services are unavailable.
 
-```mermaid
-graph TD
-    subgraph "Navigation"
-        Home[Home]
-        Shop[Shop]
-        Learn[Learn]
-        Chat[Chat with Experts]
-        Profile[User Profile]
-    end
-    
-    Home --> Shop
-    Home --> Learn
-    Home --> Chat
+5. **Performance Optimization**: Achieved response times within the specified requirements, with the system capable of handling the required number of concurrent users.
 
+The CropsayAI system demonstrates the potential of AI and NLP technologies to transform agricultural decision-making and improve farmers' access to relevant agricultural products and expertise.
 
 ---
 
@@ -1019,28 +928,192 @@ During the implementation and testing of CropsayAI, several challenges were enco
 - Knowledge graph integration to provide domain context
 - Fallback to general recommendations when context is unclear
 
+### Challenge 3: Performance Optimization
 
+**Challenge**: Initial implementation of the recommendation system had high latency, especially for complex queries.
 
----
+**Solution**: Implemented several optimizations:
+- Caching frequently used embeddings and recommendations
+- Parallel processing of different recommendation approaches
+- Lazy loading of non-critical components
+- Optimized database queries with proper indexing
 
-# 5. Conclusion
+### Challenge 4: Cross-Service Communication
 
-## 5.1 Summary
+**Challenge**: Communication between JavaScript and Python services introduced complexity and potential points of failure.
 
-The CropsayAI project has successfully developed an intelligent agricultural recommendation system that bridges the gap between farmers and agricultural products. The system leverages advanced artificial intelligence, natural language processing, and machine learning techniques to provide personalized product recommendations based on farmers' needs, crop conditions, and agricultural challenges.
+**Solution**: Designed a robust bridge service with:
+- Standardized API contracts
+- Comprehensive error handling
+- Automatic retries for transient failures
+- Health checks and monitoring
+- Clear logging for debugging
 
-Key achievements of the project include:
+These challenges and their solutions contributed to the robustness and reliability of the CropsayAI system, ensuring a seamless user experience even in challenging conditions.
 
-1. **Intelligent Recommendation System**: Implemented multiple recommendation approaches (pattern-based, NLP-based, AI-based) that understand agricultural context and farmer intent.
+### 3.2.5 Interface Design (UI/UX)
 
-2. **User-Friendly Interface**: Created an accessible interface that enables farmers with varying levels of technical literacy to chat with agricultural experts and receive tailored recommendations.
+The CropsayAI user interface is designed to be intuitive, accessible, and responsive, catering to users with varying levels of technical literacy. The design follows modern web application principles with a focus on simplicity and clarity.
 
-3. **Agricultural Knowledge Integration**: Developed a structured agricultural knowledge graph that captures relationships between crops, problems, activities, and products.
+#### Key UI Components
 
-4. **Robust Architecture**: Designed a flexible, fault-tolerant architecture with fallback mechanisms to ensure continuous operation even when certain services are unavailable.
+1. **Expert Panel**: The central interface for user interaction with agricultural experts and product recommendations.
 
-5. **Performance Optimization**: Achieved response times within the specified requirements, with the system capable of handling the required number of concurrent users.
+```mermaid
+graph TD
+    subgraph "Expert Panel"
+        ExpertHeader[Expert Profile Header]
+        ChatInterface[Chat Interface]
+        RecommendationPanel[Product Recommendations]
+    end
+    
+    ExpertHeader --> ChatInterface
+    ChatInterface --> RecommendationPanel
+```
 
+**Figure 3.9: Expert Panel Component Structure**
+
+2. **Navigation Structure**: The application's navigation is designed to be intuitive and accessible.
+
+```mermaid
+graph TD
+    subgraph "Navigation"
+        Home[Home]
+        Shop[Shop]
+        Learn[Learn]
+        Chat[Chat with Experts]
+        Profile[User Profile]
+    end
+    
+    Home --> Shop
+    Home --> Learn
+    Home --> Chat
+    Home --> Profile
+```
+
+**Figure 3.10: Navigation Structure**
+
+3. **Responsive Design**: The interface adapts to different screen sizes and devices.
+
+```mermaid
+graph TD
+    subgraph "Responsive Design"
+        Desktop[Desktop Layout]
+        Tablet[Tablet Layout]
+        Mobile[Mobile Layout]
+    end
+    
+    Desktop -->|Resize| Tablet
+    Tablet -->|Resize| Mobile
+```
+
+**Figure 3.11: Responsive Design Adaptation**
+
+#### Design Principles
+
+The UI/UX design of CropsayAI follows these key principles:
+
+1. **Accessibility**: The interface is designed to be accessible to users with varying levels of technical literacy and potential disabilities.
+
+2. **Simplicity**: The design focuses on simplicity and clarity, avoiding unnecessary complexity.
+
+3. **Consistency**: UI elements, colors, and interactions are consistent throughout the application.
+
+4. **Feedback**: The system provides clear feedback for user actions, such as adding products to cart or sending messages.
+
+5. **Guidance**: The interface guides users through the process of chatting with experts and finding relevant products.
+
+#### User Flow
+
+The primary user flow in CropsayAI is designed to guide users from expressing their agricultural needs to finding relevant products:
+
+```mermaid
+graph TD
+    A[Enter Site] --> B[Select Expert]
+    B --> C[Chat About Agricultural Needs]
+    C --> D[View Recommended Products]
+    D --> E[Add Products to Cart]
+    E --> F[Checkout]
+```
+
+**Figure 3.12: Primary User Flow**
+
+This streamlined flow ensures that users can quickly and easily find the agricultural products they need based on expert recommendations.
+
+```mermaid
+erDiagram
+    USERS {
+        uuid id PK
+        string email
+        string full_name
+        timestamp created_at
+        string role
+    }
+    
+    CHAT_SESSIONS {
+        uuid id PK
+        uuid user_id FK
+        timestamp created_at
+        timestamp updated_at
+        string title
+    }
+    
+    CHAT_MESSAGES {
+        uuid id PK
+        uuid session_id FK
+        string content
+        string sender_type
+        timestamp created_at
+        jsonb metadata
+    }
+    
+    PRODUCTS {
+        int id PK
+        string name
+        string description
+        string category
+        string subcategory
+        float price
+        float rating
+        string image
+        jsonb metadata
+    }
+    
+    CART_ITEMS {
+        uuid id PK
+        uuid user_id FK
+        int product_id FK
+        int quantity
+        timestamp added_at
+    }
+    
+    EXPERTS {
+        uuid id PK
+        string name
+        string specialization
+        string bio
+        string image
+        boolean is_available
+    }
+    
+    USERS ||--o{ CHAT_SESSIONS : "has"
+    CHAT_SESSIONS ||--o{ CHAT_MESSAGES : "contains"
+    USERS ||--o{ CART_ITEMS : "has"
+    PRODUCTS ||--o{ CART_ITEMS : "in"
+```
+
+**Figure 3.8: Entity-Relationship Diagram**
+
+The database schema includes the following key tables:
+
+1. **USERS**: Stores user information and authentication details
+2. **CHAT_SESSIONS**: Represents chat conversations between users and experts
+3. **CHAT_MESSAGES**: Contains individual messages within chat sessions
+4. **PRODUCTS**: Stores agricultural product information
+5. **CART_ITEMS**: Represents products added to a user's shopping cart
+6. **EXPERTS**: Contains information about agricultural experts available for consultation
+
+This schema supports the core functionalities of user authentication, chat history, product recommendations, and shopping cart management.
 The CropsayAI system demonstrates the potential of AI and NLP technologies to transform agricultural decision-making and improve farmers' access to relevant agricultural products and expertise.
 
 ## 5.2 Limitations
