@@ -1,5 +1,187 @@
 # CropsayAI System Analysis and Design Diagrams
 
+## 3.1.1 Use-Case Modeling
+
+### Use-Case Diagram
+
+The following use-case diagram illustrates the main actors and use cases in the CropsayAI system:
+
+```mermaid
+graph TD
+    subgraph Actors
+        Farmer[Farmer]
+        Expert[Agricultural Expert]
+        Admin[System Administrator]
+    end
+    
+    subgraph Use Cases
+        UC1[UC1: Register/Login]
+        UC2[UC2: Chat with Expert]
+        UC3[UC3: View Recommendations]
+        UC4[UC4: Add Products to Cart]
+        UC5[UC5: Manage Profile]
+        UC6[UC6: Provide Expert Advice]
+        UC7[UC7: Schedule Consultation]
+        UC8[UC8: Manage Product Catalog]
+        UC9[UC9: Monitor System]
+    end
+    
+    Farmer --> UC1
+    Farmer --> UC2
+    Farmer --> UC3
+    Farmer --> UC4
+    Farmer --> UC5
+    Farmer --> UC7
+    
+    Expert --> UC1
+    Expert --> UC2
+    Expert --> UC6
+    Expert --> UC7
+    
+    Admin --> UC1
+    Admin --> UC8
+    Admin --> UC9
+```
+
+### Use-Case Descriptions
+
+#### UC1: Register/Login
+**Actor:** Farmer, Expert, Administrator  
+**Description:** Users can create an account or log in to an existing account.  
+**Preconditions:** User has internet access and has downloaded the application.  
+**Main Flow:**
+1. User opens the application
+2. User selects "Register" or "Login"
+3. For registration:
+   - User provides email, password, and profile information
+   - System validates the information
+   - System creates a new account
+4. For login:
+   - User provides email and password
+   - System validates credentials
+   - System grants access to the application
+**Alternative Flows:**
+- If validation fails, system displays appropriate error message
+- User can request password reset if forgotten
+**Postconditions:** User is authenticated and can access the system.
+
+#### UC2: Chat with Expert
+**Actor:** Farmer, Expert  
+**Description:** Farmers can chat with agricultural experts to get advice on farming issues.  
+**Preconditions:** User is logged in.  
+**Main Flow:**
+1. Farmer navigates to the chat section
+2. Farmer selects an available expert
+3. Farmer sends messages describing their agricultural situation
+4. Expert receives messages and responds with advice
+5. System analyzes chat content for product recommendations
+**Alternative Flows:**
+- If no experts are available, farmer can schedule a consultation for later
+- If farmer prefers, they can chat with AI assistant instead of human expert
+**Postconditions:** Farmer receives expert advice and system generates relevant product recommendations.
+
+#### UC3: View Recommendations
+**Actor:** Farmer  
+**Description:** Farmers can view personalized product recommendations based on their chat history.  
+**Preconditions:** User is logged in and has chat history.  
+**Main Flow:**
+1. Farmer navigates to recommendations panel
+2. System analyzes farmer's chat history
+3. System generates personalized product recommendations
+4. Farmer views recommended products with details
+5. Farmer can filter recommendations by category
+**Alternative Flows:**
+- If farmer has no chat history, system shows default recommendations
+- Farmer can refresh recommendations after new chat interactions
+**Postconditions:** Farmer sees relevant agricultural products that address their needs.
+
+#### UC4: Add Products to Cart
+**Actor:** Farmer  
+**Description:** Farmers can add recommended products to their shopping cart.  
+**Preconditions:** User is logged in and viewing product recommendations.  
+**Main Flow:**
+1. Farmer selects a recommended product
+2. Farmer clicks "Add to Cart" button
+3. System adds product to farmer's cart
+4. System updates cart count and total
+5. Farmer can continue shopping or proceed to checkout
+**Alternative Flows:**
+- Farmer can adjust quantity of products in cart
+- Farmer can remove products from cart
+**Postconditions:** Selected products are added to farmer's shopping cart.
+
+#### UC5: Manage Profile
+**Actor:** Farmer  
+**Description:** Farmers can view and update their profile information.  
+**Preconditions:** User is logged in.  
+**Main Flow:**
+1. Farmer navigates to profile section
+2. Farmer views current profile information
+3. Farmer edits information as needed
+4. System validates and saves changes
+**Alternative Flows:**
+- If validation fails, system displays appropriate error message
+**Postconditions:** Farmer's profile information is updated.
+
+#### UC6: Provide Expert Advice
+**Actor:** Expert  
+**Description:** Agricultural experts can provide advice to farmers through the chat interface.  
+**Preconditions:** Expert is logged in.  
+**Main Flow:**
+1. Expert views list of active chat requests
+2. Expert selects a chat to respond to
+3. Expert reads farmer's messages
+4. Expert provides advice and recommendations
+5. System records the interaction
+**Alternative Flows:**
+- Expert can schedule follow-up consultations if needed
+- Expert can refer farmer to other experts for specialized advice
+**Postconditions:** Farmer receives expert advice for their agricultural issues.
+
+#### UC7: Schedule Consultation
+**Actor:** Farmer, Expert  
+**Description:** Users can schedule consultations for more in-depth discussions.  
+**Preconditions:** User is logged in.  
+**Main Flow:**
+1. User navigates to scheduling section
+2. User selects available time slot
+3. User provides consultation topic and details
+4. System confirms the appointment
+5. System sends notifications to both parties
+**Alternative Flows:**
+- If selected time is no longer available, system suggests alternative times
+- Users can reschedule or cancel appointments
+**Postconditions:** Consultation is scheduled and both parties are notified.
+
+#### UC8: Manage Product Catalog
+**Actor:** Administrator  
+**Description:** Administrators can add, update, or remove products from the catalog.  
+**Preconditions:** Administrator is logged in.  
+**Main Flow:**
+1. Administrator navigates to product management section
+2. Administrator can view existing products
+3. Administrator can add new products with details
+4. Administrator can update product information
+5. Administrator can remove products from catalog
+**Alternative Flows:**
+- Administrator can import products in bulk
+- Administrator can categorize products
+**Postconditions:** Product catalog is updated with changes.
+
+#### UC9: Monitor System
+**Actor:** Administrator  
+**Description:** Administrators can monitor system performance and usage.  
+**Preconditions:** Administrator is logged in.  
+**Main Flow:**
+1. Administrator navigates to monitoring dashboard
+2. Administrator views system metrics and statistics
+3. Administrator can generate reports
+4. Administrator can identify and address issues
+**Alternative Flows:**
+- Administrator can set up alerts for critical issues
+- Administrator can optimize system performance
+**Postconditions:** Administrator has insights into system performance and usage.
+
 ## 3.1.3 Object Modeling: Object & Class Diagram
 
 The class diagram illustrates the key classes and their relationships in the CropsayAI system:
