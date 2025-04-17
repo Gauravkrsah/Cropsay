@@ -1,300 +1,131 @@
-# CropsayAI Product Recommendation System Analysis and Design Diagrams
+# CropsayAI System Use Case Diagram
 
-## 3.1.1 Use-Case Modeling
+```plantuml
+@startuml
+left to right direction
+skinparam usecase {
+  BackgroundColor white
+  BorderColor black
+  ArrowColor black
+}
 
-### Use-Case Diagram
+actor User as "User/Farmer"
+actor Admin
+
+rectangle "CropsayAI System" #FFFFFF {
+  usecase "Ask Agricultural Questions" as AskQuestions
+  usecase "View Product Recommendations" as ViewRecommendations
+  usecase "Add Products to Cart" as AddToCart
+  usecase "Process NLP Analysis" as ProcessNLP
+  usecase "Calculate Product Similarity" as CalculateSimilarity
+  usecase "Login" as Login
+  usecase "Manage Product Catalog" as ManageCatalog
+}
+
+User --> AskQuestions
+User --> ViewRecommendations
+User --> AddToCart
+User --> Login
+
+Admin --> ManageCatalog
+Admin --> Login
+
+AskQuestions ..> ProcessNLP : <<include>>
+ProcessNLP ..> CalculateSimilarity : <<include>>
+ViewRecommendations ..> CalculateSimilarity : <<include>>
+AskQuestions ..> ViewRecommendations : <<extend>>
+ViewRecommendations ..> AddToCart : <<extend>>
+
+@enduml
+```
+
+## Alternative Mermaid Version
 
 ```mermaid
 graph LR
     %% Actors
-    Farmer([👨‍🌾 Farmer])
-    Admin([👨‍💼 Administrator])
+    User([User/Farmer])
+    Admin([Admin])
     
-    %% Use Cases in the middle
-    subgraph CropsayAI System
-        UC1((Chat for Recommendations))
-        UC2((View Recommendations))
-        UC3((Add to Cart))
-        UC4((Manage Products))
-        UC5((Configure Algorithms))
+    %% System boundary
+    subgraph CropsayAI["CropsayAI System"]
+        AskQuestions(["Ask Agricultural Questions"])
+        ViewRecommendations(["View Product Recommendations"])
+        AddToCart(["Add Products to Cart"])
+        ManageCatalog(["Manage Product Catalog"])
+        ProcessNLP(["Process NLP Analysis"])
+        CalculateSimilarity(["Calculate Product Similarity"])
+        Login(["Login"])
     end
     
-    %% Relationships with straight lines
-    Farmer --- UC1
-    Farmer --- UC2
-    Farmer --- UC3
+    %% Actor-Use Case Relationships
+    User --- AskQuestions
+    User --- ViewRecommendations
+    User --- AddToCart
+    User --- Login
     
-    Admin --- UC4
-    Admin --- UC5
+    Admin --- ManageCatalog
+    Admin --- Login
+    
+    %% Include Relationships
+    AskQuestions -.-> |<<include>>| ProcessNLP
+    ProcessNLP -.-> |<<include>>| CalculateSimilarity
+    ViewRecommendations -.-> |<<include>>| CalculateSimilarity
+    
+    %% Extend Relationships
+    AskQuestions -.-> |<<extend>>| ViewRecommendations
+    ViewRecommendations -.-> |<<extend>>| AddToCart
 ```
 
-### Use-Case Descriptions
+## Use Case Descriptions
 
-#### UC1: Chat for Recommendations
-**Actor:** Farmer  
-**Description:** Farmers can chat about their agricultural needs to receive personalized recommendations.  
-**Main Flow:**
-1. Farmer describes their agricultural situation or needs
-2. System analyzes the chat content
-3. System generates personalized product recommendations
-4. Farmer views recommended products
+### Primary Use Cases
 
-#### UC2: View Recommendations
-**Actor:** Farmer  
-**Description:** Farmers can view and filter personalized product recommendations.  
-**Main Flow:**
-1. System displays personalized product recommendations
-2. Farmer can filter recommendations by category or price
-3. Farmer can view detailed product information
+1. **Ask Agricultural Questions**
+   - **Description**: User can ask questions about farming, crops, and agricultural problems
+   - **Primary Actor**: User/Farmer
+   - **Note**: User/Farmer is the only actor for this use case after removing Gemini AI
+   - **Includes**: Process NLP Analysis
+ (ProcessNLP)
+   - **Extends to**: View Product Recommendations (ViewRecommendations) (optional)
 
-#### UC3: Add to Cart
-**Actor:** Farmer  
-**Description:** Farmers can add recommended products to their shopping cart.  
-**Main Flow:**
-1. Farmer selects a recommended product
-2. Farmer adds product to cart
-3. System updates cart count and total
+2. **View Product Recommendations**
+   - **Description**: User can view products recommended based on their conversation
+   - **Primary Actor**: User/Farmer
+   - **Includes**: Calculate Product Similarity
+ (CalculateSimilarity)
+   - **Extended from**: Ask Agricultural Questions
+ (AskQuestions)
+   - **Extends to**: Add Products to Cart (AddToCart) (optional)
 
-#### UC4: Manage Products
-**Actor:** Administrator  
-**Description:** Administrators can manage the product catalog.  
-**Main Flow:**
-1. Administrator can add, update, or remove products
-2. Administrator can categorize products
-3. Administrator can view product statistics
+3. **Add Products to Cart**
+   - **Description**: User can add recommended products to their shopping cart
+   - **Primary Actor**: User/Farmer
+   - **Extended from**: View Product Recommendations
+ (ViewRecommendations)
 
-#### UC5: Configure Algorithms
-**Actor:** Administrator  
-**Description:** Administrators can configure recommendation algorithms.  
-**Main Flow:**
-1. Administrator selects algorithm parameters
-2. Administrator adjusts weights and thresholds
-3. System applies new configuration
+4. **Manage Product Catalog**
+   - **Description**: Admin can add, update, or remove products from the catalog
+   - **Primary Actor**: Admin
 
-## 3.1.3 Object Modeling: Object & Class Diagram
+5. **Process NLP Analysis**
+   - **Description**: System analyzes user queries using NLP techniques
+   - **Included by**: Ask Agricultural Questions
+ (AskQuestions)
+   - **Includes**: Calculate Product Similarity
+ (CalculateSimilarity)
 
-```mermaid
-classDiagram
-    class User {
-        +id: string
-        +role: string
-    }
-    
-    class Farmer {
-        +sendChatMessage()
-        +viewRecommendations()
-        +addToCart()
-    }
-    
-    class Administrator {
-        +manageProducts()
-        +configureAlgorithms()
-    }
-    
-    class Product {
-        +id: number
-        +name: string
-        +category: string
-        +price: number
-    }
-    
-    class ChatSession {
-        +messages: ChatMessage[]
-        +addMessage()
-    }
-    
-    class RecommendationService {
-        +getRecommendationsFromChat()
-    }
-    
-    class CartContext {
-        +items: CartItem[]
-        +addItem()
-        +getTotal()
-    }
-    
-    User <|-- Farmer
-    User <|-- Administrator
-    
-    Farmer --> ChatSession
-    Farmer --> CartContext
-    CartContext --> Product
-    
-    RecommendationService --> ChatSession
-    RecommendationService --> Product
-```
+6. **Calculate Product Similarity**
+   - **Description**: System uses KNN algorithm to find products similar to user query
+   - **Included by**: Process NLP Analysis (ProcessNLP), View Product Recommendations
+ (ViewRecommendations)
 
-## 3.1.4 Dynamic Modeling: State & Sequence Diagrams
+7. **Login**
+   - **Description**: Users and admins authenticate to access the system
+   - **Primary Actors**: Both User/Farmer and Admin
 
-### State Diagram
+## Relationship Explanations
 
-```mermaid
-stateDiagram-v2
-    [*] --> Idle
-    
-    Idle --> ChatActive: Start chat
-    
-    ChatActive --> AnalyzingChat: Request recommendations
-    
-    AnalyzingChat --> ProcessingQuery: Extract entities
-    
-    ProcessingQuery --> FindingProducts: Select strategy
-    
-    FindingProducts --> DisplayingRecommendations: Products found
-    FindingProducts --> DisplayingDefaults: No matches
-    
-    DisplayingRecommendations --> Idle: Continue
-    DisplayingDefaults --> Idle: Continue
-    
-    ChatActive --> Idle: End chat
-    
-    Idle --> [*]: End session
-```
-
-### Sequence Diagram
-
-```mermaid
-sequenceDiagram
-    actor Farmer
-    participant UI
-    participant ChatService
-    participant RecService
-    participant ProductDB
-    
-    Farmer->>UI: Send message about needs
-    UI->>ChatService: addMessage()
-    ChatService-->>UI: Confirmation
-    
-    Farmer->>UI: Request recommendations
-    UI->>RecService: getRecommendations()
-    RecService->>ChatService: getChatHistory()
-    ChatService-->>RecService: chatHistory
-    
-    RecService->>RecService: analyzeChat()
-    RecService->>ProductDB: findMatchingProducts()
-    ProductDB-->>RecService: productList
-    
-    RecService-->>UI: recommendations
-    UI-->>Farmer: Display recommendations
-    
-    Farmer->>UI: Add to cart
-    UI->>UI: updateCart()
-```
-
-## 3.1.5 Process Modeling: Activity Diagram
-
-```mermaid
-flowchart TD
-    Start([Start]) --> Chat[Chat about needs]
-    
-    Chat --> Analyze[System analyzes chat]
-    Analyze --> FindProducts[Find matching products]
-    
-    FindProducts --> ProductsFound{Products found?}
-    
-    ProductsFound -->|Yes| ShowRecs[Show recommendations]
-    ProductsFound -->|No| ShowDefaults[Show default products]
-    
-    ShowRecs --> UserAction{User action?}
-    ShowDefaults --> UserAction
-    
-    UserAction -->|Add to cart| UpdateCart[Update cart]
-    UserAction -->|Filter| ApplyFilter[Apply filter]
-    UserAction -->|Continue chat| Chat
-    UserAction -->|End| End([End])
-    
-    UpdateCart --> UserAction
-    ApplyFilter --> ShowRecs
-```
-
-## 3.2.1 Refinement of Classes and Objects
-
-```mermaid
-classDiagram
-    class RecommendationStrategy {
-        <<interface>>
-        +getRecommendations()
-    }
-    
-    class NLPStrategy {
-        +getRecommendations()
-    }
-    
-    class KnowledgeGraphStrategy {
-        +getRecommendations()
-    }
-    
-    class GeminiStrategy {
-        +getRecommendations()
-    }
-    
-    class RecommendationService {
-        -strategies
-        +registerStrategy()
-        +getRecommendationsFromChat()
-        -selectStrategy()
-    }
-    
-    RecommendationStrategy <|.. NLPStrategy
-    RecommendationStrategy <|.. KnowledgeGraphStrategy
-    RecommendationStrategy <|.. GeminiStrategy
-    
-    RecommendationService --> RecommendationStrategy
-```
-
-## 3.2.2 Component Diagram
-
-```mermaid
-flowchart TD
-    subgraph UI["User Interface"]
-        Chat["Chat UI"]
-        Recs["Recommendation UI"]
-        Cart["Cart UI"]
-    end
-
-    subgraph Services["Core Services"]
-        ChatSvc["Chat Service"]
-        RecSvc["Recommendation Service"]
-        ProductSvc["Product Service"]
-    end
-
-    subgraph Data["Data Layer"]
-        DB["Database"]
-        NLP["NLP Service"]
-    end
-
-    UI --> Services
-    Services --> Data
-    
-    Chat --> ChatSvc
-    Recs --> RecSvc
-    Cart --> ProductSvc
-    
-    ChatSvc --> RecSvc
-    RecSvc --> ProductSvc
-    RecSvc --> NLP
-    
-    ChatSvc --> DB
-    ProductSvc --> DB
-```
-
-## 3.2.3 Deployment Diagram
-
-```mermaid
-flowchart TD
-    Client["Client Browser"]
-    
-    subgraph Server["Application Server"]
-        WebApp["Web Application"]
-        API["API Services"]
-    end
-    
-    subgraph Services["External Services"]
-        NLP["NLP Service"]
-        Database["Database"]
-        AI["AI Service"]
-    end
-    
-    Client <--> WebApp
-    WebApp --> API
-    API <--> Services
+- **Association**: Simple line connecting an actor to a use case (e.g., User to Ask Agricultural Questions)
+- **Include**: Dotted arrow with <<include>> stereotype, indicating mandatory behavior (e.g., Ask Agricultural Questions includes Process NLP Analysis)
+- **Extend**: Dotted arrow with <<extend>> stereotype, indicating optional behavior (e.g., Ask Agricultural Questions extends to View Product Recommendations)
