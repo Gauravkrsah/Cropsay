@@ -1,4 +1,4 @@
-import { supabase, ensureTablesExist, createMemoryTables } from '@/integrations/supabase/supabaseClient';
+import { supabase, ensureTablesExist, createMemoryTables, getUserId } from '@/integrations/supabase/supabaseClient';
 
 /**
  * Chat Service
@@ -54,14 +54,34 @@ export const chatService = {
    * @returns {Promise<Array>} Chat sessions with their messages
    */
   getChatSessions: async (userId) => {
+    // Security check: Verify the user is authenticated and the userId matches the authenticated user
     try {
-      // Make sure the service is initialized
-      if (!chatService.initialized) {
-        await chatService.init();
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      // If there's no active session, user is not authenticated
+      // For product recommendations, we'll still allow access to chat history
+      // using the localStorage ID for non-authenticated users
+      if (!session) {
+        console.log('No authenticated session found, using localStorage ID');
+        // Continue with the request using the localStorage ID
+        // This allows product recommendations to work for non-authenticated users
+        // while still preventing access to other users' data
+        // (since localStorage IDs are unique per browser)
+        return chatService.getLocalChatSessions(userId);
       }
       
-      console.log('Fetching chat sessions for user:', userId);
-      
+      // Ensure the requested userId matches the authenticated user's ID
+      if (userId !== session.user.id) {
+        console.error('Security violation: Attempted to access chat history of another user');
+        throw new Error('Unauthorized access to chat history');
+      }
+      return chatService.getSupabaseChatSessions(userId);
+    } catch (error) {
+      console.error('Authentication check failed:', error);
+      return [];
+    }
+  },
+  getLocalChatSessions: async (userId) => {
       // Check if we're using memory fallback
       if (chatService.useMemoryFallback) {
         console.log('Getting chat sessions from memory');
@@ -81,6 +101,12 @@ export const chatService = {
         });
       }
       
+      return [];
+  },
+  
+  getSupabaseChatSessions: async (userId) => {
+    try {
+      console.log('Getting chat sessions from Supabase for user:', userId);
       // Use Supabase
       // First, get all chat sessions for this user
       const { data: sessions, error } = await supabase

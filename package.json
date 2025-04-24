@@ -8,8 +8,7 @@
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",
-    "preview": "vite preview"
-,
+    "preview": "vite preview",
     "start:gemini": "node start-gemini-proxy.js",
     "start:nlp": "node start-nlp-service.js",
     "start:all": "concurrently \"npm run dev\" \"npm run start:gemini\" \"npm run start:nlp\""
@@ -56,6 +55,8 @@
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.3.0",
     "express": "^5.1.0",
+    "framer-motion": "^12.9.0",
+    "gsap": "^3.12.7",
     "input-otp": "^1.2.4",
     "lovable-tagger": "^1.1.8",
     "lucide-react": "^0.462.0",

@@ -159,4 +159,17 @@
   .cart-total {
     @apply flex justify-between items-center font-medium text-lg pt-3;
   }
+  
+  /* Blinking cursor for chat typing effect */
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  
+  .cursor-blink {
+    display: inline-block;
+    animation: blink 1s step-end infinite;
+    margin-left: 1px;
+    font-weight: 300;
+  }
 }

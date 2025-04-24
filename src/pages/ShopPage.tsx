@@ -141,8 +141,9 @@ const ShopPage = () => {
   };
 
   return (
-    <div className="h-screen overflow-y-auto bg-[#1E2735]">
-      <div className="border-b border-[#2A3143] p-4">
+    <div className="h-screen flex flex-col bg-[#1E2735]">
+      {/* Fixed header with search and filters */}
+      <div className="border-b border-[#2A3143] p-4 sticky top-0 z-10 bg-[#1E2735]">
         <h1 className="text-2xl font-bold mb-4">Shop Agricultural Products</h1>
         
         <div className="flex items-center space-x-2">
@@ -176,9 +177,9 @@ const ShopPage = () => {
         </div>
       </div>
       
-      <div className="flex flex-col md:flex-row">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         {/* Sidebar for filters and recommendations */}
-        <div className="w-full md:w-64 p-4 border-r border-[#2A3143]">
+        <div className="w-full md:w-64 p-4 border-r border-[#2A3143] md:h-[calc(100vh-88px)] overflow-y-auto sticky top-[88px] bg-[#1E2735]">
           {/* Filters */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
@@ -276,48 +277,52 @@ const ShopPage = () => {
         </div>
         
         {/* Main content */}
-        <div className="flex-1 p-4">
+        <div className="flex-1 overflow-y-auto h-[calc(100vh-88px)]">
           {/* Active filters */}
-          {(activeCategory !== 'All Products' || activeSubcategories.length > 0) && (
-            <div className="flex flex-wrap gap-2 mb-4">
-              {activeCategory !== 'All Products' && (
-                <div className="bg-cropsay-green bg-opacity-20 text-cropsay-green px-3 py-1 rounded-full text-sm flex items-center">
-                  {activeCategory}
-                  <button 
-                    onClick={() => setActiveCategory('All Products')}
-                    className="ml-2"
-                  >
-                    <X size={14} />
-                  </button>
-                </div>
-              )}
+          <div className="sticky top-0 bg-[#1E2735] z-10 p-4 pb-2">
+            {(activeCategory !== 'All Products' || activeSubcategories.length > 0) && (
+              <div className="flex flex-wrap gap-2 mb-4">
+                {activeCategory !== 'All Products' && (
+                  <div className="bg-cropsay-green bg-opacity-20 text-cropsay-green px-3 py-1 rounded-full text-sm flex items-center">
+                    {activeCategory}
+                    <button 
+                      onClick={() => setActiveCategory('All Products')}
+                      className="ml-2"
+                   > 
+                      <X size={14} />
+                    </button>
+                  </div>
+                )}
               
-              {activeSubcategories.map(subcategory => (
-                <div 
-                  key={`filter-${subcategory}`}
-                  className="bg-cropsay-green bg-opacity-20 text-cropsay-green px-3 py-1 rounded-full text-sm flex items-center"
-                >
-                  {subcategory}
-                  <button 
-                    onClick={() => toggleSubcategory(subcategory)}
-                    className="ml-2"
+  
+                {activeSubcategories.map(subcategory => (
+                  <div 
+                    key={`filter-${subcategory}`}
+                    className="bg-cropsay-green bg-opacity-20 text-cropsay-green px-3 py-1 rounded-full text-sm flex items-center"
                   >
-                    <X size={14} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
+                    {subcategory}
+                    <button 
+                      onClick={() => toggleSubcategory(subcategory)}
+                      className="ml-2"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
           
-          {/* Products count */}
-          <div className="mb-4">
-            <p className="text-sm text-cropsay-grayText">
-              Showing {filteredProducts.length} products
-            </p>
+  
+            {/* Products count */}
+            <div className="mb-4">
+              <p className="text-sm text-cropsay-grayText">
+                Showing {filteredProducts.length} products
+              </p>
+            </div>
           </div>
           
-          {/* Products grid */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {/* Products grid - this is the only scrollable part */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 px-4">
             {filteredProducts.map(product => {
               const cartItem = cartItemForProduct(product.id);
               
@@ -378,7 +383,7 @@ const ShopPage = () => {
           
           {/* Empty state */}
           {filteredProducts.length === 0 && (
-            <div className="text-center py-12">
+            <div className="text-center py-12 px-4">
               <p className="text-cropsay-grayText mb-2">No products found</p>
               <button 
                 onClick={clearFilters}

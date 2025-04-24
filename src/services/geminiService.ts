@@ -5,6 +5,7 @@
  */
 
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { GenerateContentStreamResult } from '@google/generative-ai';
 
 // API key
 const GEMINI_API_KEY = '***REMOVED***';
@@ -32,9 +33,14 @@ export const geminiService = {
   /**
    * Generate a response using Gemini AI with structured output for product recommendations
    * @param messages - Array of previous messages in the conversation
-   * @returns The AI's response including product recommendations
+ 
+   * @param onTokenReceived - Optional callback function that receives tokens as they arrive
+   * @returns The complete AI response when finished
    */
-  generateResponse: async (messages: { role: string; content: string }[]): Promise<string> => {
+  generateResponse: async (
+    messages: { role: string; content: string }[], 
+    onTokenReceived?: (token: string) => void
+  ): Promise<string> => {
     // Extract the user's question outside try block to make it available in catch
     const lastUserMessage = [...messages].reverse().find(msg => msg.role === 'user');
     
@@ -55,7 +61,14 @@ export const geminiService = {
     try {
       // Direct API call
       console.log('Making direct API call to Gemini...');
-      const model = genAI.getGenerativeModel({ model: MODEL_NAME });
+      const model = genAI.getGenerativeModel({ 
+        model: MODEL_NAME,
+        generationConfig: {
+          temperature: 0.7,
+          topP: 0.8,
+          topK: 40,
+        }
+      });
       
       const prompt = `
 You are an expert agricultural assistant for CropsayAI. Answer the following question about farming, agriculture, or plants:
@@ -67,16 +80,42 @@ ${recentChatHistory ? `Recent conversation context: ${recentChatHistory}` : ''}
 Provide a helpful, informative response with practical advice.
 `;
       
-      const result = await model.generateContent(prompt);
-      const response = await result.response;
-      const text = response.text();
-      
+      // Check if streaming is requested
+      if (onTokenReceived) {
+        // Use streaming API
+        const streamResult = await model.generateContentStream(prompt);
+        let fullText = '';
+        
+        // Process the stream
+        for await (const chunk of streamResult.stream) {
+          const chunkText = chunk.text();
+          fullText += chunkText;
+          
+          // Call the callback with each chunk
+          onTokenReceived(chunkText);
+        }
+        
+        if (fullText && fullText.trim() !== '') {
+          console.log('Successfully received streaming response from Gemini API');
+          return fullText;
+        }
+        
+        throw new Error('Empty streaming response from Gemini API');
+      } else {
+        // Use non-streaming API
+        const result = await model.generateContent(prompt);
+        const response = await result.response;
+        const text = response.text();
+        
+        
       if (text && text.trim() !== '') {
-        console.log('Successfully received response from Gemini API');
-        return text;
-      }
+          console.log('Successfully received response from Gemini API');
+          return text;
+        }
       
-      throw new Error('Empty response from Gemini API');
+  
+        throw new Error('Empty response from Gemini API');
+      }
     } catch (error) {
       console.error('Error in Gemini API call:', error);
       
@@ -87,7 +126,7 @@ Provide a helpful, informative response with practical advice.
         const model = genAI.getGenerativeModel({
           model: 'gemini-1.5-flash' // Fallback to gemini-1.5-flash which is free
         });
-        
+
         const simplePrompt = `
 You are an expert agricultural assistant for CropsayAI. Answer the following question about farming, agriculture, or plants:
 
@@ -96,12 +135,32 @@ ${userQuestion}
 Provide a helpful, informative response with practical advice.
 `;
         
-        const result = await model.generateContent(simplePrompt);
-        const response = await result.response;
-        const text = response.text();
+        // Check if streaming is requested for fallback
+        if (onTokenReceived) {
+          const streamResult = await model.generateContentStream(simplePrompt);
+          let fullText = '';
+          
+          // Process the stream
+          for await (const chunk of streamResult.stream) {
+            const chunkText = chunk.text();
+            fullText += chunkText;
+            
+            // Call the callback with each chunk
+            onTokenReceived(chunkText);
+          }
+          
+          if (fullText && fullText.trim() !== '') {
+            return fullText;
+          }
+        } else {
+          const result = await model.generateContent(simplePrompt);
+          const response = await result.response;
+          const text = response.text();
         
-        if (text && text.trim() !== '') {
-          return text;
+  
+          if (text && text.trim() !== '') {
+            return text;
+          }
         }
       } catch (directError) {
         console.error('Direct API call also failed:', directError);

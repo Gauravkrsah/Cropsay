@@ -13,6 +13,7 @@ import { getNLPRecommendations } from '@/services/nlpBridgeService';
 import { getAIRecommendationsFromQuery } from '@/services/aiRecommendationService';
 import { getDynamicRecommendations } from '@/services/dynamicRecommendationService';
 import { getUserId } from '@/integrations/supabase/supabaseClient';
+import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { Product } from '@/data/productData';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -80,6 +81,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [chatInput, setChatInput] = useState('');
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
   const { items, addItem, openCart } = useCart();
+  const { user } = useAuth(); // Get the authenticated user
   const panelRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
@@ -112,11 +114,17 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
       if (isOpen && title === "Recommended Products") {
         setLoadingProducts(true);
         try {
-          // Get user ID using the getUserId function
-          const userId = getUserId();
+          // Use authenticated user ID if available, otherwise use localStorage ID
+          let userId;
+          if (user) {
+            userId = user.id;
+          } else {
+            userId = getUserId();
+          }
           
           // Get actual chat sessions to check if there's chat history
           const chatSessions = await chatService.getChatSessions(userId);
+          console.log('Chat sessions for recommendations:', chatSessions);
           
           if (!chatSessions || chatSessions.length === 0 || 
               !chatSessions[0].messages || chatSessions[0].messages.length === 0) {
@@ -175,7 +183,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
       }
     };
     loadRecommendations();
-  }, [isOpen, title]);
+  }, [isOpen, title, user]);
 
   const handleChatNow = (expert: Expert) => {
     setActiveChatExpert(expert);

@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 
 export type CartItem = {
   id: number;
@@ -36,27 +37,37 @@ export const useCart = () => {
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
+  const { user } = useAuth();
+  
+  // Generate a storage key based on user ID or use a temporary key for anonymous users
+  const getCartStorageKey = useCallback(() => {
+    return user ? `cart_${user.id}` : 'cart_anonymous';
+  }, [user]);
   
   // Calculate derived values
   const totalItems = items.reduce((total, item) => total + item.quantity, 0);
   const totalPrice = items.reduce((total, item) => total + (item.price * item.quantity), 0);
   
-  // Load cart from localStorage on component mount
+  // Load cart from localStorage when component mounts or user changes
   useEffect(() => {
-    const savedCart = localStorage.getItem('cart');
+    const savedCart = localStorage.getItem(getCartStorageKey());
     if (savedCart) {
       try {
         setItems(JSON.parse(savedCart));
       } catch (error) {
         console.error('Failed to parse saved cart', error);
+        setItems([]);
       }
+    } else {
+      // Clear the cart if no saved cart exists for this user
+      setItems([]);
     }
-  }, []);
+  }, [user, getCartStorageKey]);
   
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem('cart', JSON.stringify(items));
-  }, [items]);
+    localStorage.setItem(getCartStorageKey(), JSON.stringify(items));
+  }, [items, getCartStorageKey]);
   
   const addItem = (product: Omit<CartItem, 'quantity'>) => {
     setItems(prevItems => {
@@ -92,6 +103,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const clearCart = () => {
     setItems([]);
+    localStorage.removeItem(getCartStorageKey());
   };
   
   const openCart = () => {
