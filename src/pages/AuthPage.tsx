@@ -10,29 +10,59 @@ import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Form, FormControl, FormField, FormItem, FormMessage } from '@/components/ui/form';
-
-// Form validation schema
-const formSchema = z.object({
-  email: z.string().email('Please enter a valid email address'),
-  password: z.string().min(6, 'Password must be at least 6 characters long'),
-  fullName: z.string().optional(),
-});
+import ForgotPasswordDialog from '@/components/ForgotPasswordDialog';
 
 const AuthPage = () => {
   const [isSignIn, setIsSignIn] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [showForgotPassword, setShowForgotPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   
+  // Dynamic form validation schema based on sign in/sign up mode
+  const formSchema = z.object({
+    email: z.string().email('Please enter a valid email address'),
+    password: isSignIn 
+      ? z.string().min(1, 'Password is required')
+      : z.string()
+          .min(8, 'Password must be at least 8 characters long')
+          .regex(/[A-Z]/, 'Password must contain at least one capital letter')
+          .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character'),
+    confirmPassword: isSignIn 
+      ? z.string().optional()
+      : z.string().min(1, 'Please confirm your password'),
+    fullName: isSignIn
+      ? z.string().optional()
+      : z.string()
+          .min(1, 'Full name is required')
+          .refine(val => !/^\d+$/.test(val), {
+            message: 'Full name cannot contain only numbers'
+          }),
+  }).refine(
+    (data) => isSignIn || data.password === data.confirmPassword,
+    {
+      message: "Passwords don't match",
+      path: ["confirmPassword"],
+    }
+  );
+  
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: '',
-      password: '',
-      fullName: '',
+      email: "",
+      password: "",
+      confirmPassword: "",
+      fullName: "",
     },
+    mode: "onChange"
   });
+  
+  // Reset form when switching between sign in and sign up
+  useEffect(() => {
+    form.reset();
+  }, [isSignIn, form]);
   
   // Check if user is already logged in
   useEffect(() => {
@@ -48,8 +78,13 @@ const AuthPage = () => {
     // Set up auth state change listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        if (event === 'SIGNED_IN' && session) {
-          navigate('/');
+        if (session) {
+          // Always ensure forgot password dialog is closed on any auth state change
+          setShowForgotPassword(false);
+          
+          if (event === 'SIGNED_IN') {
+            navigate('/');
+          }
         }
       }
     );
@@ -62,12 +97,18 @@ const AuthPage = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setIsLoading(true);
     
+    // Always ensure forgot password dialog is closed during authentication process
+    setShowForgotPassword(false);
+    
+    // Extract only the needed fields for authentication
+    const { email, password, fullName } = values;
+    
     try {
       if (isSignIn) {
         // Sign in
         const { data, error } = await supabase.auth.signInWithPassword({
-          email: values.email,
-          password: values.password,
+          email,
+          password,
         });
         
         if (error) throw error;
@@ -79,11 +120,11 @@ const AuthPage = () => {
       } else {
         // Sign up
         const { data, error } = await supabase.auth.signUp({
-          email: values.email,
-          password: values.password,
+          email,
+          password,
           options: {
             data: {
-              full_name: values.fullName || '',
+              full_name: fullName || '',
             }
           }
         });
@@ -160,13 +201,13 @@ const AuthPage = () => {
                 <FormField
                   control={form.control}
                   name="fullName"
-                  render={({ field }) => (
+                  render={({ field, fieldState }) => (
                     <FormItem>
                       <div className="relative">
                         <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
                         <FormControl>
                           <Input
-                            placeholder="Full Name"
+                            placeholder="Full Name (required)"
                             className="bg-[#1E2735] border-[#2A3143] pl-10 h-12"
                             {...field}
                           />
@@ -209,6 +250,7 @@ const AuthPage = () => {
                       <FormControl>
                         <Input
                           placeholder="Password"
+                          autoComplete="new-password"
                           type={showPassword ? "text" : "password"}
                           className="bg-[#1E2735] border-[#2A3143] pl-10 pr-10 h-12"
                           {...field}
@@ -226,11 +268,55 @@ const AuthPage = () => {
                   </FormItem>
                 )}
               />
+
+              {!isSignIn && (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <div className="relative">
+                          <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                          <FormControl>
+                            <Input
+                              placeholder="Confirm Password"
+                              autoComplete="new-password"
+                              type={showConfirmPassword ? "text" : "password"}
+                              className="bg-[#1E2735] border-[#2A3143] pl-10 pr-10 h-12"
+                              {...field}
+                            />
+                          </FormControl>
+                          <button
+                            type="button"
+                            onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-300"
+                          >
+                            {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                          </button>
+                        </div>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  
+                  <div className="text-xs text-gray-400 space-y-1 mt-2">
+                    <p>Password requirements:</p>
+                    <ul className="list-disc pl-5 space-y-1">
+                      <li>Minimum 8 characters</li>
+                      <li>At least one capital letter</li>
+                      <li>At least one special character (e.g., @, #, $, %)</li>
+                    </ul>
+                  </div>
+                </>
+              )}
               
               {isSignIn && (
                 <div className="text-right">
-                  <Button variant="link" className="text-green-500 hover:text-green-400 p-0" asChild>
-                    <a href="#forgot-password">Forgot password?</a>
+                  <Button 
+                    variant="link" 
+                    className="text-green-500 hover:text-green-400 p-0"
+                    onClick={() => setShowForgotPassword(true)}>Forgot password?
                   </Button>
                 </div>
               )}
@@ -260,6 +346,12 @@ const AuthPage = () => {
             </p>
           </div>
         </div>
+        
+        {/* Forgot Password Dialog */}
+        <ForgotPasswordDialog 
+          isOpen={showForgotPassword} 
+          onClose={() => setShowForgotPassword(false)} 
+        />
       </div>
     </div>
   );

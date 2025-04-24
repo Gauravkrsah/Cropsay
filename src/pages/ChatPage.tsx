@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, Image, History, X, User, Trash2, Edit, Star, MessageSquare, BookOpen, ShoppingBag, Users, Search, Check, Leaf, Droplets, Bug, ChevronDown, ChevronUp, Info, BarChart } from 'lucide-react';
+import { Send, Mic, History, X, User, Trash2, Edit, Star, MessageSquare, BookOpen, ShoppingBag, Users, Search, Check, Leaf, Droplets, Bug, ChevronDown, ChevronUp, Info, BarChart } from 'lucide-react';
 import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom';
+import { ChatTextGenerateEffect } from '@/components/ui/chat-text-generate-effect';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -62,15 +63,44 @@ const ChatPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [sourcesAvailable, setSourcesAvailable] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [userId, setUserId] = useState<string>(getUserId()); // Get persistent user ID
+  const [userId, setUserId] = useState<string>(''); // Will be set based on authentication
   const [serviceInitialized, setServiceInitialized] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   
   const { user } = useAuth(); // Get authentication state
+  const [isStreaming, setIsStreaming] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
   const navigate = useNavigate();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Auto-resize textarea as content changes
+  useEffect(() => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+    
+    // Function to adjust height
+    const adjustHeight = () => {
+      // Reset height to auto to get the correct scrollHeight
+      textarea.style.height = 'auto';
+      
+      // Calculate new height (with a minimum of 64px)
+      const newHeight = Math.max(64, Math.min(textarea.scrollHeight, 240));
+      
+      // Set the new height
+      textarea.style.height = `${newHeight}px`;
+    };
+    
+    // Adjust height initially and add event listener
+    adjustHeight();
+    textarea.addEventListener('input', adjustHeight);
+    
+    // Clean up
+    return () => {
+      textarea.removeEventListener('input', adjustHeight);
+    };
+  }, [input]); // Re-run when input changes
 
   // Initialize the chat service
   useEffect(() => {
@@ -93,24 +123,33 @@ const ChatPage = () => {
   }, []);
   
   // Reset chat when user logs out
+  // Also update userId when auth state changes
   useEffect(() => {
-    // If user is null (logged out) and we had a previous session, reset to a new chat
-    if (!user && messages.length > 0) {
-      console.log('User logged out, resetting chat');
-      // Create a new empty session
-      const newChatId = Date.now().toString();
-      const newSession: ChatSession = {
-        id: newChatId,
-        title: 'New Conversation',
-        lastMessage: '',
-        timestamp: new Date(),
-        messages: []
+    if (user) {
+      // Set userId to the authenticated user's ID
+      setUserId(user.id);
+    } else {
+      // If user is null (logged out) and we had a previous session, reset to a new chat
+      if (messages.length > 0) {
+        console.log('User logged out, resetting chat');
+        // Create a new empty session
+        const newChatId = Date.now().toString();
+        const newSession: ChatSession = {
+          id: newChatId,
+          title: 'New Conversation',
+          lastMessage: '',
+          timestamp: new Date(),
+          messages: []
       };
       
       // Reset state
       setCurrentChatId(newChatId);
       setMessages([]);
       setChatSessions([newSession]);
+    }
+      
+      // For non-authenticated users, use a temporary ID
+      setUserId(getUserId());
     }
   }, [user]);
   
@@ -264,6 +303,9 @@ const ChatPage = () => {
     
     if (!input.trim()) return;
     
+    // Store the input before clearing it
+    const userInput = input.trim();
+    
     // Check if user can send this message
     if (!canSendMessage()) {
       setShowLoginPrompt(true);
@@ -273,13 +315,18 @@ const ChatPage = () => {
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user' as const,
-      content: input,
+      content: userInput,
       timestamp: new Date(),
     };
     
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
+    
+    // Reset textarea height to default
+    if (textareaRef.current) {
+      textareaRef.current.style.height = '64px';
+    }
     
     try {
       // Show a loading state
@@ -294,23 +341,63 @@ const ChatPage = () => {
       setMessages([...newMessages, loadingMessage]);
       
       // Generate response using Gemini API
-      const response = await geminiService.generateResponse(
-        newMessages.map(msg => ({ role: msg.role, content: msg.content }))
-      );
+      setIsStreaming(true);
+      let streamedContent = '';
+
+      try {
+        // Use the streaming API
+        await geminiService.generateResponse(
+          newMessages.map(msg => ({ role: msg.role, content: msg.content }))
+          ,
+          (token) => {
+            // Update the content as tokens arrive
+            streamedContent += token;
+            
+            // Update the message with the current streamed content
+
+            setMessages(currentMessages => {
+              const updatedMessages = [...currentMessages];
+              const loadingMessageIndex = updatedMessages.findIndex(msg => msg.id === tempId);
+              
+              if (loadingMessageIndex !== -1) {
+                const updatedMessage = {
+                  ...updatedMessages[loadingMessageIndex],
+                  content: streamedContent
+                };
+                updatedMessages[loadingMessageIndex] = updatedMessage;
+              }
+              
+              return updatedMessages;
+            });
+            
+            // Scroll to bottom as content streams in
+            setTimeout(() => {
+              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+            }, 0);
+          }
+        );
+        
+        // After streaming is complete, finalize the message
+        const finalAiResponse: Message = {
+          id: tempId,
+          role: 'assistant' as const,
+          content: streamedContent,
+          timestamp: new Date(),
+        };
       
-      // Update with the actual response
-      const aiResponse: Message = {
-        id: tempId,
-        role: 'assistant' as const,
-        content: response,
-        timestamp: new Date(),
-      };
+  
+        const updatedMessages = [...newMessages, finalAiResponse];
+        setMessages(updatedMessages);
       
-      const updatedMessages = [...newMessages, aiResponse];
-      setMessages(updatedMessages);
-      
-      // Update the current chat session
-      updateChatSession(updatedMessages);
+  
+        // Update the current chat session
+        updateChatSession(updatedMessages);
+      } catch (error) {
+        console.error('Error in streaming response:', error);
+        // Handle error if needed
+      } finally {
+        setIsStreaming(false);
+      }
       
       // Show login prompt for non-logged in users after they've received a response
       if (!user) {
@@ -609,11 +696,58 @@ const ChatPage = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
+    
+    // Manually trigger resize for pasted content or rapid typing
+    if (textareaRef.current) {
+      // Reset height to auto to get the correct scrollHeight
+      textareaRef.current.style.height = 'auto';
+      
+      // Calculate new height (with a minimum of 64px)
+      const newHeight = Math.max(64, Math.min(textareaRef.current.scrollHeight, 240));
+      
+      // Set the new height
+      textareaRef.current.style.height = `${newHeight}px`;
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === 'Enter') {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      // Submit form on Enter (without Shift)
+      e.preventDefault();
       handleSubmit(e);
+    } else if (e.key === 'Enter' && e.shiftKey) {
+      // Allow Shift+Enter for new lines
+      // The default behavior will add a new line
+      
+      // Manually trigger resize after new line is added
+      setTimeout(() => {
+        if (textareaRef.current) {
+          textareaRef.current.style.height = 'auto';
+          const newHeight = Math.max(64, Math.min(textareaRef.current.scrollHeight, 240));
+          textareaRef.current.style.height = `${newHeight}px`;
+        }
+      }, 0);
+    }
+  };
+
+  const handleMicClick = () => {
+    // This would be implemented to handle audio recording
+    // For now, we'll just toggle the recording state for UI feedback
+    setIsRecording(!isRecording);
+    
+    // In a real implementation, you would:
+    // 1. Request microphone permissions
+    // 2. Start/stop recording
+    // 3. Process the audio (e.g., send to a speech-to-text API)
+    // 4. Set the resulting text in the input field
+    
+    // Simulate ending recording after 2 seconds
+    if (!isRecording) {
+      setTimeout(() => {
+        setIsRecording(false);
+        // In a real implementation, you would set the transcribed text here
+        // setInput("Transcribed text would appear here");
+      }, 2000);
     }
   };
 
@@ -787,8 +921,8 @@ const ChatPage = () => {
             h1: ({node, ...props}) => <h1 className="text-xl font-bold my-4 border-b pb-2 border-gray-700" {...props} />,
             h2: ({node, ...props}) => <h2 className="text-lg font-bold my-3 text-green-400" {...props} />,
             h3: ({node, ...props}) => <h3 className="text-md font-bold my-2 text-blue-400" {...props} />,
-            ul: ({node, ...props}) => <ul className="my-3 space-y-2" {...props} />,
-            ol: ({node, ...props}) => <ol className="my-3 space-y-2 list-decimal pl-6" {...props} />,
+            ul: ({node, ...props}) => <ul className="my-4 space-y-3" {...props} />,
+            ol: ({node, ...props}) => <ol className="my-4 space-y-3 list-decimal pl-6" {...props} />,
             li: ({node, children, ...props}) => {
               // Special formatting for list items
               if (String(children).includes("Primary Nutrients") || 
@@ -805,8 +939,8 @@ const ChatPage = () => {
                 </li>
               );
             },
-            p: ({node, ...props}) => <p className="my-2" {...props} />,
-            a: ({node, ...props}) => <a className="text-blue-400 hover:underline" {...props} />,
+            p: ({node, ...props}) => <p className="my-3 text-justify leading-relaxed" style={{ lineHeight: "1.5" }} {...props} />,
+            a: ({node, ...props}) => <a className="text-blue-400 hover:underline font-medium" {...props} />,
             code: ({node, className, children, ...props}) => {
               const match = /language-(\w+)/.exec(className || '');
               return match ? (
@@ -817,11 +951,14 @@ const ChatPage = () => {
                   </pre>
                 </div>
               ) : (
-                <code className="bg-gray-800 px-1 rounded text-sm" {...props}>{children}</code>
+                <code className="bg-gray-800 px-1.5 py-0.5 rounded text-sm" {...props}>{children}</code>
               );
             },
-            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-green-500 pl-4 my-4 italic bg-opacity-20 bg-green-900 py-2 pr-2 rounded-r" {...props} />,
-            strong: ({node, ...props}) => <strong className="font-bold text-green-300" {...props} />
+            blockquote: ({node, ...props}) => <blockquote className="border-l-4 border-green-500 pl-4 my-5 italic bg-opacity-20 bg-green-900 py-3 pr-3 rounded-r text-justify" style={{ lineHeight: "1.5" }} {...props} />,
+            strong: ({node, ...props}) => <strong className="font-bold text-green-300" {...props} />,
+                table: ({node, ...props}) => <div className="overflow-x-auto my-4"><table className="min-w-full" {...props} /></div>,
+                th: ({node, ...props}) => <th className="py-2 px-4 bg-[#1A2030] text-left font-medium" {...props} />,
+                td: ({node, ...props}) => <td className="py-2 px-4 border-t border-[#2A3143]" {...props} />
           }}
         >
           {content}
@@ -834,8 +971,8 @@ const ChatPage = () => {
   
   // Helper components for enhanced visualization
   const InfoCard = ({ title, children, icon }: { title: string, children: React.ReactNode, icon?: React.ReactNode }) => (
-    <div className="bg-[#131725] border border-[#2A3143] rounded-lg p-4 my-4 shadow-md">
-      <div className="flex items-center mb-2">
+    <div className="bg-[#131725] border border-[#2A3143] rounded-lg p-5 my-5 shadow-md">
+      <div className="flex items-center mb-3">
         <div className="mr-2 text-green-400">{icon || <Info size={18} />}</div>
         <h3 className="font-semibold text-green-400">{title}</h3>
       </div>
@@ -847,16 +984,16 @@ const ChatPage = () => {
     const [isOpen, setIsOpen] = useState(defaultOpen);
     
     return (
-      <div className="border border-[#2A3143] rounded-lg my-4">
+      <div className="border border-[#2A3143] rounded-lg my-5">
         <button 
-          className="w-full flex items-center justify-between bg-[#1E2735] p-3 rounded-t-lg hover:bg-[#262F3F] transition-colors"
+          className="w-full flex items-center justify-between bg-[#1E2735] p-4 rounded-t-lg hover:bg-[#262F3F] transition-colors"
           onClick={() => setIsOpen(!isOpen)}
         >
           <h3 className="font-semibold text-white">{title}</h3>
           {isOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </button>
         {isOpen && (
-          <div className="p-3 bg-[#131725] rounded-b-lg">
+          <div className="p-4 bg-[#131725] rounded-b-lg">
             {children}
           </div>
         )}
@@ -865,14 +1002,14 @@ const ChatPage = () => {
   };
 
   const ProgressBar = ({ value, label, color = "bg-green-500" }: { value: number, label: string, color?: string }) => (
-    <div className="my-2">
-      <div className="flex justify-between mb-1">
+    <div className="my-3">
+      <div className="flex justify-between mb-2">
         <span className="text-sm text-gray-300">{label}</span>
         <span className="text-sm text-gray-400">{value}%</span>
       </div>
-      <div className="w-full bg-[#1E2735] rounded-full h-2.5">
+      <div className="w-full bg-[#1E2735] rounded-full h-3">
         <div 
-          className={`${color} h-2.5 rounded-full`} 
+          className={`${color} h-3 rounded-full`} 
           style={{ width: `${value}%` }}
         ></div>
       </div>
@@ -880,12 +1017,12 @@ const ChatPage = () => {
   );
 
   const DataTable = ({ headers, rows }: { headers: string[], rows: string[][] }) => (
-    <div className="overflow-x-auto my-4">
-      <table className="min-w-full bg-[#131725] border border-[#2A3143] rounded-lg">
+    <div className="overflow-x-auto my-5">
+      <table className="min-w-full bg-[#131725] border border-[#2A3143] rounded-lg shadow-sm">
         <thead>
           <tr className="bg-[#1E2735]">
             {headers.map((header, index) => (
-              <th key={index} className="py-2 px-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">
+              <th key={index} className="py-3 px-4 text-left text-sm font-medium text-gray-300 uppercase tracking-wider">
                 {header}
               </th>
             ))}
@@ -895,7 +1032,7 @@ const ChatPage = () => {
           {rows.map((row, rowIndex) => (
             <tr key={rowIndex} className={rowIndex % 2 === 0 ? 'bg-[#131725]' : 'bg-[#161E2F]'}>
               {row.map((cell, cellIndex) => (
-                <td key={cellIndex} className="py-2 px-4 text-sm">
+                <td key={cellIndex} className="py-3 px-4 text-sm border-t border-[#2A3143]/30">
                   {cell}
                 </td>
               ))}
@@ -907,16 +1044,16 @@ const ChatPage = () => {
   );
 
   const NutrientComponent = ({ name, value, description }: { name: string, value: string, description: string }) => (
-    <div className="flex items-start space-x-2 my-3">
+    <div className="flex items-start space-x-3 my-4">
       <div className="bg-green-500 rounded-full w-6 h-6 flex items-center justify-center flex-shrink-0 mt-0.5">
         <span className="text-white text-xs font-bold">{name.charAt(0)}</span>
       </div>
       <div>
-        <div className="flex items-baseline">
+        <div className="flex items-baseline mb-1">
           <span className="font-semibold text-green-400">{name}</span>
           <span className="ml-2 text-sm text-gray-300">({value})</span>
         </div>
-        <p className="text-sm text-gray-300">{description}</p>
+        <p className="text-sm text-gray-300 leading-relaxed" style={{ lineHeight: "1.5" }}>{description}</p>
       </div>
     </div>
   );
@@ -960,7 +1097,10 @@ const ChatPage = () => {
                 <Button 
                   variant="ghost" 
                   size="icon"
+ 
+                  disabled={messages.length === 0}
                   onClick={startNewChat}
+ 
                 >
                   <MessageSquare size={20} />
                 </Button>
@@ -972,7 +1112,7 @@ const ChatPage = () => {
       </div>
       
       {/* Main Chat Area */}
-      <div className="flex-1 overflow-y-auto py-8 px-4 md:px-12 lg:px-24 bg-[#1E2735]">
+      <div className="flex-1 overflow-y-auto py-6 bg-[#1E2735]">
         {loading ? (
           <div className="h-full flex flex-col justify-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
@@ -1002,9 +1142,9 @@ const ChatPage = () => {
             </div>
           </div>
         ) : (
-          <div className="space-y-12 pb-4 max-w-3xl mx-auto">
+          <div className="pb-4 max-w-4xl mx-auto">
             {messages.map((message, index) => (
-              <div key={message.id} className="mb-10 last:mb-4 group/message">
+              <div key={message.id} className="mb-6 group/message">
                 {editingMessageId === message.id ? (
                   <div className="flex flex-col space-y-2">
                     <textarea 
@@ -1031,24 +1171,21 @@ const ChatPage = () => {
                     </div>
                   </div>
                 ) : (
-                  <div className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                  <div>
                     {/* Assistant message */}
                     {message.role === 'assistant' && (
-                      <div className="max-w-[85%]">
-                        <div className="flex items-start mb-1">
-                          <div className="bg-green-500 rounded-full w-8 h-8 flex items-center justify-center mr-3 flex-shrink-0">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M12 2L4 5V11.09C4 16.14 7.41 20.85 12 22C16.59 20.85 20 16.14 20 11.09V5L12 2Z" fill="white"/>
-                              <path d="M22 2 11 13"></path>
-                            </svg>
-                          </div>
-                          <div className="prose prose-invert max-w-none text-cropsay-lightText bg-[#1E2735] p-4 rounded-lg shadow-sm">
-                            {renderFormattedContent(message.content)}
-                          </div>
+                      <div className="px-4 md:px-8 lg:px-10 py-4 border-b border-[#2A3143]/20">
+                        <div className="prose prose-invert max-w-[95%] text-cropsay-lightText ml-8">
+                          {message.id === messages[messages.length - 1].id && isStreaming ? (
+                            <ChatTextGenerateEffect key={message.content} text={message.content} isStreaming={isStreaming} />
+                          ) : (
+                            <div className="text-justify leading-7">{renderFormattedContent(message.content)
+}</div>
+                          )}
                         </div>
                         
                         {/* ChatGPT-style icon buttons for assistant messages */}
-                        <div className="flex items-center mt-2 ml-11 gap-2">
+                        <div className="flex items-center mt-2 gap-2">
                           <button 
                             className="p-1 rounded-md hover:bg-[#2A3143] transition-colors"
                             onClick={() => {
@@ -1114,15 +1251,15 @@ const ChatPage = () => {
                     
                     {/* User message - rounded box with no profile icon */}
                     {message.role === 'user' && (
-                      <div className="relative group max-w-[85%]">
-                        <div className="p-4 rounded-2xl bg-[#131725] hover:bg-[#192033] text-white">
+                      <div className="relative group px-4 md:px-8 lg:px-10 py-4 flex flex-col items-end">
+                        <div className="max-w-[90%] bg-[#131725] p-4 rounded-2xl text-white">
                           <div className="prose prose-invert max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                           </div>
                         </div>
                         
                         {/* Hover actions for user messages */}
-                        <div className="absolute -bottom-6 right-2 hidden group-hover:flex gap-1 bg-[#1E2735] p-1 rounded-md shadow-md">
+                        <div className="absolute bottom-0 right-4 md:right-8 lg:right-10 hidden group-hover:flex gap-1 bg-[#1E2735] p-1 rounded-md shadow-md z-10 mb-[-30px] opacity-0 group-hover:opacity-100 transition-opacity duration-200">
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1160,48 +1297,53 @@ const ChatPage = () => {
       </div>
       
       {/* Chat Input */}
-      <div className="sticky bottom-0 w-full py-4 bg-[#1E2735]">
-        <div className="max-w-3xl mx-auto">
-          <form onSubmit={handleSubmit} className="relative">
-            <div className="flex items-center bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg">
-              <button
-                type="button"
-                className="p-2 text-gray-400 hover:text-gray-200"
-                onClick={() => {/* Add attachment functionality */}}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20z"></path>
-                  <path d="M8 12h8"></path>
-                  <path d="M12 8v8"></path>
-                </svg>
-              </button>
-              
+      <div className="sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30">
+        <div className="max-w-4xl mx-auto px-4 md:px-8 lg:px-10">
+          <form onSubmit={handleSubmit} className="relative flex flex-col">
+            <div className="relative flex items-start bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask anything..."
-                className="flex-1 p-3 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none h-12 max-h-[200px] overflow-y-auto"
-                style={{ minHeight: '48px' }}
+                className="flex-1 py-4 pl-4 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none h-12 max-h-[200px] overflow-y-auto"
+                style={{ minHeight: '64px' }}
+                rows={1}
               />
-              
-              <button
-                type="submit"
-                disabled={!input.trim() || !canSendMessage()}
-                className={`p-2 rounded-lg mr-2 ${
-                  input.trim() && canSendMessage() ? 'text-white bg-green-600 hover:bg-green-700' : 'text-gray-500 bg-gray-700 cursor-not-allowed'
-                }`}
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="m22 2-7 20-4-9-9-4Z"></path>
-                  <path d="M22 2 11 13"></path>
-                </svg>
-              </button>
+
+              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+                <button
+                  type="button"
+                  onClick={handleMicClick}
+                  className={`p-1.5 rounded-full transition-all ${
+                    isRecording 
+                      ? 'text-white bg-red-500 hover:bg-red-600 animate-pulse' 
+                      : 'text-gray-400 hover:text-white hover:bg-[#2A3143]/70'
+                  }`}
+                  title="Voice input"
+                >
+                  <Mic size={18} className="opacity-90" />
+                </button>
+                
+                <button
+                  type="submit"
+                  className={`p-1.5 rounded-full transition-all ${
+                  input.trim() && canSendMessage() && !isStreaming 
+                    ? 'text-white bg-green-600 hover:bg-green-500' 
+                    : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'}`}
+                  disabled={!input.trim() || !canSendMessage() || isStreaming}
+                  title="Send message"
+                >
+                  <Send size={18} className="opacity-90" />
+                </button>
+              </div>
             </div>
-            
-            <div className="text-xs text-center text-gray-500 mt-2">
-              Cropsay can make mistakes. Check important info.
+
+            <div className="text-xs text-center text-gray-500 mt-2 opacity-70 font-light">
+              {isStreaming ? 
+                'Generating response...' : 
+                'Cropsay AI provides information based on available data. Always verify critical information.'}
             </div>
           </form>
         </div>
@@ -1245,7 +1387,8 @@ const ChatPage = () => {
             
             <Button 
               onClick={startNewChat}
-              className="w-full bg-green-500 hover:bg-green-600 mb-4"
+              disabled={messages.length === 0}
+              className={`w-full mb-4 ${messages.length === 0 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-500 hover:bg-green-600'}`}
             >
               New Chat
             </Button>
@@ -1378,8 +1521,9 @@ const ChatPage = () => {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={() => navigate('/login')}>
-              Login to Chat More
+            <AlertDialogAction onClick={() => navigate('/auth')}>
+              Login
+ to Chat More
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
@@ -1389,3 +1533,4 @@ const ChatPage = () => {
 };
 
 export default ChatPage;
+
