@@ -115,28 +115,85 @@ Return ONLY the JSON object, nothing else.
       // Create a score for each product based on how many features it matches
       const scoredProducts = matchedProducts.map(product => {
         const productText = `${product.name} ${product.description} ${product.category} ${product.subcategory}`.toLowerCase();
-        
-        // Count how many features match
+          // Count how many features match
         const matchCount = analysisResult.productFeatures.filter((feature: string) => 
           productText.includes(feature.toLowerCase())
         ).length;
         
+        // Exact name matching boost - critical for queries like "tomato seed"
+        let nameMatchBoost = 0;
+        const queryLower = query.toLowerCase();
+        // Check for direct product name match in the query
+        if (product.name.toLowerCase().includes("tomato") && queryLower.includes("tomato")) {
+          nameMatchBoost = 10; // Strong boost for exact tomato product when query is about tomatoes
+        }
+        // Check for other explicit crop name matches
+        else if (queryLower.includes(product.name.toLowerCase())) {
+          nameMatchBoost = 8;
+        }
+        // Check for partial product name match
+        else if (product.name.toLowerCase().split(' ').some(word => queryLower.includes(word) && word.length > 3)) {
+          nameMatchBoost = 5;
+        }
+        
         return {
           product,
-          score: matchCount
+          score: matchCount + nameMatchBoost
         };
       });
+        // Log top scored products before sorting (for debugging)
+      console.log('Top products with features before sorting:', 
+        scoredProducts.slice(0, 5).map(p => `${p.product.name}: score=${p.score}, rating=${p.product.rating}`));
       
-      // Sort by score (highest first)
-      scoredProducts.sort((a, b) => b.score - a.score);
+      // Sort by score (highest first), then by rating as a tiebreaker
+      scoredProducts.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.product.rating - a.product.rating;
+      });
       
-      // Extract just the products
+      // Log top products after sorting (for debugging)
+      console.log('Top products with features after sorting:', 
+        scoredProducts.slice(0, 5).map(p => `${p.product.name}: score=${p.score}, rating=${p.product.rating}`));
+      
+      // Extract just the products  
       matchedProducts = scoredProducts.map(item => item.product);
     }
-    
-    // Sort by rating as a secondary criterion
-    matchedProducts.sort((a, b) => b.rating - a.rating);
-    
+    // If not using feature scoring, sort by relevance to query (category/subcategory match count), then by rating
+    else {      const scoredProducts = matchedProducts.map(product => {
+        let score = 0;
+        if (analysisResult.relevantCategories && analysisResult.relevantCategories.includes(product.category)) score++;
+        if (analysisResult.relevantSubcategories && analysisResult.relevantSubcategories.includes(product.subcategory)) score++;
+        
+        // Direct name matching boost for crop-specific recommendations
+        const queryLower = query.toLowerCase();
+        // Check for direct product name match in the query (especially for specific crops like tomatoes)
+        if (product.name.toLowerCase().includes("tomato") && queryLower.includes("tomato")) {
+          score += 10; // Strong boost for tomato products when query is about tomatoes
+        }
+        // Check for other explicit crop name matches
+        else if (queryLower.includes(product.name.toLowerCase())) {
+          score += 8;
+        }
+        // Check for partial product name match
+        else if (product.name.toLowerCase().split(' ').some(word => queryLower.includes(word) && word.length > 3)) {
+          score += 5;
+        }
+        return { product, score };
+      });      // Log top scored products before sorting (for debugging)
+      console.log('Top products without features before sorting:', 
+        scoredProducts.slice(0, 5).map(p => `${p.product.name}: score=${p.score}, rating=${p.product.rating}`));
+        
+      scoredProducts.sort((a, b) => {
+        if (b.score !== a.score) return b.score - a.score;
+        return b.product.rating - a.product.rating;
+      });
+      
+      // Log top products after sorting (for debugging)
+      console.log('Top products without features after sorting:', 
+        scoredProducts.slice(0, 5).map(p => `${p.product.name}: score=${p.score}, rating=${p.product.rating}`));
+        
+      matchedProducts = scoredProducts.map(item => item.product);
+    }
     // Limit the number of products
     return matchedProducts.slice(0, limit);
   } catch (error) {

@@ -364,7 +364,8 @@ The intent analysis system:
 Located in `src/services/dynamicRecommendationService.ts`, this service:
 - Analyzes user queries to identify relevant product categories
 - Matches categories and features with products in the catalog
-- Ranks products based on relevance to the query
+- Ranks products based on relevance to the query, prioritizing relevance over rating
+- Ensures crop-specific queries return highly relevant products first (e.g., "tomato seeds" returns tomato products first)
 
 #### Dynamic Matching Algorithm
 
@@ -372,11 +373,17 @@ The dynamic matching algorithm:
 
 1. **Extracts Key Terms** from user queries
 2. **Maps Terms to Product Features** using a weighted scoring system
-3. **Applies Business Rules** such as:
+3. **Applies Name Matching Boost** to prioritize products that directly match query terms:
+   - Strong boost (10 points) for tomato products when the query includes "tomato"
+   - High boost (8 points) for other explicit crop name matches in product names
+   - Medium boost (5 points) for partial word matches in product names with words longer than 3 characters
+   - Multi-level scoring that ranks by relevance first, using rating only as a tiebreaker
+4. **Applies Business Rules** such as:
    - Seasonal relevance
    - Stock availability
    - Promotional priorities
-4. **Generates Explanations** for why products were recommended
+5. **Generates Explanations** for why products were recommended
+6. **Debug Logging** tracks scoring process to validate ranking effectiveness
 
 ### 4. Hybrid Recommendation Approach
 

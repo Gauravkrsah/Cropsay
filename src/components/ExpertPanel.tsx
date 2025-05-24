@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic, ShoppingCartIcon, PlusCircle } from 'lucide-react';
+import { X, MessageSquare, Calendar, User, Star, BookOpen, ShoppingBag, Info, Truck, Upload, Phone, Video, Mic, ShoppingCartIcon, PlusCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -83,6 +83,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const { items, addItem, openCart } = useCart();
   const { user } = useAuth(); // Get the authenticated user
   const panelRef = useRef<HTMLDivElement>(null);
+  const filterBarRef = useRef<HTMLDivElement>(null);
   const [activeCategory, setActiveCategory] = useState<string>("all");
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
@@ -231,8 +232,19 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   // Filter products based on selected category
   const filteredProducts = recommendedProducts.filter(product => {
     if (activeProductCategory === "all") return true;
-    return product.category.toLowerCase() === activeProductCategory.toLowerCase();
+    return product.category && product.category.toLowerCase() === activeProductCategory.toLowerCase();
   });
+
+  // Scroll filter bar left/right
+  const scrollFilterBar = (direction: 'left' | 'right') => {
+    if (filterBarRef.current) {
+      const scrollAmount = 120; // px per click
+      filterBarRef.current.scrollBy({
+        left: direction === 'left' ? -scrollAmount : scrollAmount,
+        behavior: 'smooth',
+      });
+    }
+  };
 
   return (
     <>
@@ -436,8 +448,21 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
               </div>
             ) : (
             <div className="h-full flex flex-col">
-            <div className="p-3">
-              <div className="flex flex-wrap gap-2 mb-3">
+            <div className="p-3 flex items-center">
+              <button
+                className="mr-1 p-1 rounded-full text-white bg-transparent border-none outline-none hover:bg-white/10 focus:bg-white/10 transition-colors shadow-none"
+                onClick={() => scrollFilterBar('left')}
+                aria-label="Scroll left"
+                type="button"
+                style={{ minWidth: 28 }}
+              >
+                <ChevronLeft size={18} />
+              </button>
+              <div
+                ref={filterBarRef}
+                className="flex gap-2 overflow-x-auto flex-nowrap hide-scrollbar flex-1"
+                tabIndex={-1}
+              >
                 <Button 
                   variant={activeProductCategory === "all" ? "default" : "outline"} 
                   size="sm" 
@@ -490,27 +515,69 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                 >
                   Fertilizers
                 </Button>
-              </div>
-              
-              {items.length > 0 && (
-                <div 
-                  className="flex items-center justify-between bg-[#1E2735] p-2 rounded-md mb-3 cursor-pointer hover:bg-[#2A3143] transition-colors" 
-                  onClick={openCart}
+                <Button 
+                  variant={activeProductCategory === "equipment" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "equipment" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("equipment")}
                 >
-                  <div className="flex items-center">
-                    <ShoppingBag size={16} className="text-green-500 mr-2" />
-                    <span className="text-xs text-white">
-                      {items.reduce((total, item) => total + item.quantity, 0)} items in cart
-                    </span>
-                  </div>
-                  <span className="text-xs font-medium text-green-500">
-                    रु {items.reduce((total, item) => total + (item.price * item.quantity), 0).toLocaleString()}
-                  </span>
-                </div>
-              )}
+                  Equipment
+                </Button>
+                <Button 
+                  variant={activeProductCategory === "tools" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "tools" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("tools")}
+                >
+                  Tools
+                </Button>
+                <Button 
+                  variant={activeProductCategory === "irrigation" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "irrigation" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("irrigation")}
+                >
+                  Irrigation
+                </Button>
+                <Button 
+                  variant={activeProductCategory === "fungicide" ? "default" : "outline"} 
+                  size="sm" 
+                  className={cn(
+                    "rounded-full h-7 px-3 text-xs",
+                    activeProductCategory === "fungicide" 
+                      ? "bg-green-500 text-white hover:bg-green-600" 
+                      : "bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-white"
+                  )}
+                  onClick={() => setActiveProductCategory("fungicide")}
+                >
+                  Fungicide
+                </Button>
+              </div>
+              <button
+                className="ml-1 p-1 rounded-full text-white bg-transparent border-none outline-none hover:bg-white/10 focus:bg-white/10 transition-colors shadow-none"
+                onClick={() => scrollFilterBar('right')}
+                aria-label="Scroll right"
+                type="button"
+                style={{ minWidth: 28 }}
+              >
+                <ChevronRight size={18} />
+              </button>
             </div>
-
-            
             <div className="flex-1 overflow-y-auto px-3 custom-scrollbar hide-scrollbar">
               <div className="space-y-2 pb-3">
                 {filteredProducts.map(product => {
