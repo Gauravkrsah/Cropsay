@@ -1058,6 +1058,220 @@ const ChatPage = () => {
     </div>
   );
 
+  const [selectedChatIds, setSelectedChatIds] = useState<Set<string>>(new Set());
+  const [selectAll, setSelectAll] = useState(false);
+
+  const handleSelectChat = (chatId: string) => {
+    const newSelectedChatIds = new Set(selectedChatIds);
+    
+    if (newSelectedChatIds.has(chatId)) {
+      newSelectedChatIds.delete(chatId);
+    } else {
+      newSelectedChatIds.add(chatId);
+    }
+    
+    setSelectedChatIds(newSelectedChatIds);
+  };
+
+  const handleSelectAll = () => {
+    if (selectAll) {
+      setSelectedChatIds(new Set());
+    } else {
+      const allChatIds = new Set(chatSessions.map(chat => chat.id));
+      setSelectedChatIds(allChatIds);
+    }
+    
+    setSelectAll(!selectAll);
+  };
+
+  const handleBulkDelete = async () => {
+    try {
+      // Convert to array and sort by timestamp (descending)
+      const chatsToDelete = Array.from(selectedChatIds)
+        .map(id => chatSessions.find(chat => chat.id === id))
+        .filter((chat): chat is ChatSession => chat !== undefined)
+        .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      
+      for (const chat of chatsToDelete) {
+        await chatService.deleteChatSession(chat.id);
+      }
+      
+      // Update state
+      setChatSessions(prev => prev.filter(chat => !selectedChatIds.has(chat.id)));
+      setSelectedChatIds(new Set());
+      setSelectAll(false);
+      
+      toast({
+        description: "Selected chats deleted successfully.",
+      });
+    } catch (error) {
+      console.error('Error deleting chats:', error);
+      toast({
+        description: "Failed to delete selected chats.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Update DialogContent for chat history with checkboxes and bulk actions
+  const DialogContentWithBulkActions = () => (
+    <DialogContent 
+      className="sm:max-w-[500px] bg-[#10141E] border-[#2A3143]"
+      onPointerDownOutside={() => setShowChatHistory(false)} // Explicitly handle outside clicks
+    >
+      <DialogHeader>
+        <DialogTitle className="text-xl font-bold">Chat History</DialogTitle>
+        <DialogDescription>
+          View and manage your previous conversations
+        </DialogDescription>
+      </DialogHeader>
+      
+      <div className="mt-2 mb-4">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
+          <Input 
+            placeholder="Search conversations..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 bg-[#1E2735] border-[#2A3143]"
+          />
+        </div>
+      </div>
+      
+      <div className="flex items-center justify-between mb-4">
+        <Button 
+          onClick={startNewChat}
+          disabled={messages.length === 0}
+          className={`mr-2 ${messages.length === 0 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-500 hover:bg-green-600'}`}
+        >
+          New Chat
+        </Button>
+        
+        <div className="flex items-center">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleSelectAll}
+            className="mr-2"
+          >
+            {selectAll ? 'Deselect All' : 'Select All'}
+          </Button>
+          
+          <Button
+            variant="destructive"
+            size="sm"
+            onClick={handleBulkDelete}
+            disabled={selectedChatIds.size === 0}
+          >
+            Delete Selected
+          </Button>
+        </div>
+      </div>
+      
+      <ScrollArea className="h-[400px] pr-4">
+        {/* Pinned Chats */}
+        {pinnedChats.length > 0 && (
+          <>
+            <p className="text-sm text-cropsay-grayText px-2 mb-2">Pinned Chats</p>
+            <div className="space-y-1 mb-4">
+              {pinnedChats.map(chat => (
+                <div 
+                  key={chat.id} 
+                  className={`flex items-center justify-between p-2 rounded-md cursor-pointer ${
+                    currentChatId === chat.id ? 'bg-[#1E2735]' : 'hover:bg-[#1E2735]'
+                  }`}
+                  onClick={() => switchToChat(chat.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{chat.title}</p>
+                    <p className="text-xs text-gray-400 truncate">{chat.lastMessage}</p>
+                  </div>
+                  <div className="flex items-center space-x-1 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-yellow-400"
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleStarChat(chat.id, chat.isStarred);
+                      }}
+                      title="Unpin"
+                    >
+                      <Star size={14} fill="currentColor" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-gray-400 hover:text-red-400"
+                      onClick={(e) => setDeletingChatId(chat.id)}
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+        
+        {/* Recent Chats */}
+        {recentChats.length > 0 ? (
+          <>
+            <p className="text-sm text-cropsay-grayText px-2 mb-2">Recent Chats</p>
+            <div className="space-y-1">
+              {recentChats.map(chat => (
+                <div 
+                  key={chat.id} 
+                  className={`flex items-center justify-between p-2 rounded-md cursor-pointer ${
+                    currentChatId === chat.id ? 'bg-[#1E2735]' : 'hover:bg-[#1E2735]'
+                  }`}
+                  onClick={() => switchToChat(chat.id)}
+                >
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate">{chat.title}</p>
+                    <p className="text-xs text-gray-400 truncate">{chat.lastMessage}</p>
+                  </div>
+                  <div className="flex items-center space-x-1 ml-2">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-gray-400 hover:text-yellow-400"
+                      onClick={e => {
+                        e.stopPropagation();
+                        handleStarChat(chat.id, chat.isStarred);
+                      }}
+                      title="Pin"
+                    >
+                      <Star size={14} />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-gray-400 hover:text-red-400"
+                      onClick={(e) => setDeletingChatId(chat.id)}
+                      title="Delete"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        ) : searchQuery && filteredChatSessions.length === 0 ? (
+          <div className="text-center py-6 text-gray-400">
+            No chats found matching "{searchQuery}"
+          </div>
+        ) : !searchQuery && chatSessions.length <= 1 ? (
+          <div className="text-center py-6 text-gray-400">
+            No previous conversations yet
+          </div>
+        ) : null}
+      </ScrollArea>
+    </DialogContent>
+  );
+
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
@@ -1362,133 +1576,7 @@ const ChatPage = () => {
           }}
           modal={false} // Allow closing when clicking outside
         >
-          <DialogContent 
-            className="sm:max-w-[500px] bg-[#10141E] border-[#2A3143]"
-            onPointerDownOutside={() => setShowChatHistory(false)} // Explicitly handle outside clicks
-          >
-            <DialogHeader>
-              <DialogTitle className="text-xl font-bold">Chat History</DialogTitle>
-              <DialogDescription>
-                View and manage your previous conversations
-              </DialogDescription>
-            </DialogHeader>
-            
-            <div className="mt-2 mb-4">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={16} />
-                <Input 
-                  placeholder="Search conversations..." 
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10 bg-[#1E2735] border-[#2A3143]"
-                />
-              </div>
-            </div>
-            
-            <Button 
-              onClick={startNewChat}
-              disabled={messages.length === 0}
-              className={`w-full mb-4 ${messages.length === 0 ? 'bg-gray-600 cursor-not-allowed opacity-50' : 'bg-green-500 hover:bg-green-600'}`}
-            >
-              New Chat
-            </Button>
-            
-            <ScrollArea className="h-[400px] pr-4">
-              {/* Pinned Chats */}
-              {pinnedChats.length > 0 && (
-                <>
-                  <p className="text-sm text-cropsay-grayText px-2 mb-2">Pinned Chats</p>
-                  <div className="space-y-1 mb-4">
-                    {pinnedChats.map(chat => (
-                      <div 
-                        key={chat.id} 
-                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer ${
-                          currentChatId === chat.id ? 'bg-[#1E2735]' : 'hover:bg-[#1E2735]'
-                        }`}
-                        onClick={() => switchToChat(chat.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{chat.title}</p>
-                          <p className="text-xs text-gray-400 truncate">{chat.lastMessage}</p>
-                        </div>
-                        <div className="flex items-center space-x-1 ml-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-yellow-400"
-                            onClick={(e) => handleStarChat(chat.id, chat.isStarred)}
-                            title="Unpin"
-                          >
-                            <Star size={14} fill="currentColor" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-gray-400 hover:text-red-400"
-                            onClick={(e) => setDeletingChatId(chat.id)}
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-              
-              {/* Recent Chats */}
-              {recentChats.length > 0 ? (
-                <>
-                  <p className="text-sm text-cropsay-grayText px-2 mb-2">Recent Chats</p>
-                  <div className="space-y-1">
-                    {recentChats.map(chat => (
-                      <div 
-                        key={chat.id} 
-                        className={`flex items-center justify-between p-2 rounded-md cursor-pointer ${
-                          currentChatId === chat.id ? 'bg-[#1E2735]' : 'hover:bg-[#1E2735]'
-                        }`}
-                        onClick={() => switchToChat(chat.id)}
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{chat.title}</p>
-                          <p className="text-xs text-gray-400 truncate">{chat.lastMessage}</p>
-                        </div>
-                        <div className="flex items-center space-x-1 ml-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-gray-400 hover:text-yellow-400"
-                            onClick={(e) => handleStarChat(chat.id, chat.isStarred)}
-                            title="Pin"
-                          >
-                            <Star size={14} />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-7 w-7 rounded-full hover:bg-[#2A3143] text-gray-400 hover:text-red-400"
-                            onClick={(e) => setDeletingChatId(chat.id)}
-                            title="Delete"
-                          >
-                            <Trash2 size={14} />
-                          </Button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              ) : searchQuery && filteredChatSessions.length === 0 ? (
-                <div className="text-center py-6 text-gray-400">
-                  No chats found matching "{searchQuery}"
-                </div>
-              ) : !searchQuery && chatSessions.length <= 1 ? (
-                <div className="text-center py-6 text-gray-400">
-                  No previous conversations yet
-                </div>
-              ) : null}
-            </ScrollArea>
-          </DialogContent>
+          {DialogContentWithBulkActions()}
         </Dialog>
       )}
 

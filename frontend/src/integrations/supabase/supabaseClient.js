@@ -1,8 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
-import { supabaseUrl, supabaseAnonKey } from './supabaseConfig';
 
-// Initialize the Supabase client
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY
+);
 
 // Manage user ID persistence
 export const getUserId = () => {

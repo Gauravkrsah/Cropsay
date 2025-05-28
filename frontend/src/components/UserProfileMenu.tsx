@@ -1,0 +1,209 @@
+import React, { useEffect, useState } from 'react';
+import { LogOut, User, Settings, HelpCircle, ShoppingBag } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { useAuth } from '@/contexts/AuthContext';
+import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { getOrdersByUser, cancelOrder, deleteOrder } from '@/services/orderService';
+import { toast } from '@/components/ui/use-toast';
+
+export const UserProfileMenu = () => {
+  const { user, profile, signOut } = useAuth();
+  const [showProfile, setShowProfile] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [selectedOrder, setSelectedOrder] = useState<any>(null);
+
+  useEffect(() => {
+    if (showOrders && user) {
+      getOrdersByUser(user.id).then(setOrders);
+    }
+  }, [showOrders, user]);
+
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      await cancelOrder(orderId);
+      // Refresh orders from backend
+      if (user) {
+        const updatedOrders = await getOrdersByUser(user.id);
+        setOrders(updatedOrders);
+      }
+      // Optionally show a toast/feedback here
+    } catch (err) {
+      // Optionally show error feedback
+      console.error('Failed to cancel order', err);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      await deleteOrder(orderId);
+      if (user) {
+        const updatedOrders = await getOrdersByUser(user.id);
+        setOrders(updatedOrders);
+      }
+      toast({
+        title: 'Order Deleted',
+        description: 'Order has been deleted from your history.',
+      });
+    } catch (err) {
+      toast({
+        title: 'Delete Failed',
+        description: 'Could not delete order. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  if (!user) return null;
+  
+  const userInitials = profile?.full_name 
+    ? profile.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase() 
+    : user.email?.charAt(0).toUpperCase() || 'U';
+  
+  return (
+    <>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button 
+            variant="ghost" 
+            className="relative h-10 w-10 rounded-full p-0 hover:bg-[#1E2735]"
+          >
+            <Avatar>
+              <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || user.email || ''} />
+              <AvatarFallback className="bg-green-600 text-white">{userInitials}</AvatarFallback>
+            </Avatar>
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="w-56 bg-[#10141E] border-[#2A3143] text-gray-100" align="end" forceMount>
+          <DropdownMenuLabel>
+            <div className="flex flex-col space-y-1">
+              <p className="text-sm font-medium leading-none">{profile?.full_name || 'User'}</p>
+              <p className="text-xs leading-none text-gray-400">{user.email}</p>
+            </div>
+          </DropdownMenuLabel>
+          <DropdownMenuSeparator className="bg-[#2A3143]" />
+          <DropdownMenuGroup>
+            <DropdownMenuItem className="hover:bg-[#1E2735] cursor-pointer" onClick={() => setShowProfile(true)}>
+              <User className="mr-2 h-4 w-4" />
+              <span>Profile</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="hover:bg-[#1E2735] cursor-pointer" onClick={() => setShowOrders(true)}>
+              <ShoppingBag className="mr-2 h-4 w-4" />
+              <span>Orders</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="hover:bg-[#1E2735] cursor-pointer">
+              <HelpCircle className="mr-2 h-4 w-4" />
+              <span>Help & Support</span>
+            </DropdownMenuItem>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator className="bg-[#2A3143]" />
+          <DropdownMenuItem 
+            onClick={signOut}
+            className="text-red-400 hover:text-red-300 hover:bg-[#1E2735] cursor-pointer focus:text-red-300"
+          >
+            <LogOut className="mr-2 h-4 w-4" />
+            <span>Log out</span>
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+      {/* Profile Popup */}
+      <UIDialog open={showProfile} onOpenChange={setShowProfile}>
+        <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+          <DialogHeader>
+            <DialogTitle>User Profile</DialogTitle>
+            <DialogDescription>Account details</DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center gap-4 py-4">
+            <Avatar className="w-20 h-20 border border-[#2A3143]">
+              <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || user.email || ''} />
+              <AvatarFallback className="bg-green-600 text-white text-2xl">{userInitials}</AvatarFallback>
+            </Avatar>
+            <div className="text-center">
+              <div className="font-bold text-lg">{profile?.full_name || 'User'}</div>
+              <div className="text-gray-400">{user.email}</div>
+            </div>
+          </div>
+          <div className="text-sm text-gray-300">
+            <div><b>Joined:</b> {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</div>
+            {/* Add more profile fields as needed */}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowProfile(false)}>Close</Button>
+          </DialogFooter>
+        </UIDialogContent>
+      </UIDialog>
+      {/* Orders Popup */}
+      <UIDialog open={showOrders} onOpenChange={setShowOrders}>
+        <UIDialogContent className="max-w-lg w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+          <DialogHeader>
+            <DialogTitle>My Orders</DialogTitle>
+            <DialogDescription>Order history and status</DialogDescription>
+          </DialogHeader>
+          <div className="divide-y divide-[#232B3B]">
+            {orders.length === 0 ? (
+              <div className="text-center text-gray-400 py-8">No orders yet.</div>
+            ) : orders.map(order => (
+              <div key={order.id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                <div onClick={() => setSelectedOrder(order)} className="cursor-pointer">
+                  <div className="font-medium">Order #{order.id}</div>
+                  <div className="text-xs text-gray-400">{new Date(order.date).toLocaleString()}</div>
+                  <div className="text-xs text-gray-400">Items: {order.items.length}</div>
+                </div>
+                <div className="text-right">
+                  <div className="font-bold text-green-400">रु {order.total.toFixed(2)}</div>
+                  <div className={`text-xs ${order.status === 'Delivered' ? 'text-green-400' : order.status === 'Cancelled' ? 'text-red-400' : 'text-yellow-400'}`}>{order.status}</div>
+                  {order.status === 'Pending' && (
+                    <Button size="sm" variant="outline" className="mt-1" onClick={() => handleCancelOrder(order.id)}>Cancel</Button>
+                  )}
+                  {order.status === 'Cancelled' && (
+                    <Button size="sm" variant="destructive" className="mt-1 ml-2" onClick={() => handleDeleteOrder(order.id)}>Delete</Button>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+          {/* Removed DialogFooter with Close button */}
+        </UIDialogContent>
+      </UIDialog>
+      {/* Order Details Popup */}
+      <UIDialog open={!!selectedOrder} onOpenChange={open => !open && setSelectedOrder(null)}>
+        <UIDialogContent className="max-w-lg w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+          <DialogHeader>
+            <DialogTitle>Order Details</DialogTitle>
+            <DialogDescription>Order #{selectedOrder?.id}</DialogDescription>
+          </DialogHeader>
+          {selectedOrder && (
+            <div className="space-y-2">
+              <div><b>Date:</b> {new Date(selectedOrder.date).toLocaleString()}</div>
+              <div><b>Status:</b> {selectedOrder.status}</div>
+              <div><b>Payment:</b> {selectedOrder.payment_method}</div>
+              <div><b>Address:</b> {selectedOrder.address}</div>
+              <div><b>Phone:</b> {selectedOrder.phone}</div>
+              <div><b>Total:</b> रु {selectedOrder.total.toFixed(2)}</div>
+              <div><b>Items:</b>
+                <ul className="ml-4 list-disc">
+                  {selectedOrder.items.map((item: any, idx: number) => (
+                    <li key={idx}>{item.name} x {item.quantity} (रु {item.price})</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSelectedOrder(null)}>Close</Button>
+          </DialogFooter>
+        </UIDialogContent>
+      </UIDialog>
+    </>
+  );
+};
