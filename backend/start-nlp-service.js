@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 console.log('Starting NLP Recommendation Service...');
 
 // Get the path to the Python script
-const scriptPath = path.join(__dirname, 'src', 'services', 'nlp_recommendation_service.py');
+const scriptPath = path.join(__dirname, '..', 'frontend', 'src', 'services', 'nlp_recommendation_service.py');
 
 // Check if Python is installed and which command to use (python or python3)
 // Use the full path to the Pytho= executable

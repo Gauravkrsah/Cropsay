@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 console.log('Starting Gemini API proxy server...');
 
 // Get the path to the geminiProxy.js file
-const proxyPath = path.join(__dirname, 'src', 'services', 'geminiProxy.js');
+const proxyPath = path.join(__dirname, '..', 'frontend', 'src', 'services', 'geminiProxy.js');
 
 // Start the proxy server
 const proxyServer = exec(`node ${proxyPath}`, (error, stdout, stderr) => {

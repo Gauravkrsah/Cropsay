@@ -40,3 +40,9 @@
 .read-the-docs {
   color: #888;
 }
+
+/* Force Khalti widget to top and interactive */
+#khalti-widget, #khalti-widget * {
+  z-index: 999999 !important;
+  pointer-events: auto !important;
+}

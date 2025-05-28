@@ -13,6 +13,8 @@
     "lint": "eslint .",
     "lint:local": "eslint ."
   },
-  "dependencies": {},
-  "devDependencies": {}
+  "dependencies": {
+    "caniuse-lite": "^1.0.30001718",
+    "lovable-tagger": "^1.1.8"
+  }
 }
