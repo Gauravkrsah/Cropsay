@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -16,6 +15,8 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import ProductDetailPage from "./pages/ProductDetailPage";
+import OrderHistoryPage from "./pages/OrderHistoryPage";
 
 const queryClient = new QueryClient();
 
@@ -34,9 +35,11 @@ const App = () => (
                 <Route path="/" element={<HomePage />} />
                 <Route path="/chat" element={<ChatPage />} />
                 <Route path="/shop" element={<ShopPage />} />
+                <Route path="/shop/product/:id" element={<ProductDetailPage />} />
                 <Route path="/sell" element={<SellPage />} />
                 <Route path="/learn" element={<LearnPage />} />
                 <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/orders" element={<OrderHistoryPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

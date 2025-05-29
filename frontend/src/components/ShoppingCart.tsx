@@ -8,14 +8,13 @@ import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
 import { Input } from '@/components/ui/input';
-import KhaltiCheckout from 'khalti-checkout-web';
 import axios from 'axios';
 import { saveOrder } from '@/services/orderService';
 import { toast } from '@/components/ui/use-toast';
-import { payWithKhalti } from '@/services/khaltiService';
+import { initiateKhaltiPayment } from '@/services/khaltiService';
 
 export const ShoppingCartButton = () => {
   const { totalItems, totalPrice, openCart } = useCart();
@@ -163,27 +162,45 @@ export const ShoppingCart = () => {
     setIsProcessing(false);
   };
 
+  // Ref to hold pending order data for Khalti
+  const pendingOrderData = React.useRef<any>(null);
+
   // Simulate payment (stub)
   const onCheckout = (data: any) => {
     setCheckoutData(data);
     if (selectedPayment === 'Khalti') {
+      // Prepare order data and store in ref
+      const pendingOrder = {
+        user_id: user.id,
+        date: new Date().toISOString(),
+        total: grandTotal,
+        status: 'Paid',
+        items: items,
+        address: data.address,
+        phone: data.phone,
+        payment_method: 'Khalti',
+      };
+      pendingOrderData.current = pendingOrder;
+      // Save to localStorage for recovery after redirect
+      localStorage.setItem('pendingKhaltiOrder', JSON.stringify(pendingOrder));
       setShowCheckout(false);
       closeCart();
       setTimeout(() => {
-        payWithKhalti({
+        initiateKhaltiPayment({
           amount: Math.round(grandTotal * 100),
-          productIdentity: 'cart-checkout',
-          productName: 'Cropsay Cart',
-          productUrl: window.location.origin,
-          onSuccess: async (payload: any) => {
-            await handleOrderSave('Khalti', payload);
+          purchase_order_id: `order_${Date.now()}`,
+          purchase_order_name: 'Cropsay Order',
+          customer_info: {
+            name: data.name,
+            email: user?.email || '',
+            phone: data.phone
           },
-          onError: (error: any) => {
+          onError: (err) => {
             setIsProcessing(false);
-            alert('Khalti Payment Failed!');
+            alert('Khalti Payment Failed: ' + (err?.detail || 'Unknown error'));
           },
-          onClose: () => {
-            setIsProcessing(false);
+          onSuccess: () => {
+            // Optionally, you can show a message or spinner here
           }
         });
       }, 400);
@@ -212,22 +229,80 @@ export const ShoppingCart = () => {
   React.useEffect(() => {
     if (isCartOpen) setOrderComplete(false);
   }, [isCartOpen]);
-  
-  // Show Khalti widget only after both dialogs are unmounted
+  // Listen for Khalti payment success from popup or redirect
+  const [searchParams] = useSearchParams();
   React.useEffect(() => {
-    if (!showCheckout && !isCartOpen && pendingKhalti) {
-      try {
-        console.log('Attempting to show Khalti widget...');
-        const checkout = new KhaltiCheckout(khaltiConfig);
-        checkout.show({amount: Math.round(grandTotal * 100)});
-        console.log('Khalti widget show() called');
-      } catch (err) {
-        console.error('Khalti widget error:', err);
-        alert('Khalti widget failed to load. See console for details.');
+    function handleKhaltiMessage(event: MessageEvent) {
+      if (event.data && event.data.khaltiPayment === 'success') {
+        // Save the pending order as Paid (from ref or localStorage)
+        let order = pendingOrderData.current;
+        if (!order) {
+          const stored = localStorage.getItem('pendingKhaltiOrder');
+          if (stored) order = JSON.parse(stored);
+        }
+        if (order) {
+          setIsProcessing(true);
+          saveOrder(order)
+            .then(() => {
+              setOrderComplete(true);
+              clearCart();
+              reset();
+              localStorage.removeItem('pendingKhaltiOrder');
+              localStorage.removeItem('khaltiPaymentSuccess');
+            })
+            .catch(() => {
+              toast({
+                title: 'Order Failed',
+                description: 'Order save failed! Please try again.',
+                variant: 'destructive',
+              });
+            })
+            .finally(() => setIsProcessing(false));
+          pendingOrderData.current = null;
+        }
       }
-      setPendingKhalti(false);
     }
-  }, [showCheckout, isCartOpen, pendingKhalti, grandTotal]);
+    window.addEventListener('message', handleKhaltiMessage);
+
+    // Recovery: Check if we've returned from Khalti through any method
+    const khaltiParam = searchParams.get('khalti');
+    if (
+      window.location.pathname.startsWith('/payment/success') ||
+      localStorage.getItem('khaltiPaymentSuccess') === '1' ||
+      khaltiParam === 'success'
+    ) {
+      // Only try to save if there is a pending order
+      const stored = localStorage.getItem('pendingKhaltiOrder');
+      if (stored) {
+        setIsProcessing(true);
+        saveOrder(JSON.parse(stored))
+          .then(() => {
+            setOrderComplete(true);
+            clearCart();
+            reset();
+            localStorage.removeItem('pendingKhaltiOrder');
+            localStorage.removeItem('khaltiPaymentSuccess');
+          })
+          .catch(() => {
+            toast({
+              title: 'Order Failed',
+              description: 'Order save failed! Please try again.',
+              variant: 'destructive',
+            });
+          })
+          .finally(() => setIsProcessing(false));
+      } else {
+        // No pending order, just clean up the flag
+        localStorage.removeItem('khaltiPaymentSuccess');
+      }
+      // Optionally, redirect to home or orders after a short delay
+      setTimeout(() => {
+        window.location.href = '/orders';
+      }, 1500);
+    }
+
+    return () => window.removeEventListener('message', handleKhaltiMessage);
+  }, [clearCart, reset, toast]);
   
   return (
     <>
@@ -482,30 +557,9 @@ export const ShoppingCart = () => {
                 </Button>
                 {selectedPayment === 'Khalti' ? (
                   <Button
-                    type="button"
+                    type="submit"
                     className="bg-[#5C2D91] hover:bg-[#47216e] text-white"
                     disabled={isProcessing}
-                    onClick={async () => {
-                      setShowCheckout(false); // Close the checkout dialog before opening Khalti
-                      closeCart(); // Also close the cart dialog
-                      await new Promise(r => setTimeout(r, 400)); // Wait for dialogs to close
-                      payWithKhalti({
-                        amount: Math.round(grandTotal * 100),
-                        productIdentity: 'cart-checkout',
-                        productName: 'Cropsay Cart',
-                        productUrl: window.location.href,
-                        onSuccess: async (payload: any) => {
-                          await handleOrderSave('Khalti', payload);
-                        },
-                        onError: (error: any) => {
-                          setIsProcessing(false);
-                          alert('Khalti Payment Failed!');
-                        },
-                        onClose: () => {
-                          setIsProcessing(false);
-                        }
-                      });
-                    }}
                   >
                     {isProcessing ? 'Processing...' : 'Pay with Khalti'}
                   </Button>
@@ -516,6 +570,25 @@ export const ShoppingCart = () => {
                 )}
               </DialogFooter>
             </form>
+          </UIDialogContent>
+        </UIDialog>
+      )}
+
+      {/* Order Complete Popup */}
+      {orderComplete && (
+        <UIDialog open={orderComplete} onOpenChange={setOrderComplete}>
+          <UIDialogContent className="max-w-lg w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+            <DialogHeader>
+              <DialogTitle>Order Placed Successfully!</DialogTitle>
+              <DialogDescription>
+                Your order has been placed and saved to your order history.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="mt-4">
+              <Button className="w-full bg-green-500 hover:bg-green-600 text-white" onClick={() => { setOrderComplete(false); navigate('/orders'); }}>
+                View Order History
+              </Button>
+            </div>
           </UIDialogContent>
         </UIDialog>
       )}

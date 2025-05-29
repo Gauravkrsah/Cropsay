@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, ShoppingCartIcon, X } from 'lucide-react';
+import { Search, Filter, ShoppingCartIcon, X, ShoppingBag } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartItemQuantity, ShoppingCart, ShoppingCartButton } from '@/components/ShoppingCart';
 import { getRecommendationsFromChat } from '@/services/recommendationService';
 import { products, getCategories, getSubcategories, Product, getRecommendedProducts } from '@/data/productData';
+import { useNavigate } from 'react-router-dom';
 
 const ShopPage = () => {
   const [activeCategory, setActiveCategory] = useState('All Products');
@@ -17,6 +18,7 @@ const ShopPage = () => {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
   const { items, addItem, openCart } = useCart();
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   // Get categories and subcategories
   const categories = getCategories();
@@ -156,13 +158,12 @@ const ShopPage = () => {
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full bg-[#10141E] border border-[#2A3143] rounded-lg py-2 pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"
             />
-          </div>
-          <button 
+          </div>          <button 
             className="action-button bg-[#10141E] hover:bg-[#2A3143]"
-            onClick={() => setShowFilters(!showFilters)}
+            onClick={() => navigate("/orders")}
           >
-            <Filter size={18} />
-            <span>Filter</span>
+            <ShoppingBag size={18} />
+            <span>Orders</span>
           </button>
           <button 
             onClick={openCart}
@@ -329,8 +330,12 @@ const ShopPage = () => {
               return (
                 <div 
                   key={product.id} 
-                  className="bg-[#10141E] rounded-lg overflow-hidden hover:shadow-lg transition-shadow"
-                  onClick={() => setSelectedProduct(product)}
+                  className="bg-[#10141E] rounded-lg overflow-hidden hover:shadow-lg transition-shadow group"
+                  // Only navigate on card click, not on button/quantity click
+                  onClick={e => {
+                    if ((e.target as HTMLElement).tagName === 'BUTTON' || (e.target as HTMLElement).closest('button, [role="button"]')) return;
+                    navigate(`/shop/product/${product.id}`);
+                  }}
                 >
                   <div className="h-48 bg-[#2A3143]"></div>
                   <div className="p-4">
@@ -366,7 +371,7 @@ const ShopPage = () => {
                         <button 
                           className={`primary-button text-sm ${!product.inStock && 'opacity-50 cursor-not-allowed'}`}
                           disabled={!product.inStock}
-                          onClick={(e) => {
+                          onClick={e => {
                             e.stopPropagation();
                             handleAddToCart(product);
                           }}

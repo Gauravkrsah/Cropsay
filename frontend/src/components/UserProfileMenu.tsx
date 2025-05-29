@@ -141,67 +141,102 @@ export const UserProfileMenu = () => {
             <Button variant="outline" onClick={() => setShowProfile(false)}>Close</Button>
           </DialogFooter>
         </UIDialogContent>
-      </UIDialog>
-      {/* Orders Popup */}
+      </UIDialog>      {/* Orders Popup */}
       <UIDialog open={showOrders} onOpenChange={setShowOrders}>
-        <UIDialogContent className="max-w-lg w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+        <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
           <DialogHeader>
             <DialogTitle>My Orders</DialogTitle>
             <DialogDescription>Order history and status</DialogDescription>
-          </DialogHeader>
-          <div className="divide-y divide-[#232B3B]">
-            {orders.length === 0 ? (
-              <div className="text-center text-gray-400 py-8">No orders yet.</div>
-            ) : orders.map(order => (
-              <div key={order.id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
-                <div onClick={() => setSelectedOrder(order)} className="cursor-pointer">
-                  <div className="font-medium">Order #{order.id}</div>
-                  <div className="text-xs text-gray-400">{new Date(order.date).toLocaleString()}</div>
-                  <div className="text-xs text-gray-400">Items: {order.items.length}</div>
+          </DialogHeader>          <div className="max-h-[60vh] overflow-y-auto pr-2 my-2">
+            <div className="divide-y divide-[#232B3B]">
+              {orders.length === 0 ? (
+                <div className="text-center text-gray-400 py-8">No orders yet.</div>
+              ) : orders.map(order => (
+                <div key={order.id} className="py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-2">
+                  <div onClick={() => setSelectedOrder(order)} className="cursor-pointer hover:text-gray-300">
+                    <div className="font-medium">Order #{order.id}</div>
+                    <div className="text-xs text-gray-400">{new Date(order.date).toLocaleString()}</div>
+                    <div className="text-xs text-gray-400">Items: {order.items.length}</div>
+                  </div>
+                  <div className="text-right">
+                    <div className="font-bold text-green-400">रु {order.total.toFixed(2)}</div>
+                    <div className={`text-xs ${order.status === 'Delivered' || order.status === 'Paid' ? 'text-green-400' : order.status === 'Cancelled' ? 'text-red-400' : 'text-yellow-400'}`}>{order.status}</div>
+                    <div className="flex gap-2 mt-1 justify-end">
+                      {(order.status === 'Pending' || order.status === 'Paid') && (
+                        <Button size="sm" variant="outline" className="h-7 text-xs" onClick={(e) => {
+                          e.stopPropagation();
+                          handleCancelOrder(order.id);
+                        }}>
+                          Cancel
+                        </Button>
+                      )}
+                      {order.status === 'Cancelled' && (
+                        <Button size="sm" variant="destructive" className="h-7 text-xs" onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteOrder(order.id);
+                        }}>
+                          Delete
+                        </Button>
+                      )}
+                      <Button 
+                        size="sm" 
+                        variant="secondary" 
+                        className="h-7 text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setSelectedOrder(order);
+                        }}
+                      >
+                        View
+                      </Button>
+                    </div>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold text-green-400">रु {order.total.toFixed(2)}</div>
-                  <div className={`text-xs ${order.status === 'Delivered' ? 'text-green-400' : order.status === 'Cancelled' ? 'text-red-400' : 'text-yellow-400'}`}>{order.status}</div>
-                  {order.status === 'Pending' && (
-                    <Button size="sm" variant="outline" className="mt-1" onClick={() => handleCancelOrder(order.id)}>Cancel</Button>
-                  )}
-                  {order.status === 'Cancelled' && (
-                    <Button size="sm" variant="destructive" className="mt-1 ml-2" onClick={() => handleDeleteOrder(order.id)}>Delete</Button>
-                  )}
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-          {/* Removed DialogFooter with Close button */}
         </UIDialogContent>
-      </UIDialog>
-      {/* Order Details Popup */}
+      </UIDialog>      {/* Order Details Popup */}
       <UIDialog open={!!selectedOrder} onOpenChange={open => !open && setSelectedOrder(null)}>
-        <UIDialogContent className="max-w-lg w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+        <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
           <DialogHeader>
             <DialogTitle>Order Details</DialogTitle>
             <DialogDescription>Order #{selectedOrder?.id}</DialogDescription>
           </DialogHeader>
           {selectedOrder && (
-            <div className="space-y-2">
-              <div><b>Date:</b> {new Date(selectedOrder.date).toLocaleString()}</div>
-              <div><b>Status:</b> {selectedOrder.status}</div>
-              <div><b>Payment:</b> {selectedOrder.payment_method}</div>
-              <div><b>Address:</b> {selectedOrder.address}</div>
-              <div><b>Phone:</b> {selectedOrder.phone}</div>
-              <div><b>Total:</b> रु {selectedOrder.total.toFixed(2)}</div>
-              <div><b>Items:</b>
-                <ul className="ml-4 list-disc">
-                  {selectedOrder.items.map((item: any, idx: number) => (
-                    <li key={idx}>{item.name} x {item.quantity} (रु {item.price})</li>
-                  ))}
-                </ul>
+            <div className="max-h-[60vh] overflow-y-auto my-2 pr-2">
+              <div className="space-y-2">
+                <div><b>Date:</b> {new Date(selectedOrder.date).toLocaleString()}</div>
+                <div className="flex justify-between items-center">
+                  <div><b>Status:</b> <span className={`${selectedOrder.status === 'Delivered' || selectedOrder.status === 'Paid' ? 'text-green-400' : selectedOrder.status === 'Cancelled' ? 'text-red-400' : 'text-yellow-400'}`}>{selectedOrder.status}</span></div>
+                  {(selectedOrder.status === 'Pending' || selectedOrder.status === 'Paid') && (
+                    <Button size="sm" variant="outline" onClick={() => handleCancelOrder(selectedOrder.id)}>
+                      Cancel Order
+                    </Button>
+                  )}
+                  {selectedOrder.status === 'Cancelled' && (
+                    <Button size="sm" variant="destructive" onClick={() => {
+                      handleDeleteOrder(selectedOrder.id);
+                      setSelectedOrder(null);
+                    }}>
+                      Delete Order
+                    </Button>
+                  )}
+                </div>
+                <div><b>Payment:</b> {selectedOrder.payment_method}</div>
+                <div><b>Address:</b> {selectedOrder.address}</div>
+                <div><b>Phone:</b> {selectedOrder.phone}</div>
+                <div><b>Total:</b> रु {selectedOrder.total.toFixed(2)}</div>
+                <div><b>Items:</b>
+                  <ul className="ml-4 list-disc">
+                    {selectedOrder.items.map((item: any, idx: number) => (
+                      <li key={idx}>{item.name} x {item.quantity} (रु {item.price})</li>
+                    ))}
+                  </ul>
+                </div>
               </div>
             </div>
           )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSelectedOrder(null)}>Close</Button>
-          </DialogFooter>
         </UIDialogContent>
       </UIDialog>
     </>
