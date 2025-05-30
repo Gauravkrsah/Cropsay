@@ -5,6 +5,7 @@
 
 import { Product, products } from '@/data/productData';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { isAgriculturalQuery } from '@/services/geminiService'; // Import the isAgriculturalQuery function
 
 // API key
 const GEMINI_API_KEY = '***REMOVED***';
@@ -27,6 +28,12 @@ export const getDynamicRecommendations = async (
 ): Promise<Product[]> => {
   try {
     console.log('Getting dynamic recommendations for query:', query);
+    
+    // Check if the query is agriculture-related; if not, return empty array
+    if (!isAgriculturalQuery(query)) {
+      console.log('Non-agricultural query detected, returning no product recommendations');
+      return [];
+    }
     
     // Get the model
     const model = genAI.getGenerativeModel({

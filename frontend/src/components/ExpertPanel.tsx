@@ -17,6 +17,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { chatService } from '@/services/chatService';
 import { Product } from '@/data/productData';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { isAgriculturalQuery } from '@/services/geminiService';
+import NonAgriculturalMessage from '@/components/NonAgriculturalMessage';
 
 interface ExpertPanelProps {
   isOpen: boolean;
@@ -79,8 +81,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [scheduleDialogOpen, setScheduleDialogOpen] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState<Expert | null>(null);
   const [chatInput, setChatInput] = useState('');
-  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
-  const { items, addItem, openCart } = useCart();
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);  const { items, addItem, openCart } = useCart();
   const { user } = useAuth(); // Get the authenticated user
   const panelRef = useRef<HTMLDivElement>(null);
   const filterBarRef = useRef<HTMLDivElement>(null);
@@ -88,7 +89,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
   const [loadingProducts, setLoadingProducts] = useState<boolean>(false);
   const [hasChats, setHasChats] = useState<boolean>(true);
-  const [usingNLPService, setUsingNLPService] = useState<boolean>(false);
+  const [usingNLPService, setUsingNLPService] = useState<boolean>(false);  const [nonAgriculturalQuery, setNonAgriculturalQuery] = useState<boolean>(false); // State for tracking non-agricultural queries
   const navigate = useNavigate();
   const [activeProductCategory, setActiveProductCategory] = useState<string>("all");
 
@@ -108,12 +109,14 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [isOpen, onClose]);
-
   // Load product recommendations when panel opens
   useEffect(() => {
     const loadRecommendations = async () => {
       if (isOpen && title === "Recommended Products") {
         setLoadingProducts(true);
+        // Reset the non-agricultural query flag
+        setNonAgriculturalQuery(false);
+        
         try {
           // Use authenticated user ID if available, otherwise use localStorage ID
           let userId;
@@ -152,6 +155,17 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
           
           // Use the last 3 user messages for context
           const query = userMessages.slice(-3).join(' ');
+          
+          // Check if the query is agricultural
+          const isAgricultural = isAgriculturalQuery(query);
+          if (!isAgricultural) {
+            console.log('Non-agricultural query detected, hiding product recommendations');
+            setNonAgriculturalQuery(true);
+            setRecommendedProducts([]);
+            setHasChats(true);
+            setLoadingProducts(false);
+            return;
+          }
           
           // Try to use NLP service first
           try {
@@ -445,7 +459,8 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                     <PlusCircle size={16} className="mr-2" /> Create Chat
                   </Button>
                 </div>
-              </div>
+              </div>            ) : recommendedProducts.length === 0 && nonAgriculturalQuery ? (
+              <NonAgriculturalMessage onCreateChat={handleCreateChat} />
             ) : (
             <div className="h-full flex flex-col">
             <div className="p-3 flex items-center">
