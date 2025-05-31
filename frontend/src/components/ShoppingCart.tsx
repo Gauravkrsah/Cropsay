@@ -27,7 +27,7 @@ export const ShoppingCartButton = () => {
       <ShoppingBag size={18} />
       <div className="flex items-center">
         <span>{totalItems} items</span>
-        <span className="ml-1">रु {totalPrice}</span>
+        <span className="ml-1">रू {totalPrice}</span>
       </div>
     </Button>
   );
@@ -36,19 +36,51 @@ export const ShoppingCartButton = () => {
 export const CartItemQuantity: React.FC<{ id: number; quantity: number; className?: string; }> = ({ id, quantity, className }) => {
   const { updateQuantity } = useCart();
   
+  const handleDecrease = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    e.preventDefault(); // Prevent default action
+    if (quantity > 1) {
+      updateQuantity(id, quantity - 1);
+    } else if (quantity === 1) {
+      // Remove from cart when quantity becomes 0
+      updateQuantity(id, 0);
+    }
+  };
+  
+  const handleIncrease = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Prevent event bubbling
+    e.preventDefault(); // Prevent default action
+    updateQuantity(id, quantity + 1);
+  };
+  
   return (
-    <div className={cn("flex items-center bg-[#2A3143] rounded-full h-8", className)}>
+    <div 
+      className={cn("flex items-center bg-[#2A3143] rounded-full h-8", className)} 
+      onClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onTouchStart={(e) => e.stopPropagation()}
+    >
       <button 
-        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-l-full"
-        onClick={() => updateQuantity(id, quantity - 1)}
+        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-l-full transition-colors"
+        onClick={handleDecrease}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         aria-label="Decrease quantity"
       >
         <Minus size={14} />
       </button>
       <span className="w-6 text-center text-sm">{quantity}</span>
       <button 
-        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-r-full"
-        onClick={() => updateQuantity(id, quantity + 1)}
+        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-r-full transition-colors"
+        onClick={handleIncrease}
+        onMouseDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         aria-label="Increase quantity"
       >
         <Plus size={14} />
@@ -62,8 +94,7 @@ const formatAmount = (amount: number) => amount.toFixed(2);
 
 export const ShoppingCart = () => {
   const { items, totalItems, totalPrice, isCartOpen, closeCart, removeItem, clearCart } = useCart();
-  const { user } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();  const navigate = useNavigate();
   const [selectedPayment, setSelectedPayment] = useState<string>("Khalti");
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
   const [showCheckout, setShowCheckout] = useState(false);
@@ -71,7 +102,17 @@ export const ShoppingCart = () => {
   const [checkoutData, setCheckoutData] = useState<any>({});
   const [orderComplete, setOrderComplete] = useState(false);
   const [pendingKhalti, setPendingKhalti] = useState(false);
-  const { register, handleSubmit, formState: { errors }, reset } = useForm();
+  const [khaltiOrderProcessed, setKhaltiOrderProcessed] = useState(false);
+  const { profile } = useAuth();
+  
+  // Pre-fill form with user profile data when available
+  const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
+    defaultValues: {
+      name: '',
+      phone: '',
+      address: '',
+    }
+  });
 
   // Validation rules
   const nameValidation = {
@@ -130,19 +171,25 @@ export const ShoppingCart = () => {
     su: window.location.origin + '/?esewa=success',
     fu: window.location.origin + '/?esewa=failure',
   };
-
   // Save order to DB
-  const handleOrderSave = async (payment_method: string, paymentPayload?: any) => {
+  const handleOrderSave = async (payment_method: string, formData: any = null, paymentPayload?: any) => {
     setIsProcessing(true);
     try {
+      // Use formData directly if provided, otherwise fall back to checkoutData
+      const orderData = formData || checkoutData;
+      
+      if (!orderData || !orderData.address || !orderData.phone) {
+        throw new Error('Missing order data');
+      }
+      
       await saveOrder({
         user_id: user.id,
         date: new Date().toISOString(),
         total: grandTotal,
         status: payment_method === 'COD' ? 'Pending' : 'Paid',
         items: items,
-        address: checkoutData.address,
-        phone: checkoutData.phone,
+        address: orderData.address,
+        phone: orderData.phone,
         payment_method,
         ...(paymentPayload ? { payment_payload: paymentPayload } : {})
       } as any);
@@ -153,6 +200,7 @@ export const ShoppingCart = () => {
       setOrderComplete(true);
       // Optionally: show success toast
     } catch (e) {
+      console.error('Order save error:', e);
       toast({
         title: 'Order Failed',
         description: 'Order save failed! Please try again.',
@@ -164,8 +212,7 @@ export const ShoppingCart = () => {
 
   // Ref to hold pending order data for Khalti
   const pendingOrderData = React.useRef<any>(null);
-
-  // Simulate payment (stub)
+  // Process checkout based on payment method
   const onCheckout = (data: any) => {
     setCheckoutData(data);
     if (selectedPayment === 'Khalti') {
@@ -221,19 +268,37 @@ export const ShoppingCart = () => {
       form.submit();
       // Order will be saved on return (handle in a useEffect for ?esewa=success)
     } else if (selectedPayment === 'COD') {
-      handleOrderSave('COD');
+      // For COD, directly pass the form data to handleOrderSave
+      handleOrderSave('COD', data);
     }
   };
-  
-  // When cart is opened, reset orderComplete
+    // When cart is opened, reset orderComplete
   React.useEffect(() => {
     if (isCartOpen) setOrderComplete(false);
   }, [isCartOpen]);
-  // Listen for Khalti payment success from popup or redirect
-  const [searchParams] = useSearchParams();
+  
+  // Pre-fill form with user profile data when checkout is displayed
   React.useEffect(() => {
+    if (showCheckout && profile) {
+      // Use profile data to fill the form
+      if (profile.full_name) {
+        setValue('name', profile.full_name);
+      }
+      if (profile.phone) {
+        setValue('phone', profile.phone);
+      }
+      if (profile.address) {
+        setValue('address', profile.address);
+      }
+    }
+  }, [showCheckout, profile, setValue]);
+  // Listen for Khalti payment success from popup or redirect
+  const [searchParams] = useSearchParams();  React.useEffect(() => {
+    // Skip if we've already processed a Khalti order in this session
+    if (khaltiOrderProcessed) return;
+    
     function handleKhaltiMessage(event: MessageEvent) {
-      if (event.data && event.data.khaltiPayment === 'success') {
+      if (event.data && event.data.khaltiPayment === 'success' && !khaltiOrderProcessed) {
         // Save the pending order as Paid (from ref or localStorage)
         let order = pendingOrderData.current;
         if (!order) {
@@ -241,6 +306,7 @@ export const ShoppingCart = () => {
           if (stored) order = JSON.parse(stored);
         }
         if (order) {
+          setKhaltiOrderProcessed(true); // Mark as processed to prevent duplicate saves
           setIsProcessing(true);
           saveOrder(order)
             .then(() => {
@@ -251,6 +317,7 @@ export const ShoppingCart = () => {
               localStorage.removeItem('khaltiPaymentSuccess');
             })
             .catch(() => {
+              setKhaltiOrderProcessed(false); // Reset on failure
               toast({
                 title: 'Order Failed',
                 description: 'Order save failed! Please try again.',
@@ -267,13 +334,15 @@ export const ShoppingCart = () => {
     // Recovery: Check if we've returned from Khalti through any method
     const khaltiParam = searchParams.get('khalti');
     if (
-      window.location.pathname.startsWith('/payment/success') ||
+      (window.location.pathname.startsWith('/payment/success') ||
       localStorage.getItem('khaltiPaymentSuccess') === '1' ||
-      khaltiParam === 'success'
+      khaltiParam === 'success') && 
+      !khaltiOrderProcessed // Only proceed if not already processed
     ) {
       // Only try to save if there is a pending order
       const stored = localStorage.getItem('pendingKhaltiOrder');
       if (stored) {
+        setKhaltiOrderProcessed(true); // Mark as processed to prevent duplicate saves
         setIsProcessing(true);
         saveOrder(JSON.parse(stored))
           .then(() => {
@@ -284,6 +353,7 @@ export const ShoppingCart = () => {
             localStorage.removeItem('khaltiPaymentSuccess');
           })
           .catch(() => {
+            setKhaltiOrderProcessed(false); // Reset on failure
             toast({
               title: 'Order Failed',
               description: 'Order save failed! Please try again.',
@@ -302,7 +372,7 @@ export const ShoppingCart = () => {
     }
 
     return () => window.removeEventListener('message', handleKhaltiMessage);
-  }, [clearCart, reset, toast]);
+  }, [clearCart, reset, toast, khaltiOrderProcessed]);
   
   return (
     <>
@@ -371,8 +441,8 @@ export const ShoppingCart = () => {
                                 <p className="text-sm text-gray-400">{item.category}</p>
                               </div>
                               <div className="text-right">
-                                <div className="font-medium">रु {formatAmount(item.price * item.quantity)}</div>
-                                <div className="text-sm text-gray-400">रु {formatAmount(item.price)} each</div>
+                                <div className="font-medium">रू {formatAmount(item.price * item.quantity)}</div>
+                                <div className="text-sm text-gray-400">रू {formatAmount(item.price)} each</div>
                               </div>
                             </div>
                             <div className="flex justify-between items-center mt-2">
@@ -399,7 +469,7 @@ export const ShoppingCart = () => {
                     <div className="space-y-2 text-sm">
                       <div className="flex justify-between">
                         <div className="text-gray-300">Items total</div>
-                        <span>रु {formatAmount(totalPrice)}</span>
+                        <span>रू {formatAmount(totalPrice)}</span>
                       </div>
                       <div className="flex justify-between">
                         <div className="flex items-center gap-1 text-gray-300">
@@ -409,7 +479,7 @@ export const ShoppingCart = () => {
                           </button>
                         </div>
                         <div className="flex items-center gap-1">
-                          <span className="text-gray-400 line-through">रु {formatAmount(deliveryCharge)}</span>
+                          <span className="text-gray-400 line-through">रू {formatAmount(deliveryCharge)}</span>
                           {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
                         </div>
                       </div>
@@ -420,11 +490,11 @@ export const ShoppingCart = () => {
                             <Info size={12} />
                           </button>
                         </div>
-                        <span>रु {formatAmount(handlingCharge)}</span>
+                        <span>रू {formatAmount(handlingCharge)}</span>
                       </div>
                       <div className="flex justify-between border-t border-[#2A3143] mt-3 pt-3 font-medium">
                         <span>Grand total</span>
-                        <span>रु {formatAmount(grandTotal)}</span>
+                        <span>रू {formatAmount(grandTotal)}</span>
                       </div>
                     </div>
                   </div>
@@ -503,7 +573,7 @@ export const ShoppingCart = () => {
                         setShowCheckout(true);
                       }}
                     >
-                      Proceed to Payment • रु {formatAmount(grandTotal)}
+                      Proceed to Payment • रू {formatAmount(grandTotal)}
                     </Button>
                   </div>
                 </div>
@@ -522,21 +592,41 @@ export const ShoppingCart = () => {
               <DialogDescription>
                 Please fill in your details to complete the order.
               </DialogDescription>
-            </DialogHeader>
-            <form onSubmit={handleSubmit(onCheckout)} className="space-y-4 mt-4">
+            </DialogHeader>            <form onSubmit={handleSubmit(onCheckout)} className="space-y-4 mt-4">
               <div>
-                <label className="block text-sm mb-1">Full Name</label>
-                <Input {...register('name', nameValidation)} placeholder="Your Name" className="bg-[#1E2735] border-[#2A3143]" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm">Full Name</label>
+                  {profile?.full_name && <span className="text-xs text-green-400">From your profile</span>}
+                </div>
+                <Input 
+                  {...register('name', nameValidation)} 
+                  placeholder="Your Name" 
+                  className={`bg-[#1E2735] border-[#2A3143] ${profile?.full_name ? 'border-green-600/40' : ''}`} 
+                />
                 {errors.name && <span className="text-red-400 text-xs">{errors.name?.message?.toString()}</span>}
               </div>
               <div>
-                <label className="block text-sm mb-1">Phone Number</label>
-                <Input {...register('phone', phoneValidation)} placeholder="98XXXXXXXX" className="bg-[#1E2735] border-[#2A3143]" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm">Phone Number</label>
+                  {profile?.phone && <span className="text-xs text-green-400">From your profile</span>}
+                </div>
+                <Input 
+                  {...register('phone', phoneValidation)} 
+                  placeholder="98XXXXXXXX" 
+                  className={`bg-[#1E2735] border-[#2A3143] ${profile?.phone ? 'border-green-600/40' : ''}`}
+                />
                 {errors.phone && <span className="text-red-400 text-xs">{errors.phone?.message?.toString()}</span>}
               </div>
               <div>
-                <label className="block text-sm mb-1">Delivery Address</label>
-                <Input {...register('address', { required: 'Address is required' })} placeholder="Delivery Address" className="bg-[#1E2735] border-[#2A3143]" />
+                <div className="flex justify-between items-center mb-1">
+                  <label className="block text-sm">Delivery Address</label>
+                  {profile?.address && <span className="text-xs text-green-400">From your profile</span>}
+                </div>
+                <Input 
+                  {...register('address', { required: 'Address is required' })} 
+                  placeholder="Delivery Address" 
+                  className={`bg-[#1E2735] border-[#2A3143] ${profile?.address ? 'border-green-600/40' : ''}`}
+                />
                 {errors.address && <span className="text-red-400 text-xs">{errors.address?.message?.toString()}</span>}
               </div>
               {selectedPayment === 'Khalti' && (

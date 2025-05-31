@@ -34,14 +34,14 @@ const HomePage = () => {
 
   const testimonials = [
     {
-      name: 'Raj Patel',
-      location: 'Punjab, India',
+      name: 'Gaurav Sah',
+      location: 'Barahathawa, Sarlahi',
       quote: 'Cropsay helped me increase my wheat yields by 15% through better soil management practices.',
       avatar: '👨🏽‍🌾'
     },
     {
-      name: 'Amina Sheikh',
-      location: 'Terai, Nepal',
+      name: 'Munchun Sah',
+      location: 'Rampur, Rautahat',
       quote: 'The expert guidance on pest control saved my rice crop this season. Truly grateful!',
       avatar: '👩🏽‍🌾'
     },

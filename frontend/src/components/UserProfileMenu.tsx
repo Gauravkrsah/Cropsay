@@ -11,17 +11,41 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { getOrdersByUser, cancelOrder, deleteOrder } from '@/services/orderService';
 import { toast } from '@/components/ui/use-toast';
 
 export const UserProfileMenu = () => {
-  const { user, profile, signOut } = useAuth();
+  const { user, profile, signOut, updateProfile } = useAuth();
   const [showProfile, setShowProfile] = useState(false);
   const [showOrders, setShowOrders] = useState(false);
   const [orders, setOrders] = useState<any[]>([]);
   const [selectedOrder, setSelectedOrder] = useState<any>(null);
+  const [editMode, setEditMode] = useState(false);
+  
+  // Form states for profile editing
+  const [formData, setFormData] = useState({
+    full_name: '',
+    bio: '',
+    phone: '',
+    address: '',
+  });
+  
+  // Update form data when profile changes
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || '',
+        bio: profile.bio || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+      });
+    }
+  }, [profile]);
 
   useEffect(() => {
     if (showOrders && user) {
@@ -83,12 +107,10 @@ export const UserProfileMenu = () => {
               <AvatarFallback className="bg-green-600 text-white">{userInitials}</AvatarFallback>
             </Avatar>
           </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent className="w-56 bg-[#10141E] border-[#2A3143] text-gray-100" align="end" forceMount>
+        </DropdownMenuTrigger>        <DropdownMenuContent className="w-56 bg-[#10141E] border-[#2A3143] text-gray-100" align="end" forceMount>
           <DropdownMenuLabel>
             <div className="flex flex-col space-y-1">
               <p className="text-sm font-medium leading-none">{profile?.full_name || 'User'}</p>
-              <p className="text-xs leading-none text-gray-400">{user.email}</p>
             </div>
           </DropdownMenuLabel>
           <DropdownMenuSeparator className="bg-[#2A3143]" />
@@ -115,33 +137,137 @@ export const UserProfileMenu = () => {
             <span>Log out</span>
           </DropdownMenuItem>
         </DropdownMenuContent>
-      </DropdownMenu>
-      {/* Profile Popup */}
-      <UIDialog open={showProfile} onOpenChange={setShowProfile}>
+      </DropdownMenu>      {/* Profile Popup */}
+      <UIDialog open={showProfile} onOpenChange={(open) => {
+        if (!open) {
+          setEditMode(false);
+        }
+        setShowProfile(open);
+      }}>
         <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
           <DialogHeader>
             <DialogTitle>User Profile</DialogTitle>
-            <DialogDescription>Account details</DialogDescription>
+            <DialogDescription>{editMode ? 'Edit your profile details' : 'Account details'}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center gap-4 py-4">
             <Avatar className="w-20 h-20 border border-[#2A3143]">
-              <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || user.email || ''} />
+              <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || 'User'} />
               <AvatarFallback className="bg-green-600 text-white text-2xl">{userInitials}</AvatarFallback>
             </Avatar>
-            <div className="text-center">
-              <div className="font-bold text-lg">{profile?.full_name || 'User'}</div>
-              <div className="text-gray-400">{user.email}</div>
+            {editMode ? (              <div className="w-full space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="full_name">Full Name</Label>
+                  <Input
+                    id="full_name"
+                    type="text"
+                    className="bg-[#1E2735] border-[#2A3143] text-white"
+                    value={formData.full_name}
+                    onChange={(e) => setFormData({...formData, full_name: e.target.value})}
+                    placeholder="Enter your full name"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio">Bio</Label>
+                  <Textarea
+                    id="bio"
+                    className="bg-[#1E2735] border-[#2A3143] text-white min-h-[80px]"
+                    value={formData.bio}
+                    onChange={(e) => setFormData({...formData, bio: e.target.value})}
+                    placeholder="Tell us about yourself"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone</Label>
+                  <Input
+                    id="phone"
+                    type="tel"
+                    className="bg-[#1E2735] border-[#2A3143] text-white"
+                    value={formData.phone}
+                    onChange={(e) => setFormData({...formData, phone: e.target.value})}
+                    placeholder="Enter your phone number"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="address">Address</Label>
+                  <Input
+                    id="address"
+                    type="text"
+                    className="bg-[#1E2735] border-[#2A3143] text-white"
+                    value={formData.address}
+                    onChange={(e) => setFormData({...formData, address: e.target.value})}
+                    placeholder="Enter your address"
+                  />
+                </div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <div className="font-bold text-lg">{profile?.full_name || 'User'}</div>
+              </div>
+            )}
+          </div>
+          
+          {!editMode && (
+            <div className="text-sm text-gray-300 space-y-2">
+              <div><b>Joined:</b> {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</div>
+              {profile?.bio && <div><b>Bio:</b> {profile.bio}</div>}
+              {profile?.phone && <div><b>Phone:</b> {profile.phone}</div>}
+              {profile?.address && <div><b>Address:</b> {profile.address}</div>}
             </div>
-          </div>
-          <div className="text-sm text-gray-300">
-            <div><b>Joined:</b> {profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : 'N/A'}</div>
-            {/* Add more profile fields as needed */}
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setShowProfile(false)}>Close</Button>
+          )}
+          
+          <DialogFooter className="flex justify-between">
+            {editMode ? (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => {
+                    setEditMode(false);
+                    // Reset form data to current profile
+                    if (profile) {
+                      setFormData({
+                        full_name: profile.full_name || '',
+                        bio: profile.bio || '',
+                        phone: profile.phone || '',
+                        address: profile.address || '',
+                      });
+                    }
+                  }}
+                >
+                  Cancel
+                </Button>
+                <Button 
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700" 
+                  onClick={async () => {
+                    const success = await updateProfile(formData);
+                    if (success) {
+                      setEditMode(false);
+                    }
+                  }}
+                >
+                  Save Changes
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button 
+                  variant="outline" 
+                  onClick={() => setShowProfile(false)}
+                >
+                  Close
+                </Button>
+                <Button 
+                  variant="default"
+                  className="bg-green-600 hover:bg-green-700" 
+                  onClick={() => setEditMode(true)}
+                >
+                  Edit Profile
+                </Button>
+              </>
+            )}
           </DialogFooter>
         </UIDialogContent>
-      </UIDialog>      {/* Orders Popup */}
+      </UIDialog>{/* Orders Popup */}
       <UIDialog open={showOrders} onOpenChange={setShowOrders}>
         <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
           <DialogHeader>
@@ -159,7 +285,7 @@ export const UserProfileMenu = () => {
                     <div className="text-xs text-gray-400">Items: {order.items.length}</div>
                   </div>
                   <div className="text-right">
-                    <div className="font-bold text-green-400">रु {order.total.toFixed(2)}</div>
+                    <div className="font-bold text-green-400">रू {order.total.toFixed(2)}</div>
                     <div className={`text-xs ${order.status === 'Delivered' || order.status === 'Paid' ? 'text-green-400' : order.status === 'Cancelled' ? 'text-red-400' : 'text-yellow-400'}`}>{order.status}</div>
                     <div className="flex gap-2 mt-1 justify-end">
                       {(order.status === 'Pending' || order.status === 'Paid') && (
@@ -226,11 +352,11 @@ export const UserProfileMenu = () => {
                 <div><b>Payment:</b> {selectedOrder.payment_method}</div>
                 <div><b>Address:</b> {selectedOrder.address}</div>
                 <div><b>Phone:</b> {selectedOrder.phone}</div>
-                <div><b>Total:</b> रु {selectedOrder.total.toFixed(2)}</div>
+                <div><b>Total:</b> रू {selectedOrder.total.toFixed(2)}</div>
                 <div><b>Items:</b>
                   <ul className="ml-4 list-disc">
                     {selectedOrder.items.map((item: any, idx: number) => (
-                      <li key={idx}>{item.name} x {item.quantity} (रु {item.price})</li>
+                      <li key={idx}>{item.name} x {item.quantity} (रू {item.price})</li>
                     ))}
                   </ul>
                 </div>

@@ -1,3 +1,4 @@
+import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -15,8 +16,9 @@ import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
+import { PurchaseProvider } from "./contexts/PurchaseContext";
 import ProductDetailPage from "./pages/ProductDetailPage";
-import OrderHistoryPage from "./pages/OrderHistoryPage";
+import MinimalOrderHistoryPage from "./pages/MinimalOrderHistoryPage";
 
 const queryClient = new QueryClient();
 
@@ -25,25 +27,25 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <CartProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <Routes>
-              <Route path="/auth" element={<AuthPage />} />
-              <Route path="/reset-password" element={<ResetPasswordPage />} />
-              <Route element={<AppLayout />}>
+          <PurchaseProvider>
+            <Toaster />
+            <Sonner />
+            <BrowserRouter>
+              <Routes>
+                <Route path="/auth" element={<AuthPage />} />
+                <Route path="/reset-password" element={<ResetPasswordPage />} />
+                <Route element={<AppLayout />}>
                 <Route path="/" element={<HomePage />} />
                 <Route path="/chat" element={<ChatPage />} />
-                <Route path="/shop" element={<ShopPage />} />
-                <Route path="/shop/product/:id" element={<ProductDetailPage />} />
-                <Route path="/sell" element={<SellPage />} />
+                <Route path="/shop" element={<ShopPage />} />                <Route path="/shop/product/:id" element={<ProductDetailPage />} />                <Route path="/sell" element={<SellPage />} />
                 <Route path="/learn" element={<LearnPage />} />
                 <Route path="/explore" element={<ExplorePage />} />
-                <Route path="/orders" element={<OrderHistoryPage />} />
+                <Route path="/orders" element={<MinimalOrderHistoryPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
+          </PurchaseProvider>
         </CartProvider>
       </AuthProvider>
     </TooltipProvider>

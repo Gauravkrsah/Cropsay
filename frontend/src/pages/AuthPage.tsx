@@ -32,13 +32,15 @@ const AuthPage = () => {
           .regex(/[!@#$%^&*(),.?":{}|<>]/, 'Password must contain at least one special character'),
     confirmPassword: isSignIn 
       ? z.string().optional()
-      : z.string().min(1, 'Please confirm your password'),
-    fullName: isSignIn
+      : z.string().min(1, 'Please confirm your password'),    fullName: isSignIn
       ? z.string().optional()
       : z.string()
           .min(1, 'Full name is required')
           .refine(val => !/^\d+$/.test(val), {
             message: 'Full name cannot contain only numbers'
+          })
+          .refine(val => /^[a-zA-Z\s\-'.]+$/.test(val), {
+            message: 'Full name should only contain letters, spaces, hyphens, apostrophes, and periods'
           }),
   }).refine(
     (data) => isSignIn || data.password === data.confirmPassword,

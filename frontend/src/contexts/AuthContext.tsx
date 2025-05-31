@@ -10,6 +10,15 @@ interface AuthContextType {
   profile: any | null;
   loading: boolean;
   signOut: () => Promise<void>;
+  updateProfile: (profileData: Partial<{
+    full_name: string;
+    avatar_url: string;
+    bio: string;
+    phone: string;
+    address: string;
+  }>) => Promise<boolean>;
+  showProfileOnFirstLogin: boolean;
+  setShowProfileOnFirstLogin: (show: boolean) => void;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +27,9 @@ const AuthContext = createContext<AuthContextType>({
   profile: null,
   loading: true,
   signOut: async () => {},
+  updateProfile: async () => false,
+  showProfileOnFirstLogin: false,
+  setShowProfileOnFirstLogin: () => {},
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -28,6 +40,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [session, setSession] = useState<Session | null>(null);
   const [profile, setProfile] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
+  const [showProfileOnFirstLogin, setShowProfileOnFirstLogin] = useState(false);
   const { toast } = useToast();
 
   // Function to clear all user-specific data from localStorage
@@ -65,7 +78,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       subscription.unsubscribe();
     };
   }, []);
-
   const fetchProfile = async (userId: string) => {
     try {
       const { data, error } = await supabase
@@ -77,7 +89,17 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setProfile(null);
         return;
       }
+      
       setProfile(data);
+      
+      // Check if this is a first login or if required fields are missing
+      // We consider it a first login if phone or address is missing
+      if (!data.phone || !data.address) {
+        // Mark that we should show the profile popup
+        setShowProfileOnFirstLogin(true);
+      } else {
+        setShowProfileOnFirstLogin(false);
+      }
     } catch (error) {
       setProfile(null);
     }
@@ -103,12 +125,50 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const updateProfile = async (profileData: Partial<{
+    full_name: string;
+    avatar_url: string;
+    bio: string;
+    phone: string;
+    address: string;
+  }>) => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update(profileData)
+        .eq('id', user.id);
+        
+      if (error) throw error;
+      
+      // Fetch the updated profile
+      fetchProfile(user.id);
+      
+      toast({
+        title: "Profile updated",
+        description: "Your profile has been updated successfully",
+      });
+      
+      return true;
+    } catch (error: any) {
+      toast({
+        title: "Error updating profile",
+        description: error.message,
+        variant: "destructive",
+      });
+      return false;
+    }
+  };
   const value = {
     user,
     session,
     profile,
     loading,
     signOut,
+    updateProfile,
+    showProfileOnFirstLogin,
+    setShowProfileOnFirstLogin,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

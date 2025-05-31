@@ -12,6 +12,11 @@ export interface Product {
   subcategory: string;
   brand: string;
   inStock: boolean;
+  // Additional fields for database products
+  quantity?: number;
+  images?: string[];
+  sellerId?: string;
+  createdAt?: string;
 }
 
 // Expanded product catalog based on the provided data

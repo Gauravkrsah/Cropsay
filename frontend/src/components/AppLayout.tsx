@@ -5,7 +5,9 @@ import { ExpertPanel } from './ExpertPanel';
 import { BookOpen, ShoppingBag, Users, HeadphonesIcon, HelpCircle, PhoneCall, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { ShoppingCart } from './ShoppingCart';
+import { UserProfilePopup } from './UserProfilePopup';
 import { 
   Tooltip, 
   TooltipContent, 
@@ -19,11 +21,11 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 
-export const AppLayout = () => {
-  const [expertPanelOpen, setExpertPanelOpen] = useState(false);
+export const AppLayout = () => {  const [expertPanelOpen, setExpertPanelOpen] = useState(false);
   const [panelType, setPanelType] = useState<'sources' | 'products' | 'experts' | 'support'>('sources');
   const [sourcesAvailable, setSourcesAvailable] = useState(false);
   const { openCart, totalItems } = useCart();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   // Check for user questions in chat to enable sources panel
@@ -222,9 +224,11 @@ export const AppLayout = () => {
           onClose={() => setExpertPanelOpen(false)}
           title="Customer Support"
         />
-        
-        {/* Shopping Cart Component */}
+          {/* Shopping Cart Component */}
         <ShoppingCart />
+        
+        {/* Profile Popup for first-time users */}
+        {user && <UserProfilePopup />}
       </div>
     </div>
   );

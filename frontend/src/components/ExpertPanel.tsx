@@ -613,7 +613,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
                           <p className="text-xs text-gray-400 mb-1 line-clamp-2 overflow-hidden text-ellipsis">{product.description}</p>
                           <div className="flex justify-between items-center">
                             <div>
-                              <span className="font-medium text-sm">रु {product.price}</span>
+                              <span className="font-medium text-sm">रू {product.price}</span>
                               <span className="text-xs ml-2 text-green-500">In Stock</span>
                             </div>
                             

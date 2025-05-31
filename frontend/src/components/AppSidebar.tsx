@@ -20,11 +20,10 @@ interface AppSidebarProps {
   onNavigate?: (path: string) => void;
 }
 
-export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
-  const [collapsed, setCollapsed] = useState(false);
+export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {  const [collapsed, setCollapsed] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
 
   const handleNavigate = (path: string) => {
     if (onNavigate) {
@@ -74,13 +73,12 @@ export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
           ))}
         </nav>
       </div>
-      
-      <div className="mt-auto p-4">
+        <div className="mt-auto p-4">
         {user ? (
           <div className={cn("flex", collapsed ? "justify-center" : "items-center")}>
             {!collapsed && (
               <div className="mr-2 flex-1">
-                <p className="text-sm font-medium truncate">{user.email}</p>
+                <p className="text-sm font-medium truncate">{profile?.full_name || 'User'}</p>
               </div>
             )}
             <UserProfileMenu />

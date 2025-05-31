@@ -25,7 +25,6 @@ const keywordToCategoryMap: Record<string, string[]> = {
   'vegetable': ['Seeds'],
   'fruit': ['Seeds'],
   'flower': ['Seeds'],
-  'tomato': ['Seeds'],
   'chili': ['Seeds'],
   'cucumber': ['Seeds'],
   'paddy': ['Seeds'],
