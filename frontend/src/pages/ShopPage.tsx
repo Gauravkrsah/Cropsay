@@ -5,15 +5,17 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CartItemQuantity, ShoppingCart, ShoppingCartButton } from '@/components/ShoppingCart';
 import { getRecommendationsFromChat } from '@/services/recommendationService';
 import { getCategories, getSubcategories, Product, getRecommendedProducts } from '@/data/productData';
-import { useNavigate } from 'react-router-dom';
-import { 
-  fetchProducts, 
-  searchProducts, 
-  getProductsByCategory, 
-  getNewestProducts 
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import {
+  fetchProducts,
+  searchProducts,
+  getProductsByCategory,
+  getNewestProducts
 } from '@/services/productService';
 import { testSupabaseConnection, testProductsAccess, insertTestProduct } from '@/services/testSupabase';
 import ProductCard from '@/components/ProductCard';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
 
 const ShopPage = () => {
   const [activeCategory, setActiveCategory] = useState('All Products');
@@ -31,6 +33,8 @@ const ShopPage = () => {
   const { items, addItem, openCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const isMobile = useIsMobile();
 
   // Get categories and subcategories 
   const categories = getCategories();
@@ -285,55 +289,89 @@ const ShopPage = () => {
     
     return () => clearTimeout(timer);
   }, [user]);
-  
-  
+
+  // Handle URL search parameters
+  useEffect(() => {
+    const urlSearchQuery = searchParams.get('search');
+    if (urlSearchQuery) {
+      setSearchQuery(urlSearchQuery);
+    }
+  }, [searchParams]);
+
+
   return (
     <div className="h-screen flex flex-col bg-[#1E2735]">
       {/* Fixed header with search and filters */}
-      <div className="border-b border-[#2A3143] p-4 sticky top-0 z-10 bg-[#1E2735]">
-        <div className="flex justify-between items-center">
-          <h1 className="text-2xl font-bold">Shop Agricultural Products</h1>
+      <div className="border-b border-[#2A3143] p-3 sm:p-4 sticky top-0 z-10 bg-[#1E2735]">
+        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
+          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Shop Agricultural Products</h1>
           {connectionStatus && connectionStatus !== 'Connection successful' && (
-            <div className="text-xs font-medium px-2 py-1 rounded bg-amber-600/20 text-amber-400">
+            <div className="text-xs font-medium px-2 py-1 rounded bg-amber-600/20 text-amber-400 self-start sm:self-auto">
               {connectionStatus}
             </div>
           )}
         </div>
-        
-        <div className="flex items-center space-x-2 mt-4">
-          <div className="relative flex-1">
+
+        <div className={cn(
+          "flex items-center gap-2 mt-3 sm:mt-4",
+          isMobile ? "flex-col space-y-2" : "flex-row"
+        )}>
+          <div className="relative flex-1 w-full">
             <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText" />
             <input
               type="text"
               placeholder="Search products..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#10141E] border border-[#2A3143] rounded-lg py-2 pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"
+              className={cn(
+                "w-full bg-[#10141E] border border-[#2A3143] rounded-lg pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all",
+                isMobile ? "py-3 text-base" : "py-2"
+              )}
             />
           </div>
-          <button 
-            className="action-button bg-[#10141E] hover:bg-[#2A3143]"
-            onClick={() => navigate("/orders")}
-          >
-            <ShoppingBag size={18} />
-            <span>Orders</span>
-          </button>
-          <button 
-            onClick={openCart}
-            className="relative p-2 bg-[#10141E] hover:bg-[#2A3143] rounded-lg transition-colors"
-            aria-label={`View cart with ${items.length} items`}
-          >
-            <ShoppingCartIcon size={20} />
-            <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-              {items.reduce((total, item) => total + item.quantity, 0)}
-            </span>
-          </button>
+
+          <div className={cn(
+            "flex gap-2",
+            isMobile ? "w-full justify-between" : ""
+          )}>
+            <button
+              className={cn(
+                "action-button bg-[#10141E] hover:bg-[#2A3143] touch-target",
+                isMobile ? "flex-1 justify-center py-3" : ""
+              )}
+              onClick={() => navigate("/orders")}
+            >
+              <ShoppingBag size={18} />
+              <span>Orders</span>
+            </button>
+            <button
+              onClick={openCart}
+              className={cn(
+                "relative bg-[#10141E] hover:bg-[#2A3143] rounded-lg transition-colors touch-target",
+                isMobile ? "p-3" : "p-2"
+              )}
+              aria-label={`View cart with ${items.length} items`}
+            >
+              <ShoppingCartIcon size={20} />
+              <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                {items.reduce((total, item) => total + item.quantity, 0)}
+              </span>
+            </button>
+          </div>
         </div>
       </div>
-      
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
+
+      <div className={cn(
+        "flex flex-1 overflow-hidden",
+        isMobile ? "flex-col" : "flex-row"
+      )}>
         {/* Sidebar for filters and recommendations */}
-        <div className="w-full md:w-64 p-4 border-r border-[#2A3143] md:h-[calc(100vh-88px)] overflow-y-auto sticky top-[88px] bg-[#1E2735]">
+        <div className={cn(
+          "bg-[#1E2735] border-[#2A3143] overflow-y-auto",
+          isMobile
+            ? "w-full p-3 border-b max-h-48"
+            : "w-64 p-4 border-r h-[calc(100vh-88px)] sticky top-[88px]"
+        )}>
           {/* Filters */}
           <div className="mb-6">
             <div className="flex justify-between items-center mb-2">
@@ -440,11 +478,17 @@ const ShopPage = () => {
             )}
           </div>
         </div>
-        
+
         {/* Main content */}
-        <div className="flex-1 overflow-y-auto h-[calc(100vh-88px)]">
+        <div className={cn(
+          "flex-1 overflow-y-auto",
+          isMobile ? "h-[calc(100vh-200px)]" : "h-[calc(100vh-88px)]"
+        )}>
           {/* Active filters */}
-          <div className="sticky top-0 bg-[#1E2735] z-10 p-4 pb-2">
+          <div className={cn(
+            "sticky top-0 bg-[#1E2735] z-10 pb-2",
+            isMobile ? "p-3" : "p-4"
+          )}>
             {(activeCategory !== 'All Products' || activeSubcategories.length > 0) && (
               <div className="flex flex-wrap gap-2 mb-4">
                 {activeCategory !== 'All Products' && (
@@ -487,7 +531,7 @@ const ShopPage = () => {
           </div>
           
           {/* Products grid - this is the only scrollable part */}
-          <div className="p-4 flex-1 overflow-y-auto">
+          <div className="px-4 pb-20 flex-1 overflow-y-auto">
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
                 <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cropsay-green"></div>
@@ -497,13 +541,13 @@ const ShopPage = () => {
                 <h3 className="text-xl mb-2">Error</h3>
                 <p>{error}</p>
                 <div className="flex justify-center mt-4 space-x-4">
-                  <button 
+                  <button
                     onClick={loadAllProducts}
                     className="px-4 py-2 bg-cropsay-green text-white rounded-md"
                   >
                     Try Again
                   </button>
-                  <button 
+                  <button
                     onClick={handleCreateTestProduct}
                     className="px-4 py-2 bg-amber-600 text-white rounded-md"
                   >
@@ -516,13 +560,13 @@ const ShopPage = () => {
                 <h3 className="text-xl mb-2">No Products Found</h3>
                 <p className="text-cropsay-grayText">Try adjusting your filters or search.</p>
                 <div className="flex justify-center mt-4 space-x-4">
-                  <button 
+                  <button
                     onClick={clearFilters}
                     className="px-4 py-2 bg-cropsay-green text-white rounded-md"
                   >
                     Clear Filters
                   </button>
-                  <button 
+                  <button
                     onClick={handleCreateTestProduct}
                     className="px-4 py-2 bg-amber-600 text-white rounded-md"
                   >
@@ -531,7 +575,12 @@ const ShopPage = () => {
                 </div>
               </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div className={cn(
+                "grid gap-3",
+                isMobile
+                  ? "grid-cols-2"
+                  : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+              )}>
                 {filteredProducts.map(product => (
                   <ProductCard key={product.id} product={product} />
                 ))}
@@ -543,7 +592,7 @@ const ShopPage = () => {
       
       {/* Floating cart button for mobile view */}
       {items.length > 0 && (
-        <div className="fixed bottom-4 left-1/2 transform -translate-x-1/2 z-10 md:hidden">
+        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 md:hidden">
           <ShoppingCartButton />
         </div>
       )}

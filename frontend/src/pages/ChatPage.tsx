@@ -17,6 +17,7 @@ import { supabase, getUserId } from '@/integrations/supabase/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 // Import custom fonts for better typography
 import '@fontsource/inter/400.css';
@@ -71,6 +72,7 @@ const ChatPage = () => {
   const [isStreaming, setIsStreaming] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -1275,9 +1277,17 @@ const ChatPage = () => {
   return (
     <div className="flex flex-col h-screen">
       {/* Header */}
-      <div className="p-4 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
-        <div className="flex items-center space-x-3">
-          <h1 className="text-xl font-bold">Cropsay AI Assistant</h1>
+      <div className={cn(
+        "flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30",
+        isMobile ? "p-3" : "p-4"
+      )}>
+        <div className="flex items-center space-x-2 sm:space-x-3">
+          <h1 className={cn(
+            "font-bold",
+            isMobile ? "text-lg" : "text-xl"
+          )}>
+            Cropsay AI Assistant
+          </h1>
         </div>
         
         <div className="flex items-center space-x-2">
@@ -1511,8 +1521,14 @@ const ChatPage = () => {
       </div>
       
       {/* Chat Input */}
-      <div className="sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30">
-        <div className="max-w-4xl mx-auto px-4 md:px-8 lg:px-10">
+      <div className={cn(
+        "sticky bottom-0 w-full bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30",
+        isMobile ? "py-3" : "py-5"
+      )}>
+        <div className={cn(
+          "max-w-4xl mx-auto",
+          isMobile ? "px-3" : "px-4 md:px-8 lg:px-10"
+        )}>
           <form onSubmit={handleSubmit} className="relative flex flex-col">
             <div className="relative flex items-start bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
               <textarea
@@ -1521,31 +1537,42 @@ const ChatPage = () => {
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask anything..."
-                className="flex-1 py-4 pl-4 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none h-12 max-h-[200px] overflow-y-auto"
-                style={{ minHeight: '64px' }}
+                className={cn(
+                  "flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none max-h-[200px] overflow-y-auto",
+                  isMobile ? "py-3 pl-3 pr-16 text-base" : "py-4 pl-4 pr-20 h-12",
+                )}
+                style={{ minHeight: isMobile ? '48px' : '64px' }}
                 rows={1}
               />
 
-              <div className="absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2">
+              <div className={cn(
+                "absolute top-1/2 transform -translate-y-1/2 flex items-center",
+                isMobile ? "right-2 space-x-1" : "right-3 space-x-2"
+              )}>
                 <button
                   type="button"
                   onClick={handleMicClick}
-                  className={`p-1.5 rounded-full transition-all ${
-                    isRecording 
-                      ? 'text-white bg-red-500 hover:bg-red-600 animate-pulse' 
+                  className={cn(
+                    "rounded-full transition-all touch-target",
+                    isMobile ? "p-2" : "p-1.5",
+                    isRecording
+                      ? 'text-white bg-red-500 hover:bg-red-600 animate-pulse'
                       : 'text-gray-400 hover:text-white hover:bg-[#2A3143]/70'
-                  }`}
+                  )}
                   title="Voice input"
                 >
-                  <Mic size={18} className="opacity-90" />
+                  <Mic size={isMobile ? 20 : 18} className="opacity-90" />
                 </button>
-                
+
                 <button
                   type="submit"
-                  className={`p-1.5 rounded-full transition-all ${
-                  input.trim() && canSendMessage() && !isStreaming 
-                    ? 'text-white bg-green-600 hover:bg-green-500' 
-                    : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'}`}
+                  className={cn(
+                    "rounded-full transition-all touch-target",
+                    isMobile ? "p-2" : "p-1.5",
+                    input.trim() && canSendMessage() && !isStreaming
+                      ? 'text-white bg-green-600 hover:bg-green-500'
+                      : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'
+                  )}
                   disabled={!input.trim() || !canSendMessage() || isStreaming}
                   title="Send message"
                 >

@@ -19,6 +19,7 @@ import { Product } from '@/data/productData';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { isAgriculturalQuery } from '@/services/geminiService';
 import NonAgriculturalMessage from '@/components/NonAgriculturalMessage';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ExpertPanelProps {
   isOpen: boolean;
@@ -92,6 +93,7 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
   const [usingNLPService, setUsingNLPService] = useState<boolean>(false);  const [nonAgriculturalQuery, setNonAgriculturalQuery] = useState<boolean>(false); // State for tracking non-agricultural queries
   const navigate = useNavigate();
   const [activeProductCategory, setActiveProductCategory] = useState<string>("all");
+  const isMobile = useIsMobile();
 
   // Add click outside handler to close the panel
   useEffect(() => {
@@ -262,22 +264,50 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
 
   return (
     <>
-      <div 
+      {/* Mobile Overlay */}
+      {isMobile && isOpen && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40"
+          onClick={onClose}
+        />
+      )}
+
+      <div
         ref={panelRef}
         className={cn(
-          "fixed top-0 right-0 h-full w-80 bg-[#10141E] border-l border-[#1E2A3B] z-50 transform transition-transform duration-300 ease-in-out shadow-xl",
-          isOpen ? "translate-x-0" : "translate-x-full"
+          "fixed bg-[#10141E] border-[#1E2A3B] z-50 transform transition-transform duration-300 ease-in-out shadow-xl",
+          // Desktop: right panel
+          !isMobile && "top-0 right-0 h-full w-80 border-l",
+          // Mobile: bottom sheet
+          isMobile && "bottom-0 left-0 right-0 h-[85vh] rounded-t-xl border-t",
+          isOpen ? "translate-x-0 translate-y-0" : (isMobile ? "translate-y-full" : "translate-x-full")
         )}
       >
-        <div className="flex justify-between items-center bg-[#10141E] border-b border-[#1E2A3B] p-4">
-          <h2 className="text-lg font-medium text-white">{title}</h2>
-          {title === "Recommended Products" && (
-            <button 
-              onClick={openCart}
-              className="relative p-1.5 bg-[#1E2735] hover:bg-[#2A3143] rounded-lg transition-colors"
-              aria-label={`View cart with ${items.length} items`}
-            >
-              <ShoppingCartIcon size={18} />
+        {/* Header */}
+        <div className={cn(
+          "flex justify-between items-center bg-[#10141E] border-b border-[#1E2A3B]",
+          isMobile ? "p-3" : "p-4"
+        )}>
+          {/* Mobile: Add drag handle */}
+          {isMobile && (
+            <div className="absolute top-2 left-1/2 transform -translate-x-1/2 w-8 h-1 bg-gray-400 rounded-full" />
+          )}
+
+          <h2 className={cn(
+            "font-medium text-white",
+            isMobile ? "text-base" : "text-lg"
+          )}>
+            {title}
+          </h2>
+
+          <div className="flex items-center gap-2">
+            {title === "Recommended Products" && (
+              <button
+                onClick={openCart}
+                className="relative p-1.5 bg-[#1E2735] hover:bg-[#2A3143] rounded-lg transition-colors"
+                aria-label={`View cart with ${items.length} items`}
+              >
+                <ShoppingCartIcon size={isMobile ? 16 : 18} />
               {items.length > 0 && (
                 <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
                   {items.reduce((total, item) => total + item.quantity, 0)}
@@ -285,12 +315,17 @@ export const ExpertPanel = ({ isOpen, onClose, title, children }: ExpertPanelPro
               )}
             </button>
           )}
-          <button 
-            onClick={onClose}
-            className="p-1.5 rounded-md hover:bg-[#2A3143] transition-colors"
-          >
-            <X size={18} />
-          </button>
+
+            <button
+              onClick={onClose}
+              className={cn(
+                "rounded-md hover:bg-[#2A3143] transition-colors",
+                isMobile ? "p-2" : "p-1.5"
+              )}
+            >
+              <X size={isMobile ? 20 : 18} />
+            </button>
+          </div>
         </div>
         
         {title === "Available Experts" ? (
