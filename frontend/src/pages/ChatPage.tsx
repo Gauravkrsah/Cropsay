@@ -4,7 +4,7 @@ import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom
 import { ChatTextGenerateEffect } from '@/components/ui/chat-text-generate-effect';
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+
 import { toast } from "@/components/ui/use-toast";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { Card, CardContent } from "@/components/ui/card";
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { useIsMobile } from '@/hooks/use-mobile';
+
 
 // Import custom fonts for better typography
 import '@fontsource/inter/400.css';
@@ -1117,15 +1118,17 @@ const ChatPage = () => {
 
   // Update DialogContent for chat history with checkboxes and bulk actions
   const DialogContentWithBulkActions = () => (
-    <DialogContent 
-      className="sm:max-w-[500px] bg-[#10141E] border-[#2A3143]"
+    <DialogContent
+      className={`${isMobile ? 'max-w-[95vw] h-[80vh]' : 'sm:max-w-[500px]'} bg-[#10141E] border-[#2A3143]`}
       onPointerDownOutside={() => setShowChatHistory(false)} // Explicitly handle outside clicks
     >
       <DialogHeader>
-        <DialogTitle className="text-xl font-bold">Chat History</DialogTitle>
-        <DialogDescription>
-          View and manage your previous conversations
-        </DialogDescription>
+        <DialogTitle className={`${isMobile ? 'text-lg' : 'text-xl'} font-bold`}>Chat History</DialogTitle>
+        {!isMobile && (
+          <DialogDescription>
+            View and manage your previous conversations
+          </DialogDescription>
+        )}
       </DialogHeader>
       
       <div className="mt-2 mb-4">
@@ -1170,7 +1173,7 @@ const ChatPage = () => {
         </div>
       </div>
       
-      <ScrollArea className="h-[400px] pr-4">
+      <ScrollArea className={`${isMobile ? 'h-[50vh]' : 'h-[400px]'} pr-4`}>
         {/* Pinned Chats */}
         {pinnedChats.length > 0 && (
           <>
@@ -1275,100 +1278,143 @@ const ChatPage = () => {
   );
 
   return (
-    <div className="flex flex-col h-screen">
-      {/* Header */}
-      <div className={cn(
-        "flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30",
-        isMobile ? "p-3" : "p-4"
-      )}>
-        <div className="flex items-center space-x-2 sm:space-x-3">
-          <h1 className={cn(
-            "font-bold",
-            isMobile ? "text-lg" : "text-xl"
-          )}>
-            Cropsay AI Assistant
-          </h1>
-        </div>
-        
-        <div className="flex items-center space-x-2">
-          {user && (
+    <div className={`flex flex-col ${isMobile ? 'h-full' : 'h-screen'}`}>
+      {/* Header - Only show on desktop, mobile uses AppLayout header */}
+      {!isMobile && (
+        <div className="p-4 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-xl font-bold">Cropsay AI Assistant</h1>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {user && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowChatHistory(true)}
+                      className="relative"
+                      data-history-toggle
+                    >
+                      <History size={20} />
+                      {chatSessions.length > 1 && (
+                        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                          {chatSessions.length}
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Chat History</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
             <TooltipProvider>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button 
-                    variant="ghost" 
+                  <Button
+                    variant="ghost"
                     size="icon"
-                    onClick={() => setShowChatHistory(true)}
-                    className="relative"
-                    data-history-toggle
+                    disabled={messages.length === 0}
+                    onClick={startNewChat}
                   >
-                    <History size={20} />
-                    {chatSessions.length > 1 && (
-                      <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                        {chatSessions.length}
-                      </span>
-                    )}
+                    <MessageSquare size={20} />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>Chat History</TooltipContent>
+                <TooltipContent>New Chat</TooltipContent>
               </Tooltip>
             </TooltipProvider>
-          )}
-          
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button 
-                  variant="ghost" 
-                  size="icon"
- 
-                  disabled={messages.length === 0}
-                  onClick={startNewChat}
- 
-                >
-                  <MessageSquare size={20} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>New Chat</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          </div>
         </div>
-      </div>
-      
+      )}
+
+      {/* Mobile Header - Sticky within the chat page */}
+      {isMobile && (
+        <div className="sticky top-0 z-30 p-3 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
+          <div className="flex items-center space-x-3">
+            <h1 className="text-lg font-bold">Cropsay AI Assistant</h1>
+          </div>
+
+          <div className="flex items-center space-x-2">
+            {user && (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setShowChatHistory(true)}
+                      className="relative"
+                      data-history-toggle
+                    >
+                      <History size={20} />
+                      {chatSessions.length > 1 && (
+                        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
+                          {chatSessions.length}
+                        </span>
+                      )}
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>Chat History</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+            )}
+
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    disabled={messages.length === 0}
+                    onClick={startNewChat}
+                  >
+                    <MessageSquare size={20} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>New Chat</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+        </div>
+      )}
+
       {/* Main Chat Area */}
-      <div className="flex-1 overflow-y-auto py-6 bg-[#1E2735]">
+      <div className={`flex-1 ${isMobile ? 'overflow-y-auto overflow-x-hidden' : 'overflow-y-auto'} ${isMobile ? 'py-1' : 'py-6'} bg-[#1E2735] ${isMobile ? 'min-h-0' : ''}`}>
         {loading ? (
           <div className="h-full flex flex-col justify-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
             <p className="mt-4 text-gray-400">Loading your conversations...</p>
           </div>
         ) : messages.length === 0 ? (
-          <div className="h-full flex flex-col justify-center items-center">
-            <div className="text-center max-w-2xl">
-              <h2 className="text-4xl font-bold mb-8">
+          <div className={`${isMobile ? 'flex flex-col justify-start pt-8' : 'h-full flex flex-col justify-center items-center'}`}>
+            <div className={`text-center ${isMobile ? 'max-w-full px-3' : 'max-w-2xl'}`}>
+              <h2 className={`${isMobile ? 'text-xl mb-3' : 'text-4xl mb-8'} font-bold`}>
                 What do you want to know?
               </h2>
-              
-              <div className="flex flex-wrap justify-center gap-3 max-w-2xl mt-10">
-                {suggestionTopics.map((topic) => (
-                  <button 
-                    key={topic.text}
-                    className="bg-black hover:bg-cropsay-darkSecondary text-white px-6 py-3 rounded-lg transition-colors flex items-center gap-2 border border-cropsay-grayDark/30"
-                    onClick={() => {
-                      setInput(topic.text);
-                    }}
+
+              <div className={`grid grid-cols-1 ${isMobile ? 'gap-2 mb-2' : 'sm:grid-cols-2 gap-3 mb-8'}`}>
+                {suggestionTopics.map((topic, index) => (
+                  <Card
+                    key={index}
+                    className="cursor-pointer hover:bg-[#2A3143] transition-colors bg-[#1E2735] border-[#2A3143]"
+                    onClick={() => setInput(topic.text)}
                   >
-                    <span className="text-xl">{topic.icon}</span>
-                    <span>{topic.text}</span>
-                  </button>
+                    <CardContent className={`${isMobile ? 'p-3' : 'p-4'} flex items-center space-x-3`}>
+                      {topic.icon}
+                      <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>{topic.text}</span>
+                    </CardContent>
+                  </Card>
                 ))}
               </div>
             </div>
           </div>
         ) : (
-          <div className="pb-4 max-w-4xl mx-auto">
+          <div className={`${isMobile ? 'pb-1 px-2' : 'pb-4'} ${isMobile ? 'max-w-full' : 'max-w-4xl'} mx-auto`}>
             {messages.map((message, index) => (
-              <div key={message.id} className="mb-6 group/message">
+              <div key={message.id} className={`${isMobile ? 'mb-2' : 'mb-6'} group/message`}>
                 {editingMessageId === message.id ? (
                   <div className="flex flex-col space-y-2">
                     <textarea 
@@ -1398,8 +1444,8 @@ const ChatPage = () => {
                   <div>
                     {/* Assistant message */}
                     {message.role === 'assistant' && (
-                      <div className="px-4 md:px-8 lg:px-10 py-4 border-b border-[#2A3143]/20">
-                        <div className="prose prose-invert max-w-[95%] text-cropsay-lightText ml-8">
+                      <div className={`${isMobile ? 'px-2 py-1' : 'px-4 md:px-8 lg:px-10 py-4'} border-b border-[#2A3143]/20`}>
+                        <div className={`prose prose-invert max-w-[95%] text-cropsay-lightText ${isMobile ? 'ml-1' : 'ml-8'}`}>
                           {message.id === messages[messages.length - 1].id && isStreaming ? (
                             <ChatTextGenerateEffect key={message.content} text={message.content} isStreaming={isStreaming} />
                           ) : (
@@ -1409,7 +1455,7 @@ const ChatPage = () => {
                         </div>
                         
                         {/* ChatGPT-style icon buttons for assistant messages */}
-                        <div className="flex items-center mt-2 gap-2">
+                        <div className={`flex items-center ${isMobile ? 'mt-1 gap-1' : 'mt-2 gap-2'}`}>
                           <button 
                             className="p-1 rounded-md hover:bg-[#2A3143] transition-colors"
                             onClick={() => {
@@ -1475,8 +1521,8 @@ const ChatPage = () => {
                     
                     {/* User message - rounded box with no profile icon */}
                     {message.role === 'user' && (
-                      <div className="relative group px-4 md:px-8 lg:px-10 py-4 flex flex-col items-end">
-                        <div className="max-w-[90%] bg-[#131725] p-4 rounded-2xl text-white">
+                      <div className={`relative group ${isMobile ? 'px-2 py-1' : 'px-4 md:px-8 lg:px-10 py-4'} flex flex-col items-end`}>
+                        <div className={`${isMobile ? 'max-w-[95%] p-2' : 'max-w-[90%] p-4'} bg-[#131725] rounded-2xl text-white`}>
                           <div className="prose prose-invert max-w-none">
                             <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
                           </div>
@@ -1521,14 +1567,8 @@ const ChatPage = () => {
       </div>
       
       {/* Chat Input */}
-      <div className={cn(
-        "sticky bottom-0 w-full bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30",
-        isMobile ? "py-3" : "py-5"
-      )}>
-        <div className={cn(
-          "max-w-4xl mx-auto",
-          isMobile ? "px-3" : "px-4 md:px-8 lg:px-10"
-        )}>
+      <div className={`${isMobile ? 'sticky bottom-0 w-full py-2 bg-[#1E2735] border-t border-[#2A3143]/30 z-20 flex-shrink-0' : 'sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30'}`}>
+        <div className={`${isMobile ? 'max-w-full px-2' : 'max-w-4xl px-4 md:px-8 lg:px-10'} mx-auto`}>
           <form onSubmit={handleSubmit} className="relative flex flex-col">
             <div className="relative flex items-start bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
               <textarea
@@ -1537,55 +1577,47 @@ const ChatPage = () => {
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
                 placeholder="Ask anything..."
-                className={cn(
-                  "flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none max-h-[200px] overflow-y-auto",
-                  isMobile ? "py-3 pl-3 pr-16 text-base" : "py-4 pl-4 pr-20 h-12",
-                )}
+                className={`flex-1 ${isMobile ? 'py-3 pl-3 pr-16' : 'py-4 pl-4 pr-20'} bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none ${isMobile ? 'h-10' : 'h-12'} max-h-[200px] overflow-y-auto`}
                 style={{ minHeight: isMobile ? '48px' : '64px' }}
                 rows={1}
               />
 
-              <div className={cn(
-                "absolute top-1/2 transform -translate-y-1/2 flex items-center",
-                isMobile ? "right-2 space-x-1" : "right-3 space-x-2"
-              )}>
+              <div className={`absolute ${isMobile ? 'right-2' : 'right-3'} top-1/2 transform -translate-y-1/2 flex items-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
                 <button
                   type="button"
                   onClick={handleMicClick}
-                  className={cn(
-                    "rounded-full transition-all touch-target",
-                    isMobile ? "p-2" : "p-1.5",
+                  className={`${isMobile ? 'p-1' : 'p-1.5'} rounded-full transition-all ${
                     isRecording
                       ? 'text-white bg-red-500 hover:bg-red-600 animate-pulse'
                       : 'text-gray-400 hover:text-white hover:bg-[#2A3143]/70'
-                  )}
+                  }`}
                   title="Voice input"
                 >
-                  <Mic size={isMobile ? 20 : 18} className="opacity-90" />
+                  <Mic size={isMobile ? 16 : 18} className="opacity-90" />
                 </button>
 
                 <button
                   type="submit"
-                  className={cn(
-                    "rounded-full transition-all touch-target",
-                    isMobile ? "p-2" : "p-1.5",
-                    input.trim() && canSendMessage() && !isStreaming
-                      ? 'text-white bg-green-600 hover:bg-green-500'
-                      : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'
-                  )}
+                  className={`${isMobile ? 'p-1' : 'p-1.5'} rounded-full transition-all ${
+                  input.trim() && canSendMessage() && !isStreaming
+                    ? 'text-white bg-green-600 hover:bg-green-500'
+                    : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'}`}
                   disabled={!input.trim() || !canSendMessage() || isStreaming}
                   title="Send message"
                 >
-                  <Send size={18} className="opacity-90" />
+                  <Send size={isMobile ? 16 : 18} className="opacity-90" />
                 </button>
               </div>
             </div>
 
-            <div className="text-xs text-center text-gray-500 mt-2 opacity-70 font-light">
-              {isStreaming ? 
-                'Generating response...' : 
-                'Cropsay AI provides information based on available data. Always verify critical information.'}
-            </div>
+            {/* Info text below input - hidden on mobile */}
+            {!isMobile && (
+              <div className="text-xs text-center text-gray-500 mt-2 opacity-70 font-light">
+                {isStreaming ?
+                  'Generating response...' :
+                  'Cropsay AI provides information based on available data. Always verify critical information.'}
+              </div>
+            )}
           </form>
         </div>
       </div>

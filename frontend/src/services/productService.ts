@@ -283,14 +283,31 @@ export async function searchProducts(searchTerm: string): Promise<Product[]> {
 // Get newest products
 export async function getNewestProducts(maxCount: number = 10): Promise<Product[]> {
   try {
-    const { data, error } = await supabase
+    // Try RPC function first
+    const { data: rpcData, error: rpcError } = await supabase
       .rpc('get_newest_products', { max_count: maxCount });
 
+    if (!rpcError && rpcData) {
+      console.log('Successfully fetched products via RPC:', rpcData.length);
+      return (rpcData || []).map(mapSupabaseProductToProduct);
+    }
+
+    console.log('RPC failed, trying direct query. Error:', rpcError);
+
+    // Fallback to direct query
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('in_stock', true)
+      .order('created_at', { ascending: false })
+      .limit(maxCount);
+
     if (error) {
-      console.error('Error fetching newest products:', error);
+      console.error('Error fetching newest products via direct query:', error);
       return [];
     }
 
+    console.log('Successfully fetched products via direct query:', data?.length || 0);
     return (data || []).map(mapSupabaseProductToProduct);
   } catch (error) {
     console.error('Exception fetching newest products:', error);

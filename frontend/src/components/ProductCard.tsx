@@ -123,7 +123,7 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
         <div className="flex justify-between items-center flex-shrink-0">
           {/* Price section */}
           <div className="flex flex-col justify-center text-left">
-            <div className="text-white font-semibold text-base">₹{product.price.toFixed(0)}</div>
+            <div className="text-white font-semibold text-xs">₹{product.price.toFixed(0)}</div>
             <div className="text-cropsay-grayText line-through text-xs">₹{Math.round(product.price * 1.25)}</div>
           </div>
 

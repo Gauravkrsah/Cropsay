@@ -171,6 +171,18 @@
   .touch-target {
     @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
   }
+
+  /* Enhanced mobile scrolling for product cards */
+  .product-scroll {
+    @apply flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide;
+    scroll-padding-left: 1rem;
+    scroll-padding-right: 1rem;
+  }
+
+  .product-scroll > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
   
   /* Shopping cart specific styles */
   .quantity-control {
