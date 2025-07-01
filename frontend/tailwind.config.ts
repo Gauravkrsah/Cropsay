@@ -24,6 +24,11 @@ export default {
 			}
 		},
 		extend: {
+			zIndex: {
+				'55': '55',
+				'60': '60',
+				'40': '40',
+			},
 			colors: {
 				border: 'hsl(var(--border))',
 				input: 'hsl(var(--input))',
@@ -130,5 +135,8 @@ export default {
 			}
 		}
 	},
-	plugins: [require("tailwindcss-animate")],
+	plugins: [
+		require("tailwindcss-animate"),
+		require("tailwind-scrollbar-hide")
+	],
 } satisfies Config;

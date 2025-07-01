@@ -1,4 +1,3 @@
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,34 +6,24 @@
   :root {
     --background: 215 28% 17%;
     --foreground: 220 13% 91%;
-
     --card: 215 28% 17%;
     --card-foreground: 220 13% 91%;
-
     --popover: 215 28% 17%;
     --popover-foreground: 220 13% 91%;
-
     --primary: 162 82% 40%;
     --primary-foreground: 210 40% 98%;
-
     --secondary: 217 19% 27%;
     --secondary-foreground: 210 40% 98%;
-
     --muted: 217 19% 27%;
     --muted-foreground: 215 20% 65%;
-
     --accent: 217 19% 27%;
     --accent-foreground: 210 40% 98%;
-
     --destructive: 0 62.8% 30.6%;
     --destructive-foreground: 210 40% 98%;
-
     --border: 217 19% 27%;
     --input: 217 19% 27%;
     --ring: 162 82% 40%;
-
     --radius: 0.5rem;
-
     --sidebar-background: 224 71% 9%;
     --sidebar-foreground: 220 13% 91%;
     --sidebar-primary: 162 82% 40%;
@@ -43,6 +32,98 @@
     --sidebar-accent-foreground: 220 13% 91%;
     --sidebar-border: 224 30% 12%;
     --sidebar-ring: 162 82% 40%;
+  }
+  
+  /* Mobile viewport handling for browser UI */
+  :root {
+    --vh: 1vh;
+  }
+  
+  /* Dynamic viewport height for mobile devices */
+  .mobile-full-height {
+    height: 100vh; /* Fallback for older browsers */
+    height: calc(var(--vh, 1vh) * 100); /* Use custom property */
+    min-height: 100vh;
+    min-height: calc(var(--vh, 1vh) * 100);
+  }
+  
+  /* Mobile chat container improvements */
+  .mobile-chat-container {
+    height: calc(100vh - 100px);
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-y: contain;
+  }
+  
+  /* Remove default scrollbar styles on mobile */
+  .mobile-scrollbar-none {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  .mobile-scrollbar-none::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Chat input safe area handling */
+  .mobile-chat-input {
+    padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
+    margin-bottom: env(safe-area-inset-bottom, 10px);
+    /* Safe area bottom padding for iOS devices */
+    /* Removed background for clean look */
+  }
+  
+  /* Center textarea placeholder vertically */
+  textarea::placeholder {
+    line-height: normal;
+    vertical-align: middle;
+    padding-top: 2px;
+  }
+  
+  @media (max-width: 640px) {
+    textarea::placeholder {
+      padding-top: 4px;
+    }
+  }
+  
+  /* Support for Safari Mobile viewport height and keyboard handling */
+  @supports (-webkit-touch-callout: none) {
+    .h-\[100svh\] {
+      height: -webkit-fill-available;
+    }
+  }
+  
+  /* Prevent content shift when virtual keyboard appears */
+  .overflow-y-auto {
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Hide mobile scrollbars for native app feel */
+  @media (max-width: 640px) {
+    .mobile-chat-container {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+      -webkit-overflow-scrolling: touch;
+    }
+    
+    .mobile-chat-container::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+      width: 0;
+      height: 0;
+      background: transparent;
+    }
+  }
+  
+  /* Compact card styling for suggestion topics */
+  @media (max-width: 640px) {
+    .bg-\[\#1E2735\] .cursor-pointer .py-2 {
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+    }
+    
+    .bg-\[\#1E2735\] .text-sm {
+      font-size: 0.8125rem;
+      line-height: 1.25rem;
+    }
   }
 }
 
@@ -55,9 +136,49 @@
   .product-card-cursor {
     cursor: pointer;
   }
+  
   body {
     @apply bg-cropsay-dark text-cropsay-lightText;
     font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+  
+  /* Hide scrollbars on mobile devices for app-like feel */
+  @media (max-width: 640px) {
+    body {
+      scrollbar-width: none; /* Firefox */
+      -ms-overflow-style: none; /* IE and Edge */
+    }
+    
+    body::-webkit-scrollbar {
+      display: none; /* Chrome, Safari, Opera */
+    }
+  }
+  
+  /* Hide scrollbars for clean design */
+  .scrollbar-none,
+  .mobile-scrollbar-none {
+    scrollbar-width: none; /* Firefox */
+    -ms-overflow-style: none; /* IE and Edge */
+  }
+  
+  .scrollbar-none::-webkit-scrollbar,
+  .mobile-scrollbar-none::-webkit-scrollbar {
+    -ms-overflow-style: none;  /* Internet Explorer 10+ */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-none::-webkit-scrollbar { 
+    display: none;  /* Safari and Chrome */
+  }
+
+  /* Define the scrollbar-hide utility class */
+  .scrollbar-hide {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;  /* Chrome, Safari, Opera */
   }
   
   /* Custom scrollbar styling */
@@ -67,17 +188,17 @@
   }
   
   ::-webkit-scrollbar-track {
-    background: rgba(16, 20, 30, 0.3);
+    background: rgb(16 20 30 / 30%);
     border-radius: 10px;
   }
   
   ::-webkit-scrollbar-thumb {
-    background: rgba(48, 59, 73, 0.8);
+    background: rgb(48 59 73 / 80%);
     border-radius: 10px;
   }
   
   ::-webkit-scrollbar-thumb:hover {
-    background: rgba(68, 79, 93, 0.8);
+    background: rgb(68 79 93 / 80%);
   }
   
   .custom-scrollbar::-webkit-scrollbar {
@@ -86,36 +207,105 @@
   }
   
   .custom-scrollbar::-webkit-scrollbar-track {
-    background: rgba(16, 20, 30, 0.2);
+    background: rgb(16 20 30 / 20%);
   }
   
   .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(48, 59, 73, 0.7);
+    background: rgb(48 59 73 / 70%);
   }
   
-  /* Hide scrollbar but keep scrolling functionality */
-  .hide-scrollbar {
-    -ms-overflow-style: none;  /* IE and Edge */
-    scrollbar-width: none;  /* Firefox */
+  /* Hide scrollbar functionality is now provided by .scrollbar-hide class */
+  
+  /* Line clamp utilities for text truncation */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    line-clamp: 1;
   }
   
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;  /* Chrome, Safari and Opera */
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
   }
   
-  .no-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
-    overflow-x: auto;
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
   }
-    .no-scrollbar::-webkit-scrollbar {
-    display: none;
+  
+  /* Touch target for better mobile accessibility */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Compact hero section for better mobile experience */
+  .hero-compact {
+    min-height: 60vh;
+  }
+  
+  @media (width <= 768px) {
+    .hero-compact {
+      min-height: 50vh;
+    }
+  }
+  
+  /* Better responsive iframe container */
+  .aspect-video {
+    aspect-ratio: 16 / 9;
+  }
+  
+  @media (width <= 640px) {
+    .aspect-video {
+      aspect-ratio: 4 / 3;
+    }
   }
 }
 
 @layer components {
   .chat-input {
     @apply flex items-center w-full rounded-xl bg-cropsay-darkSecondary border border-cropsay-grayDark p-3 focus-within:border-cropsay-green focus-within:ring-1 focus-within:ring-cropsay-green transition-all;
+  }
+
+  /* Enhanced mobile chat input styling */
+  .chat-input-mobile {
+    @apply flex items-start w-full rounded-xl bg-[#10141E] border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all;
+    min-height: 48px;
+  }
+
+  .chat-input-desktop {
+    @apply flex items-start w-full rounded-xl bg-[#10141E] border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all;
+    min-height: 64px;
+  }
+
+  .chat-textarea-mobile {
+    @apply flex-1 py-3 pl-3 pr-16 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none overflow-y-auto;
+    min-height: 48px;
+    max-height: 160px;
+    line-height: 1.5;
+  }
+
+  .chat-textarea-desktop {
+    @apply flex-1 py-4 pl-4 pr-20 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none overflow-y-auto;
+    min-height: 64px;
+    max-height: 200px;
+    line-height: 1.5;
+  }
+
+  .chat-button-container-mobile {
+    @apply absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center space-x-1;
+  }
+
+  .chat-button-container-desktop {
+    @apply absolute right-3 top-1/2 transform -translate-y-1/2 flex items-center space-x-2;
   }
 
   .action-button {
@@ -172,16 +362,138 @@
     @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
   }
 
+  /* Enhanced mobile-specific chat styles */
+  .mobile-chat-container {
+    @apply sticky bottom-0 w-full bg-[#1E2735] border-t border-[#2A3143]/30 z-20 flex-shrink-0;
+    padding: 8px;
+    min-height: 64px;
+    /* Handle mobile keyboard viewport changes */
+    position: -webkit-sticky;
+    position: sticky;
+    bottom: 0;
+  }
+
+  /* Mobile keyboard handling */
+  @supports (height: 100dvh) {
+    .mobile-chat-container {
+      bottom: 0;
+    }
+  }
+
+  @media screen and (max-width: 768px) {
+    .mobile-chat-container {
+      /* Ensure chat input stays visible with keyboard */
+      padding-bottom: max(8px, env(safe-area-inset-bottom));
+      padding-bottom: max(8px, constant(safe-area-inset-bottom)); /* iOS 11.0-11.2 */
+    }
+  }
+
+  .mobile-chat-inner {
+    @apply w-full max-w-full;
+    padding: 0 8px;
+  }
+
+  .mobile-chat-form {
+    @apply relative flex flex-col w-full;
+  }
+
+  .mobile-input-wrapper {
+    @apply relative flex items-center w-full rounded-xl bg-[#10141E] border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all;
+    min-height: 48px;
+  }
+
+  .mobile-textarea {
+    @apply flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none overflow-y-auto;
+    padding: 12px 60px 12px 12px;
+    min-height: 48px;
+    max-height: 120px;
+    line-height: 1.4;
+    font-size: 16px; /* Prevents zoom on iOS */
+    -webkit-appearance: none;
+    appearance: none;
+    -webkit-border-radius: 0;
+    border-radius: 12px;
+    /* Smooth transitions */
+    transition: height 0.2s ease-out;
+    /* Prevent content jumping */
+    box-sizing: border-box;
+  }
+
+  /* Prevent iOS zoom when focusing inputs */
+  @supports (-webkit-touch-callout: none) {
+    .mobile-textarea {
+      font-size: 16px;
+      transform: translateZ(0);
+    }
+  }
+
+  /* Ensure proper touch handling on mobile */
+  .mobile-input-wrapper {
+    @apply relative flex items-center w-full rounded-xl bg-[#10141E] border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all;
+    min-height: 48px;
+    touch-action: manipulation;
+    /* Prevent layout shifts */
+    contain: layout style;
+  }
+
+  /* Better mobile viewport handling */
+  @media screen and (max-width: 768px) {
+    .mobile-chat-container {
+      padding-bottom: env(safe-area-inset-bottom, 8px);
+    }
+    
+    .mobile-textarea {
+      -webkit-user-select: text;
+      user-select: text;
+      -webkit-touch-callout: default;
+    }
+    
+    /* Handle keyboard visibility */
+    body.keyboard-visible .mobile-chat-container {
+      padding-bottom: calc(var(--keyboard-height, 0px) + 8px);
+      transform: translateY(calc(-1 * var(--keyboard-height, 0px)));
+    }
+    
+    body.keyboard-visible {
+      overflow: hidden;
+    }
+  }
+
+  .mobile-button-group {
+    @apply absolute right-2 top-1/2 transform -translate-y-1/2 flex items-center;
+    gap: 4px;
+  }
+
+  .mobile-chat-button {
+    @apply p-2 rounded-full transition-all touch-target;
+    min-width: 36px;
+    min-height: 36px;
+  }
+
   /* Enhanced mobile scrolling for product cards */
   .product-scroll {
     @apply flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide;
+
     scroll-padding-left: 1rem;
     scroll-padding-right: 1rem;
+    scroll-snap-type: x mandatory;
+    padding: 0.5rem 0.25rem;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
   }
 
   .product-scroll > * {
     scroll-snap-align: start;
     flex-shrink: 0;
+  }
+  
+  @media (width <= 640px) {
+    .product-scroll {
+      gap: 0.5rem;
+      padding-bottom: 1rem;
+      margin: 0 -0.25rem;
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
   }
   
   /* Shopping cart specific styles */
@@ -217,6 +529,253 @@
     margin-left: 1px;
     font-weight: 300;
   }
+
+  /* Prevent layout shifts during loading */
+  .layout-loading {
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s ease-in-out, visibility 0.3s ease-in-out;
+  }
+
+  .layout-ready {
+    visibility: visible;
+    opacity: 1;
+  }
+
+  /* Smooth navigation transitions */
+  .nav-transition {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  /* Prevent flickering during responsive changes */
+  .responsive-container {
+    contain: layout style;
+    min-height: 100vh;
+  }
+
+  /* Stable mobile navigation */
+  .mobile-nav-stable {
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+    -webkit-transform: translateZ(0);
+    -webkit-backface-visibility: hidden;
+    -webkit-perspective: 1000px;
+  }
+
+  /* Ensure consistent viewport on mobile devices */
+  @supports (-webkit-touch-callout: none) {
+    /* iOS specific styles */
+    .mobile-nav-stable {
+      -webkit-transform: translate3d(0, 0, 0);
+      transform: translate3d(0, 0, 0);
+    }
+  }
+
+  /* Additional mobile stability */
+  @media (max-width: 768px) {
+    .mobile-nav-stable {
+      will-change: transform, opacity;
+      contain: layout style paint;
+    }
+  }
+
+  /* Mobile-specific shop styles */
+  .shop-mobile-header {
+    @apply sticky top-0 z-10 bg-[#1E2735] border-b border-[#2A3143];
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .shop-mobile-search {
+    @apply w-full bg-[#10141E] border border-[#2A3143] rounded-lg text-white placeholder-gray-400 transition-all;
+    font-size: 16px; /* Prevents zoom on iOS */
+  }
+
+  .shop-mobile-filters-overlay {
+    @apply fixed inset-0 bg-black/50 z-40;
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .shop-mobile-filters-panel {
+    @apply fixed inset-x-0 bottom-0 top-16 bg-[#1E2735] z-50 overflow-y-auto;
+    transform: translateY(100%);
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .shop-mobile-filters-panel.open {
+    transform: translateY(0);
+  }
+
+  .shop-product-grid-mobile {
+    @apply grid grid-cols-2 gap-2 p-2;
+    /* Ensure minimum touch targets on mobile */
+    min-height: 240px;
+  }
+
+  .shop-product-card-mobile {
+    @apply bg-[#1c232d] rounded-lg border border-[#2A3143] p-2 transition-all duration-200;
+    /* Ensure proper touch interaction */
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .shop-product-card-mobile:active {
+    @apply scale-[0.98] bg-[#252b35];
+  }
+
+  /* Better mobile scrolling for shop */
+  .shop-content-mobile {
+    @apply overflow-y-auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  .shop-floating-button {
+    @apply fixed z-30 bg-cropsay-green text-white rounded-full shadow-lg transition-all transform;
+    box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+  }
+
+  .shop-floating-button:active {
+    @apply scale-95;
+  }
+
+  /* Compact mobile category buttons */
+  .mobile-category-button {
+    @apply px-3 py-2 rounded-lg text-sm font-medium transition-colors touch-target;
+    min-height: 40px;
+  }
+
+  .mobile-category-button.active {
+    @apply bg-cropsay-green text-white;
+  }
+
+  .mobile-category-button:not(.active) {
+    @apply bg-[#10141E] text-gray-300 hover:bg-[#2A3143];
+  }
+
+  /* Mobile product card optimizations */
+  .mobile-product-image {
+    @apply relative w-full bg-[#232936] rounded-lg overflow-hidden;
+    aspect-ratio: 1 / 1;
+  }
+
+  .mobile-product-badge {
+    @apply absolute top-1 left-1 bg-cropsay-green text-white text-[7px] font-bold px-1 py-0.5 rounded leading-none;
+  }
+
+  .mobile-add-button {
+    @apply bg-cropsay-green text-white font-bold rounded-md hover:bg-cropsay-green/90 flex items-center justify-center transition-colors text-[10px];
+    min-height: 24px;
+    min-width: 60px;
+  }
+
+  .mobile-quantity-control {
+    @apply flex items-center bg-cropsay-green rounded-md;
+    min-height: 24px;
+    min-width: 60px;
+  }
+
+  .mobile-quantity-button {
+    @apply flex items-center justify-center text-white hover:bg-cropsay-green/80 transition-colors;
+    min-width: 20px;
+    min-height: 24px;
+  }
+
+  /* Better touch feedback */
+  @media (hover: none) and (pointer: coarse) {
+    .shop-product-card-mobile:active {
+      background-color: rgb(37 43 53);
+    }
+    
+    .mobile-category-button:active {
+      transform: scale(0.98);
+    }
+    
+    .mobile-add-button:active,
+    .mobile-quantity-button:active {
+      transform: scale(0.95);
+    }
+  }
+
+  /* Mobile-first responsive utilities for shop */
+  .mobile-compact {
+    @apply text-sm leading-tight;
+  }
+
+  .mobile-header-compact {
+    @apply text-base font-semibold;
+  }
+
+  .mobile-grid-compact {
+    @apply grid grid-cols-2 gap-2;
+  }
+
+  .mobile-spacing-compact {
+    @apply p-2 space-y-2;
+  }
+
+  .mobile-button-compact {
+    @apply px-3 py-2 text-sm min-h-[40px] rounded-lg;
+  }
+
+  .mobile-card-compact {
+    @apply p-2 rounded-lg;
+  }
+
+  .mobile-text-compact {
+    @apply text-xs leading-tight;
+  }
+
+  .mobile-price-compact {
+    @apply text-sm font-semibold;
+  }
+
+  /* Ensure proper mobile viewport handling */
+  @supports (height: 100dvh) {
+    .mobile-full-height {
+      height: 100dvh;
+    }
+  }
+
+  .mobile-full-height {
+    height: 100vh;
+  }
+
+  /* Safe area handling for mobile */
+  @supports (padding: max(0px)) {
+    .mobile-safe-area {
+      padding-left: max(16px, env(safe-area-inset-left));
+      padding-right: max(16px, env(safe-area-inset-right));
+      padding-bottom: max(16px, env(safe-area-inset-bottom));
+    }
+  }
+}
+
+/* Line clamp utilities */
+.line-clamp-1 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 1;
+  line-clamp: 1;
+}
+
+.line-clamp-2 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.line-clamp-3 {
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
 }
 
 /* Mobile menu animations */
@@ -225,6 +784,7 @@
     opacity: 0;
     transform: translateX(-20px);
   }
+
   to {
     opacity: 1;
     transform: translateX(0);
@@ -236,67 +796,15 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
   }
 }
 
-/* Custom scrollbar styles */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1E2735;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #2A3143;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #3A4153;
-}
-
-/* Mobile-specific utilities */
-.scrollbar-hide {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
-}
-
-.scrollbar-hide::-webkit-scrollbar {
-  display: none;
-}
-
-/* Blinkit-style smooth scrolling */
-.scrollbar-hide {
-  scroll-behavior: smooth;
-  scroll-snap-type: x mandatory;
-}
-
-.scrollbar-hide > * {
-  scroll-snap-align: start;
-}
-
-/* Line clamp utilities */
-.line-clamp-2 {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-}
-
-/* Touch target optimization */
-.touch-target {
-  min-height: 44px;
-  min-width: 44px;
-}
-
 /* Extra small breakpoint for very small devices */
-@media (min-width: 475px) {
+@media (width >= 475px) {
   .xs\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }

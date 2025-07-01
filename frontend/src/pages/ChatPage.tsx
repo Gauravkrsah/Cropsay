@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Mic, History, X, User, Trash2, Edit, Star, MessageSquare, BookOpen, ShoppingBag, Users, Search, Check, Leaf, Droplets, Bug, ChevronDown, ChevronUp, Info, BarChart } from 'lucide-react';
+import { Send, Mic, History, X, User, Trash2, Edit, Star, MessageSquare, BookOpen, ShoppingBag, Users, Search, Check, Leaf, Droplets, Bug, ChevronDown, ChevronUp, Info, BarChart, Home, ChevronRight } from 'lucide-react';
 import { useOutletContext, useSearchParams, useNavigate } from 'react-router-dom';
 import { ChatTextGenerateEffect } from '@/components/ui/chat-text-generate-effect';
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -68,6 +68,8 @@ const ChatPage = () => {
   const [userId, setUserId] = useState<string>(''); // Will be set based on authentication
   const [serviceInitialized, setServiceInitialized] = useState(false);
   const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [quotaExhausted, setQuotaExhausted] = useState(false);
   
   const { user } = useAuth(); // Get authentication state
   const [isStreaming, setIsStreaming] = useState(false);
@@ -76,6 +78,7 @@ const ChatPage = () => {
   const isMobile = useIsMobile();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-resize textarea as content changes
@@ -256,9 +259,16 @@ const ChatPage = () => {
     loadChatSessions();
   }, [userId, serviceInitialized]);
 
+  // Enhanced scrolling effect for messages
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+    if (messagesEndRef.current) {
+      // Use smooth scrolling on desktop, but instant on mobile for better performance
+      messagesEndRef.current.scrollIntoView({ 
+        behavior: isMobile ? 'auto' : 'smooth',
+        block: 'end'
+      });
+    }
+  }, [messages, isMobile]);
 
   useEffect(() => {
     // Check if we have at least one pair of user message followed by assistant message
@@ -292,6 +302,9 @@ const ChatPage = () => {
 
   // Check if user can send message (logged in users can send unlimited, non-logged in only one)
   const canSendMessage = () => {
+    // Don't allow sending if quota is exhausted
+    if (quotaExhausted) return false;
+    
     // Logged in users can always send messages
     if (user) return true;
     
@@ -331,9 +344,11 @@ const ChatPage = () => {
       textareaRef.current.style.height = '64px';
     }
     
+    // Create a unique ID for the response message that will be used throughout the function
+    const tempId = (Date.now() + 1).toString();
+    
     try {
       // Show a loading state
-      const tempId = (Date.now() + 1).toString();
       const loadingMessage: Message = {
         id: tempId,
         role: 'assistant' as const,
@@ -411,13 +426,49 @@ const ChatPage = () => {
     } catch (error) {
       console.error('Error generating response:', error);
       
+      // Check if it's a quota limit error
+      const isQuotaError = error?.message?.includes('quota') || 
+                          error?.message?.includes('429') ||
+                          error?.toString?.().includes('quota') ||
+                          error?.toString?.().includes('429');
+      
+      let errorMessage = "Failed to generate response. Please try again.";
+      let errorTitle = "Error";
+      
+      if (isQuotaError) {
+        setQuotaExhausted(true);
+        errorMessage = "We've reached our daily AI usage limit. Please try again tomorrow or contact support for premium access.";
+        errorTitle = "Daily Limit Reached";
+        
+        // Add a fallback response for quota errors
+        const quotaErrorResponse: Message = {
+          id: tempId,
+          role: 'assistant' as const,
+          content: "I'm sorry, but we've reached our daily AI usage limit for today. This helps us manage costs while providing free access to agricultural information. Please try again tomorrow, or contact our support team if you need immediate assistance with urgent agricultural questions.",
+          timestamp: new Date(),
+        };
+        
+        const updatedMessagesWithError = [...newMessages, quotaErrorResponse];
+        setMessages(updatedMessagesWithError);
+        updateChatSession(updatedMessagesWithError);
+        
+        // Set quota exhausted state
+        setQuotaExhausted(true);
+        
+        // Show login prompt after a delay
+        setTimeout(() => {
+          setShowLoginPrompt(true);
+        }, 1000);
+      } else {
+        // Remove the loading message if there was a non-quota error
+        setMessages(newMessages);
+      }
+      
       toast({
-        description: "Failed to generate response. Please try again.",
+        title: errorTitle,
+        description: errorMessage,
         variant: "destructive"
       });
-      
-      // Remove the loading message if there was an error
-      setMessages(newMessages);
     }
   };
   
@@ -503,6 +554,26 @@ const ChatPage = () => {
       return title;
     } catch (error) {
       console.error('Error generating chat title:', error);
+      
+      // Check if it's a quota error
+      const isQuotaError = error?.message?.includes('QUOTA_EXCEEDED') || 
+                          error?.message?.includes('quota') || 
+                          error?.message?.includes('429');
+      
+      if (isQuotaError) {
+        // For quota errors, generate a simple title based on keywords
+        const firstUserMessage = messages.find(m => m.role === 'user');
+        if (firstUserMessage) {
+          const content = firstUserMessage.content.toLowerCase();
+          if (content.includes('fertilizer')) return 'Fertilizer Question';
+          if (content.includes('plant') || content.includes('grow')) return 'Plant Growing Question';
+          if (content.includes('pest')) return 'Pest Control Question';
+          if (content.includes('soil')) return 'Soil Question';
+          if (content.includes('water')) return 'Watering Question';
+          return 'Agricultural Question';
+        }
+      }
+      
       return 'New Conversation';
     }
   };
@@ -673,10 +744,10 @@ const ChatPage = () => {
   
   // Add suggestion topics with emojis
   const suggestionTopics = [
-    { icon: <Leaf className="text-green-500" />, text: "Best fertilizer for wheat" },
-    { icon: <Droplets className="text-blue-500" />, text: "How to grow snake plant" },
-    { icon: <Bug className="text-amber-500" />, text: "Common pests in tomato plants" },
-    { icon: <Check className="text-green-400" />, text: "Organic farming techniques" },
+    { icon: <Leaf className="text-green-500" size={14} />, text: "Best fertilizer for wheat" },
+    { icon: <Droplets className="text-blue-500" size={14} />, text: "How to grow snake plant" },
+    { icon: <Bug className="text-amber-500" size={14} />, text: "Common pests in tomato plants" },
+    { icon: <Check className="text-green-400" size={14} />, text: "Organic farming techniques" },
   ];
   
   const handleActionButton = (type: 'sources' | 'products' | 'experts') => {
@@ -1277,13 +1348,54 @@ const ChatPage = () => {
     </DialogContent>
   );
 
+  // Add scroll detection for showing/hiding scroll-to-top button
+  useEffect(() => {
+    if (!isMobile) return;
+    
+    const chatContainer = document.querySelector('.mobile-chat-container');
+    if (!chatContainer) return;
+    
+    const handleScroll = () => {
+      if (chatContainer.scrollTop > 300) {
+        setShowScrollTop(true);
+      } else {
+        setShowScrollTop(false);
+      }
+    };
+    
+    chatContainer.addEventListener('scroll', handleScroll);
+    return () => {
+      chatContainer.removeEventListener('scroll', handleScroll);
+    };
+  }, [isMobile]);
+  
+  // Function to scroll to top of chat
+  const scrollToTop = () => {
+    const chatContainer = document.querySelector('.mobile-chat-container');
+    if (chatContainer) {
+      chatContainer.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
+    }
+  };
+
   return (
-    <div className={`flex flex-col ${isMobile ? 'h-full' : 'h-screen'}`}>
+    <div className={`flex flex-col ${isMobile ? 'h-[100svh] min-h-[400px] overflow-hidden mobile-scrollbar-none scrollbar-hide' : 'h-screen scrollbar-hide'}`}>
       {/* Header - Only show on desktop, mobile uses AppLayout header */}
       {!isMobile && (
-        <div className="p-4 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
+        <div className="sticky top-0 z-40 p-4 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
           <div className="flex items-center space-x-3">
-            <h1 className="text-xl font-bold">Cropsay AI Assistant</h1>
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <button 
+                onClick={() => navigate("/")}
+                className="hover:text-white transition-colors"
+              >
+                <Home size={16} />
+              </button>
+              <ChevronRight size={14} />
+              <span className="text-white font-medium">Chat</span>
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
@@ -1330,14 +1442,23 @@ const ChatPage = () => {
         </div>
       )}
 
-      {/* Mobile Header - Sticky within the chat page */}
+      {/* Mobile Header - Fixed below app header */}
       {isMobile && (
-        <div className="sticky top-0 z-30 p-3 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
-          <div className="flex items-center space-x-3">
-            <h1 className="text-lg font-bold">Cropsay AI Assistant</h1>
+        <div className="fixed top-[50px] left-0 right-0 z-30 py-1.5 px-2 flex justify-between items-center shadow-sm border-b border-cropsay-grayDark/30 backdrop-blur-md bg-[#1E2735]/50">
+          <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-1.5 text-sm text-gray-400">
+              <button 
+                onClick={() => navigate("/")}
+                className="hover:text-white transition-colors"
+              >
+                <Home size={16} />
+              </button>
+              <ChevronRight size={12} />
+              <span className="text-white font-medium">Chat</span>
+            </div>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center space-x-1.5">
             {user && (
               <TooltipProvider>
                 <Tooltip>
@@ -1346,10 +1467,10 @@ const ChatPage = () => {
                       variant="ghost"
                       size="icon"
                       onClick={() => setShowChatHistory(true)}
-                      className="relative"
+                      className="relative h-8 w-8"
                       data-history-toggle
                     >
-                      <History size={20} />
+                      <History size={18} />
                       {chatSessions.length > 1 && (
                         <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
                           {chatSessions.length}
@@ -1368,10 +1489,11 @@ const ChatPage = () => {
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="h-8 w-8"
                     disabled={messages.length === 0}
                     onClick={startNewChat}
                   >
-                    <MessageSquare size={20} />
+                    <MessageSquare size={18} />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>New Chat</TooltipContent>
@@ -1381,38 +1503,93 @@ const ChatPage = () => {
         </div>
       )}
 
-      {/* Main Chat Area */}
-      <div className={`flex-1 ${isMobile ? 'overflow-y-auto overflow-x-hidden' : 'overflow-y-auto'} ${isMobile ? 'py-1' : 'py-6'} bg-[#1E2735] ${isMobile ? 'min-h-0' : ''}`}>
+      {/* Quota Exhaustion Banner */}
+      {quotaExhausted && (
+        <div className="bg-amber-600/20 border border-amber-600/30 rounded-lg p-3 mx-4 mb-4">
+          <div className="flex items-center space-x-2">
+            <div className="w-4 h-4 bg-amber-500 rounded-full flex-shrink-0"></div>
+            <div className="text-sm">
+              <p className="font-medium text-amber-200">Daily Usage Limit Reached</p>
+              <p className="text-amber-300 text-xs mt-1">
+                Our AI service has reached its daily quota. Please try again tomorrow or contact support for immediate assistance.
+              </p>
+            </div>
+            <button 
+              onClick={() => setQuotaExhausted(false)}
+              className="ml-auto text-amber-400 hover:text-amber-200 transition-colors"
+              title="Dismiss"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Main Chat Area - with padding top to account for fixed header */}
+      <div className={`flex-1 ${isMobile ? 'overflow-y-auto pt-[80px] pb-[85px] mobile-chat-container scrollbar-hide' : 'overflow-y-auto scrollbar-hide'} ${isMobile ? 'py-0' : 'py-6'} bg-[#1E2735] ${isMobile ? 'flex flex-col' : ''}`}>
         {loading ? (
           <div className="h-full flex flex-col justify-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
             <p className="mt-4 text-gray-400">Loading your conversations...</p>
           </div>
         ) : messages.length === 0 ? (
-          <div className={`${isMobile ? 'flex flex-col justify-start pt-8' : 'h-full flex flex-col justify-center items-center'}`}>
-            <div className={`text-center ${isMobile ? 'max-w-full px-3' : 'max-w-2xl'}`}>
-              <h2 className={`${isMobile ? 'text-xl mb-3' : 'text-4xl mb-8'} font-bold`}>
-                What do you want to know?
-              </h2>
-
-              <div className={`grid grid-cols-1 ${isMobile ? 'gap-2 mb-2' : 'sm:grid-cols-2 gap-3 mb-8'}`}>
-                {suggestionTopics.map((topic, index) => (
-                  <Card
-                    key={index}
-                    className="cursor-pointer hover:bg-[#2A3143] transition-colors bg-[#1E2735] border-[#2A3143]"
-                    onClick={() => setInput(topic.text)}
-                  >
-                    <CardContent className={`${isMobile ? 'p-3' : 'p-4'} flex items-center space-x-3`}>
-                      {topic.icon}
-                      <span className={`${isMobile ? 'text-xs' : 'text-sm'}`}>{topic.text}</span>
-                    </CardContent>
-                  </Card>
-                ))}
+          <>
+            {/* Desktop version */}
+            {!isMobile && (
+              <div className="h-full flex flex-col justify-center items-center">
+                <div className="text-center max-w-2xl">
+                  <h2 className="text-4xl mb-8 font-bold">
+                    What do you want to know?
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
+                    {suggestionTopics.map((topic, index) => (
+                      <Card
+                        key={index}
+                        className="cursor-pointer hover:bg-[#2A3143] transition-colors bg-[#1E2735] border-[#2A3143]"
+                        onClick={() => setInput(topic.text)}
+                      >
+                        <CardContent className="p-4 flex items-center space-x-3">
+                          {topic.icon}
+                          <span className="text-sm">{topic.text}</span>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+            
+            {/* Mobile version with compact layout */}
+            {isMobile && (
+              <div className="flex flex-col pt-4 pb-16 h-full">
+                <div className="flex-shrink-0 sticky top-[80px] bg-[#1E2735] py-3 px-4 text-center mb-4 z-30">
+                  <h2 className="text-xl font-bold text-white">
+                    What do you want to know?
+                  </h2>
+                </div>
+                <div className="flex-1 px-4 mt-2">
+                  <div className="grid grid-cols-1 gap-3">
+                    {suggestionTopics.map((topic, index) => (
+                      <Card
+                        key={index}
+                        className="cursor-pointer hover:bg-[#2A3143] transition-all duration-200 bg-[#1E2735] border-[#2A3143] hover:border-green-500/30 active:scale-[0.98]"
+                        onClick={() => setInput(topic.text)}
+                      >
+                        <CardContent className="py-3 px-4 flex items-center space-x-3">
+                          <div className="flex-shrink-0">
+                            {topic.icon}
+                          </div>
+                          <span className="text-sm text-gray-200 font-medium leading-relaxed">{topic.text}</span>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </>
         ) : (
-          <div className={`${isMobile ? 'pb-1 px-2' : 'pb-4'} ${isMobile ? 'max-w-full' : 'max-w-4xl'} mx-auto`}>
+          <div className={`${isMobile ? 'pb-24 pt-6 px-2 mobile-scrollbar-none scrollbar-hide' : 'pb-4 scrollbar-hide'} ${isMobile ? 'max-w-full' : 'max-w-4xl'} mx-auto`}>
             {messages.map((message, index) => (
               <div key={message.id} className={`${isMobile ? 'mb-2' : 'mb-6'} group/message`}>
                 {editingMessageId === message.id ? (
@@ -1567,22 +1744,27 @@ const ChatPage = () => {
       </div>
       
       {/* Chat Input */}
-      <div className={`${isMobile ? 'sticky bottom-0 w-full py-2 bg-[#1E2735] border-t border-[#2A3143]/30 z-20 flex-shrink-0' : 'sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30'}`}>
-        <div className={`${isMobile ? 'max-w-full px-2' : 'max-w-4xl px-4 md:px-8 lg:px-10'} mx-auto`}>
+      <div className={`${isMobile ? 'fixed bottom-[75px] left-0 right-0 z-30 p-2 mobile-chat-input' : 'sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30'}`}>
+        <div className={`${isMobile ? 'max-w-full mx-2.5' : 'max-w-4xl px-4 md:px-8 lg:px-10'} mx-auto`}>
           <form onSubmit={handleSubmit} className="relative flex flex-col">
-            <div className="relative flex items-start bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
+            <div className="relative flex items-center bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
               <textarea
                 ref={textareaRef}
                 value={input}
                 onChange={handleInputChange}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask anything..."
-                className={`flex-1 ${isMobile ? 'py-3 pl-3 pr-16' : 'py-4 pl-4 pr-20'} bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none ${isMobile ? 'h-10' : 'h-12'} max-h-[200px] overflow-y-auto`}
-                style={{ minHeight: isMobile ? '48px' : '64px' }}
+                placeholder={quotaExhausted ? "Daily usage limit reached - try again tomorrow" : "Ask anything..."}
+                disabled={quotaExhausted}
+                className={`flex-1 ${isMobile ? 'py-3 pl-3 pr-14 mobile-scrollbar-none' : 'py-4 pl-4 pr-20'} bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none ${isMobile ? 'h-10' : 'h-12'} max-h-[200px] overflow-y-auto flex items-center`}
+                style={{ 
+                  minHeight: isMobile ? '42px' : '64px', 
+                  maxHeight: isMobile ? '80px' : '200px',
+                  lineHeight: isMobile ? '1.2' : '1.5'
+                }}
                 rows={1}
               />
 
-              <div className={`absolute ${isMobile ? 'right-2' : 'right-3'} top-1/2 transform -translate-y-1/2 flex items-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
+              <div className={`absolute ${isMobile ? 'right-2' : 'right-3'} top-1/2 transform -translate-y-1/2 flex items-center justify-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
                 <button
                   type="button"
                   onClick={handleMicClick}
@@ -1621,6 +1803,17 @@ const ChatPage = () => {
           </form>
         </div>
       </div>
+
+      {/* Mobile Scroll to Top Button */}
+      {isMobile && showScrollTop && (
+        <button 
+          onClick={scrollToTop}
+          className="fixed right-3 bottom-[180px] z-30 p-2 rounded-full bg-green-600/90 text-white shadow-lg"
+          aria-label="Scroll to top"
+        >
+          <ChevronUp size={20} />
+        </button>
+      )}
 
       {/* Chat History Dialog */}
       {user && (
@@ -1669,8 +1862,7 @@ const ChatPage = () => {
           <AlertDialogFooter>
             <AlertDialogCancel>Cancel</AlertDialogCancel>
             <AlertDialogAction onClick={() => navigate('/auth')}>
-              Login
- to Chat More
+              Login to Chat More
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

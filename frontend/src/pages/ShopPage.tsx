@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, ShoppingCartIcon, X, ShoppingBag } from 'lucide-react';
+import { Search, Filter, ShoppingCartIcon, X, ShoppingBag, Home, ChevronRight, Leaf, Zap, Wrench, Package, Star } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { CartItemQuantity, ShoppingCart, ShoppingCartButton } from '@/components/ShoppingCart';
@@ -19,278 +19,73 @@ import { cn } from '@/lib/utils';
 
 const ShopPage = () => {
   const [activeCategory, setActiveCategory] = useState('All Products');
-  const [activeSubcategories, setActiveSubcategories] = useState<string[]>([]);
-  const [showSubcategories, setShowSubcategories] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
-  const [recommendedProducts, setRecommendedProducts] = useState<Product[]>([]);
-  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [connectionStatus, setConnectionStatus] = useState<string>('Checking connection...');
-  const { items, addItem, openCart } = useCart();
+  const [sortBy, setSortBy] = useState<'popular' | 'price-low' | 'price-high' | 'newest'>('popular');
+  const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
+
+  const { items, openCart } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
 
-  // Get categories and subcategories 
   const categories = getCategories();
-  // Create a mapping of categories to their subcategories
-  const categorySubcategories = categories.reduce((acc, category) => {
-    return { ...acc, [category]: getSubcategories(category) };
-  }, {} as Record<string, string[]>);
+  
+  // Search suggestions for animated placeholder
+  const searchSuggestions = [
+    "Search for seeds, fertilizers & more...",
+    "Search: organic tomato seeds",
+    "Search: NPK fertilizer", 
+    "Search: garden tools",
+    "Search: pesticides",
+    "Search: irrigation equipment",
+    "Search: greenhouse supplies",
+    "Search: soil amendments"
+  ];
 
-  // Function to load all products
-  const loadAllProducts = async () => {
-    setIsLoading(true);
-    setError(null);
+  // Animated placeholder effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentPlaceholderIndex((prev) => (prev + 1) % searchSuggestions.length);
+    }, 3000); // Change every 3 seconds for better readability
+
+    return () => clearInterval(interval);
+  }, [searchSuggestions.length]);
+
+  // Load products
+  const loadProducts = useCallback(async () => {
     try {
-      console.log("Loading all products from database...");
-      const databaseProducts = await fetchProducts();
-      console.log(`Fetched ${databaseProducts.length} products from database`);
-      
-      // Log category and subcategory information to help with debugging filter issues
-      import('@/services/logService').then(({ logProductCategories }) => {
-        logProductCategories(databaseProducts, "All Products");
-      });
-      
-      setProducts(databaseProducts);
-    } catch (error) {
-      console.error('Error loading products:', error);
-      setError('Failed to load products. Please try again later.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Function to handle creating a test product
-  const handleCreateTestProduct = async () => {
-    setIsLoading(true);
-    const result = await insertTestProduct();
-    
-    if (result.success) {
+      setIsLoading(true);
       setError(null);
-      loadAllProducts(); // Reload products to show the new test product
-    } else {
-      setError(`Failed to create test product: ${result.message}`);
-      setIsLoading(false);
-    }
-  };
-
-  const clearFilters = () => {
-    setActiveCategory('All Products');
-    setActiveSubcategories([]);
-    setSearchQuery('');
-    setShowSubcategories(false);
-    
-    // Reset to all products
-    loadAllProducts();
-  };
-  
-  // Test Supabase connection when component mounts
-  useEffect(() => {
-    const testConnection = async () => {
-      // Test basic connection
-      const connectionResult = await testSupabaseConnection();
-      console.log('Supabase connection test:', connectionResult);
       
-      if (!connectionResult.success) {
-        setConnectionStatus(`Connection Error: ${connectionResult.message}`);
-        setError(`Failed to connect to database: ${connectionResult.message}`);
-        setIsLoading(false);
-        return;
-      }
+      let fetchedProducts: Product[] = [];
       
-      // Test products table access
-      const productsResult = await testProductsAccess();
-      console.log('Products access test:', productsResult);
-      
-      if (!productsResult.success) {
-        setConnectionStatus(`Products Error: ${productsResult.message}`);
-        setError(`Failed to access products table: ${productsResult.message}`);
-        setIsLoading(false);
-        return;
-      }
-      
-      setConnectionStatus('Connection successful');
-      // Continue with normal product loading
-      loadAllProducts();
-    };
-    
-    testConnection();
-  }, []);
-  
-  // Update subcategories when category changes
-  useEffect(() => {
-    setActiveSubcategories([]);
-    setShowSubcategories(activeCategory !== 'All Products');
-  }, [activeCategory]);
-  
-  // Function to fetch recommendations
-  const fetchRecommendations = useCallback(async () => {
-    setIsLoadingRecommendations(true);
-    // Clear any existing recommendations first to avoid showing stale data
-    setRecommendedProducts([]);
-    
-    try {
-      if (selectedProduct) {
-        // If a product is selected, show related products
-        setRecommendedProducts(getRecommendedProducts(selectedProduct.id, selectedProduct.category, 3));
-      } else if (user) {
-        // If user is logged in and no product is selected, get recommendations from chat
-        try {
-          const chatRecommendations = await getRecommendationsFromChat(user.id, 3);
-          setRecommendedProducts(chatRecommendations.length > 0 ? chatRecommendations : []);
-        } catch (chatError) {
-          console.error('Error fetching chat recommendations:', chatError);
-          setRecommendedProducts([]);
-        }
+      if (searchQuery.trim()) {
+        fetchedProducts = await searchProducts(searchQuery);
+      } else if (activeCategory === 'All Products') {
+        fetchedProducts = await fetchProducts();
       } else {
-        // If no user is logged in and no product is selected, show empty recommendations
-        setRecommendedProducts([]);
+        fetchedProducts = await getProductsByCategory(activeCategory);
       }
-    } catch (error) {
-      console.error('Error fetching recommendations:', error);
-      setRecommendedProducts([]);
-    } finally {
-      setIsLoadingRecommendations(false);
-    }
-  }, [selectedProduct, user]);
-  
-  const filteredProducts = products.filter(product => {
-    // Filter by category
-    if (activeCategory !== 'All Products' && product.category !== activeCategory) {
-      return false;
-    }
-    
-    // Filter by subcategory if any are selected
-    if (activeSubcategories.length > 0 && !activeSubcategories.includes(product.subcategory)) {
-      return false;
-    }
-    
-    // Filter by search query
-    if (searchQuery && !product.name.toLowerCase().includes(searchQuery.toLowerCase())) {
-      return false;
-    }
-    
-    return true;
-  });
-  
-  const handleAddToCart = (product: Product) => {
-    addItem(product);
-  };
-  
-  const cartItemForProduct = (productId: number) => {
-    return items.find(item => item.id === productId);
-  };
-  
-  const toggleSubcategory = (subcategory: string) => {
-    setActiveSubcategories(prev => 
-      prev.includes(subcategory)
-        ? prev.filter(sc => sc !== subcategory)
-        : [...prev, subcategory]
-    );
-  };
-  
-  // Add search functionality
-  const handleSearch = async (searchTerm: string) => {
-    if (searchTerm.trim() === '') {
-      // If search is cleared, load all products
-      loadAllProducts();
-    } else {
-      // Perform search
-      setIsLoading(true);
-      setError(null);
-      try {
-        console.log(`Searching for products with term: "${searchTerm}"`);
-        const searchResults = await searchProducts(searchTerm);
-        console.log(`Found ${searchResults.length} products matching "${searchTerm}"`);
-        setProducts(searchResults);
-      } catch (error) {
-        console.error('Error searching products:', error);
-        setError('Failed to search products. Please try again later.');
-      } finally {
-        setIsLoading(false);
-      }
-    }
-  };
-  
-  // Use debounce for search to avoid too many API calls
-  useEffect(() => {
-    const debounceTimeout = setTimeout(() => {
-      handleSearch(searchQuery);
-    }, 500);
-
-    return () => clearTimeout(debounceTimeout);
-  }, [searchQuery]);
-  
-  // Handle category filter
-  useEffect(() => {
-    // Skip if this effect runs on mount
-    if (isLoading) return;
-    
-    if (activeCategory !== 'All Products') {
-      setIsLoading(true);
-      setError(null);
       
-      // Filter by category
-      console.log(`Fetching products for category: ${activeCategory}`);
-      getProductsByCategory(activeCategory)
-        .then(categoryProducts => {
-          console.log(`Found ${categoryProducts.length} products in category "${activeCategory}"`);
-          setProducts(categoryProducts);
-          setIsLoading(false);
-        })
-        .catch(error => {
-          console.error('Error filtering by category:', error);
-          setError('Failed to filter by category. Please try again later.');
-          setIsLoading(false);
-        });
-    } else if (!searchQuery) {
-      // If no category filter or search, load all products
-      loadAllProducts();
+      setProducts(fetchedProducts);
+    } catch (err) {
+      console.error('Error loading products:', err);
+      setError('Failed to load products. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
-  }, [activeCategory]);
-  
-  // Update recommended products when dependencies change
-  useEffect(() => {
-    fetchRecommendations();
-    
-    // Cleanup function to clear recommendations when component unmounts
-    return () => {
-      setRecommendedProducts([]);
-    };
-  }, [fetchRecommendations]);
-  
-  // Force refresh recommendations when component mounts
-  useEffect(() => {
-    // Clear any existing recommendations first
-    setRecommendedProducts([]);
-    
-    // Small delay to ensure state is updated before fetching
-    const timer = setTimeout(() => {
-      fetchRecommendations();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, []);
-  
-  // Force clear recommendations when user changes
-  useEffect(() => {
-    setRecommendedProducts([]);
-    
-    // Small delay to ensure state is updated before fetching
-    const timer = setTimeout(() => {
-      fetchRecommendations();
-    }, 100);
-    
-    return () => clearTimeout(timer);
-  }, [user]);
+  }, [searchQuery, activeCategory]);
 
-  // Handle URL search parameters
+  useEffect(() => {
+    loadProducts();
+  }, [loadProducts]);
+
   useEffect(() => {
     const urlSearchQuery = searchParams.get('search');
     if (urlSearchQuery) {
@@ -298,308 +93,527 @@ const ShopPage = () => {
     }
   }, [searchParams]);
 
+  // Filter and sort products
+  const filteredProducts = React.useMemo(() => {
+    let filtered = [...products];
+
+    // Sort products
+    switch (sortBy) {
+      case 'price-low':
+        filtered.sort((a, b) => a.price - b.price);
+        break;
+      case 'price-high':
+        filtered.sort((a, b) => b.price - a.price);
+        break;
+      case 'newest':
+        // Assuming products have a date field or use reverse order
+        filtered.reverse();
+        break;
+      case 'popular':
+      default:
+        // Keep original order (assumed to be popular)
+        break;
+    }
+
+    return filtered;
+  }, [products, sortBy]);
+
+  const clearFilters = () => {
+    setActiveCategory('All Products');
+    setSearchQuery('');
+    navigate('/shop', { replace: true });
+  };
 
   return (
-    <div className="h-screen flex flex-col bg-[#1E2735]">
-      {/* Fixed header with search and filters */}
-      <div className="border-b border-[#2A3143] p-3 sm:p-4 sticky top-0 z-10 bg-[#1E2735]">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 sm:gap-0">
-          <h1 className="text-lg sm:text-xl lg:text-2xl font-bold">Shop Agricultural Products</h1>
-          {connectionStatus && connectionStatus !== 'Connection successful' && (
-            <div className="text-xs font-medium px-2 py-1 rounded bg-amber-600/20 text-amber-400 self-start sm:self-auto">
-              {connectionStatus}
-            </div>
-          )}
-        </div>
-
-        <div className={cn(
-          "flex items-center gap-2 mt-3 sm:mt-4",
-          isMobile ? "flex-col space-y-2" : "flex-row"
-        )}>
-          <div className="relative flex-1 w-full">
-            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText" />
-            <input
-              type="text"
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className={cn(
-                "w-full bg-[#10141E] border border-[#2A3143] rounded-lg pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all",
-                isMobile ? "py-3 text-base" : "py-2"
-              )}
-            />
-          </div>
-
-          <div className={cn(
-            "flex gap-2",
-            isMobile ? "w-full justify-between" : ""
-          )}>
-            <button
-              className={cn(
-                "action-button bg-[#10141E] hover:bg-[#2A3143] touch-target",
-                isMobile ? "flex-1 justify-center py-3" : ""
-              )}
-              onClick={() => navigate("/orders")}
-            >
-              <ShoppingBag size={18} />
-              <span>Orders</span>
-            </button>
-            <button
-              onClick={openCart}
-              className={cn(
-                "relative bg-[#10141E] hover:bg-[#2A3143] rounded-lg transition-colors touch-target",
-                isMobile ? "p-3" : "p-2"
-              )}
-              aria-label={`View cart with ${items.length} items`}
-            >
-              <ShoppingCartIcon size={20} />
-              <span className="absolute -top-1 -right-1 bg-cropsay-green text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
-                {items.reduce((total, item) => total + item.quantity, 0)}
-              </span>
-            </button>
-          </div>
-        </div>
-      </div>
-
+    <>
+      <style>{`
+        @keyframes fadeInOut {
+          0% { 
+            opacity: 0; 
+            transform: translateY(8px);
+            filter: blur(2px);
+          }
+          15% { 
+            opacity: 1; 
+            transform: translateY(0);
+            filter: blur(0px);
+          }
+          85% { 
+            opacity: 1; 
+            transform: translateY(0);
+            filter: blur(0px);
+          }
+          100% { 
+            opacity: 0; 
+            transform: translateY(-8px);
+            filter: blur(2px);
+          }
+        }
+        
+        .search-placeholder {
+          animation: fadeInOut 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+      `}</style>
+      <div className="min-h-screen bg-[#1E2735]">
+      {/* Header - Breadcrumb and Actions */}
       <div className={cn(
-        "flex flex-1 overflow-hidden",
-        isMobile ? "flex-col" : "flex-row"
+        "sticky z-40 bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] shadow-lg",
+        isMobile ? "top-0 -mt-px" : "top-0" // Use negative margin instead of negative top
       )}>
-        {/* Sidebar for filters and recommendations */}
+        {/* Breadcrumb and Actions Row */}
         <div className={cn(
-          "bg-[#1E2735] border-[#2A3143] overflow-y-auto",
-          isMobile
-            ? "w-full p-3 border-b max-h-48"
-            : "w-64 p-4 border-r h-[calc(100vh-88px)] sticky top-[88px]"
+          isMobile ? "px-4 py-1" : "px-8 py-1.5" // Further reduced padding for less height
         )}>
-          {/* Filters */}
-          <div className="mb-6">
-            <div className="flex justify-between items-center mb-2">
-              <h2 className="font-bold">Filters</h2>
-              {(activeCategory !== 'All Products' || activeSubcategories.length > 0 || searchQuery) && (
-                <button 
-                  onClick={clearFilters}
-                  className="text-xs text-cropsay-green hover:underline"
+          <div className="flex items-center justify-between">
+            {/* Left - Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-gray-400 flex-shrink-0"> {/* Increased gap for better spacing */}
+              <button 
+                onClick={() => navigate("/")}
+                className="hover:text-white transition-all duration-200 p-1 rounded-md hover:bg-[#2A3143]" // Enhanced hover effect
+              >
+                <Home size={isMobile ? 16 : 18} /> {/* Slightly larger icons */}
+              </button>
+              <ChevronRight size={isMobile ? 12 : 14} className="text-gray-500" /> {/* Better color contrast */}
+              <span className={cn("text-white font-semibold", isMobile ? "text-sm" : "text-base")}>Shop</span> {/* Improved typography */}
+            </div>
+
+            {/* Center-Right - Search (Desktop only) */}
+            {!isMobile && (
+              <div className="flex-1 flex justify-center ml-8 mr-8">
+                <div className="relative w-[600px] max-w-[600px]">
+                  <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
+                  <input
+                    type="text"
+                    placeholder=""
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full bg-gradient-to-r from-[#10141E] to-[#0F1318] border border-[#2A3143] rounded-xl pl-12 pr-6 py-4 text-white placeholder-transparent focus:border-cropsay-green focus:ring-2 focus:ring-cropsay-green/25 outline-none transition-all duration-300 hover:border-gray-300 shadow-lg hover:shadow-xl"
+                    style={{
+                      fontSize: '16px',
+                      fontWeight: '400'
+                    }}
+                  />
+                  {/* Animated placeholder overlay */}
+                  {!searchQuery && (
+                    <div className="absolute left-12 top-1/2 transform -translate-y-1/2 pointer-events-none overflow-hidden">
+                      <span 
+                        key={currentPlaceholderIndex}
+                        className="text-gray-400 block search-placeholder"
+                        style={{
+                          fontSize: '16px',
+                          fontWeight: '400',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        {searchSuggestions[currentPlaceholderIndex]}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Right - Filter and Orders */}
+            <div className="flex items-center gap-2 flex-shrink-0"> {/* Better spacing */}
+              <button
+                onClick={() => setShowFilters(true)}
+                className={cn(
+                  "flex items-center rounded-xl transition-all duration-200 text-white border border-[#2A3143] bg-gradient-to-b from-[#10141E] to-[#0D1015] hover:from-[#2A3143] hover:to-[#242936] shadow-md hover:shadow-lg",
+                  isMobile ? "p-2" : "gap-2 px-3 py-2" // Better mobile padding
+                )}
+              >
+                <Filter size={isMobile ? 16 : 18} />
+                {!isMobile && <span className="font-medium">Filter</span>}
+              </button>
+              <button
+                onClick={() => navigate("/orders")}
+                className={cn(
+                  "flex items-center rounded-xl transition-all duration-200 text-white border border-[#2A3143] bg-gradient-to-b from-[#10141E] to-[#0D1015] hover:from-[#2A3143] hover:to-[#242936] shadow-md hover:shadow-lg",
+                  isMobile ? "p-2" : "gap-2 px-3 py-2" // Better mobile padding
+                )}
+              >
+                <ShoppingBag size={isMobile ? 16 : 18} />
+                {!isMobile && <span className="font-medium">Orders</span>}
+              </button>
+              {/* Only show cart icon on desktop */}
+              {!isMobile && (
+                <button
+                  onClick={openCart}
+                  className="relative p-2.5 bg-gradient-to-b from-[#10141E] to-[#0D1015] hover:from-[#2A3143] hover:to-[#242936] rounded-xl transition-all duration-200 border border-[#2A3143] shadow-md hover:shadow-lg"
                 >
-                  Clear All
+                  <ShoppingCartIcon size={20} className="text-white" />
+                  {items.length > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-gradient-to-r from-cropsay-green to-green-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center font-semibold shadow-lg">
+                      {items.reduce((total, item) => total + item.quantity, 0)}
+                    </span>
+                  )}
                 </button>
               )}
             </div>
-            
-            <div className="mb-4">
-              <h3 className="text-sm font-medium mb-2">Categories</h3>
-              <div className="space-y-1">
+          </div>
+        </div>
+
+        {/* Categories, Product count and Sort row */}
+        <div className={cn(
+          "border-t border-[#2A3143] bg-gradient-to-b from-[#1A1F2E] to-[#171C29] backdrop-blur-sm",
+          isMobile ? "px-4 py-1" : "px-8 py-1.5" // Further reduced padding for less height
+        )}>
+          {/* Mobile layout - stacked */}
+          {isMobile ? (
+            <div className="flex flex-col space-y-2.5"> {/* Better spacing */}
+              {/* Categories */}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide"> {/* Better gap */}
                 <button
-                  key="all-products"
-                  className={`block w-full text-left px-3 py-1.5 rounded text-sm ${
-                    activeCategory === 'All Products' 
-                      ? 'bg-cropsay-green text-white' 
-                      : 'bg-[#10141E] hover:bg-[#2A3143]'
-                  }`}
                   onClick={() => setActiveCategory('All Products')}
+                  className={cn(
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border shadow-sm", // Better padding and animation
+                    activeCategory === 'All Products'
+                      ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-md"
+                      : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
+                  )}
                 >
-                  All Products
+                  All
                 </button>
                 {categories.map(category => (
                   <button
                     key={category}
-                    className={`block w-full text-left px-3 py-1.5 rounded text-sm ${
-                      activeCategory === category 
-                        ? 'bg-cropsay-green text-white' 
-                        : 'bg-[#10141E] hover:bg-[#2A3143]'
-                    }`}
                     onClick={() => setActiveCategory(category)}
+                    className={cn(
+                      "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-2 shadow-sm", // Better styling
+                      activeCategory === category
+                        ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-md"
+                        : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
+                    )}
                   >
+                    {category === 'Seeds' && <Leaf size={14} />} {/* Appropriate icon size */}
+                    {category === 'Fertilizers' && <Zap size={14} />}
+                    {category === 'Tools' && <Wrench size={14} />}
                     {category}
                   </button>
                 ))}
               </div>
-            </div>
-            
-            {showSubcategories && categorySubcategories[activeCategory] && (
-              <div className="mb-4">
-                <h3 className="text-sm font-medium mb-2">Subcategories</h3>
-                <div className="space-y-1">
-                  {categorySubcategories[activeCategory].map(subcategory => (
-                    <div key={subcategory} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        id={`subcategory-${subcategory}`}
-                        checked={activeSubcategories.includes(subcategory)}
-                        onChange={() => toggleSubcategory(subcategory)}
-                        className="mr-2 h-4 w-4 rounded border-gray-300 text-cropsay-green focus:ring-cropsay-green"
-                      />
-                      <label 
-                        htmlFor={`subcategory-${subcategory}`}
-                        className="text-sm cursor-pointer"
-                      >
-                        {subcategory}
-                      </label>
-                    </div>
-                  ))}
+              
+              {/* Product count and Sort */}
+              <div className="flex items-center justify-between">
+                <p className="text-sm text-gray-400 font-medium"> {/* Better typography */}
+                  {filteredProducts.length} products
+                </p>
+                <div className="flex items-center gap-2"> {/* Better gap */}
+                  <span className="text-sm text-gray-400 font-medium">Sort:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
+                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-3 py-1 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[110px] shadow-sm" // Better styling
+                  >
+                    <option value="popular">Popular</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="newest">Newest</option>
+                  </select>
                 </div>
               </div>
-            )}
-          </div>
-          
-          {/* Recommended Products */}
-          <div>
-            <h2 className="font-bold mb-2">Recommended Products</h2>
-            {isLoadingRecommendations ? (
-              <div className="flex justify-center items-center h-32">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cropsay-green"></div>
-              </div>
-            ) : recommendedProducts.length > 0 ? (
-              <div className="space-y-3">
-                {recommendedProducts.map(product => (
-                  <div 
-                    key={`rec-${product.id}`} 
-                    className="bg-[#10141E] rounded-lg p-2 cursor-pointer hover:bg-[#2A3143]"
-                    onClick={() => setSelectedProduct(product)}
-                  >
-                    <div className="flex items-start">
-                      <div className="w-12 h-12 bg-[#2A3143] rounded mr-2 flex-shrink-0 flex items-center justify-center text-xs text-cropsay-grayText">{product.category.charAt(0)}</div>
-                      <div>
-                        <h3 className="text-sm font-medium">{product.name}</h3>
-                        <div className="flex items-center mt-1">
-                          <span className="text-yellow-400 text-xs mr-1">★</span>
-                          <span className="text-xs">{product.rating}</span>
-                          <span className="text-xs ml-2 text-cropsay-grayText">₹ {product.price}</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-4 text-gray-400">
-                No recommendations available
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Main content */}
-        <div className={cn(
-          "flex-1 overflow-y-auto",
-          isMobile ? "h-[calc(100vh-200px)]" : "h-[calc(100vh-88px)]"
-        )}>
-          {/* Active filters */}
-          <div className={cn(
-            "sticky top-0 bg-[#1E2735] z-10 pb-2",
-            isMobile ? "p-3" : "p-4"
-          )}>
-            {(activeCategory !== 'All Products' || activeSubcategories.length > 0) && (
-              <div className="flex flex-wrap gap-2 mb-4">
-                {activeCategory !== 'All Products' && (
-                  <div className="bg-cropsay-green bg-opacity-20 text-cropsay-green px-3 py-1 rounded-full text-sm flex items-center">
-                    {activeCategory}
-                    <button 
-                      onClick={() => setActiveCategory('All Products')}
-                      className="ml-2"
-                   > 
-                      <X size={14} />
-                    </button>
-                  </div>
-                )}
-              
-  
-                {activeSubcategories.map(subcategory => (
-                  <div 
-                    key={`filter-${subcategory}`}
-                    className="bg-cropsay-green bg-opacity-20 text-cropsay-green px-3 py-1 rounded-full text-sm flex items-center"
-                  >
-                    {subcategory}
-                    <button 
-                      onClick={() => toggleSubcategory(subcategory)}
-                      className="ml-2"
-                    >
-                      <X size={14} />
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-          
-  
-            {/* Products count */}
-            <div className="mb-4">
-              <p className="text-sm text-cropsay-grayText">
-                Showing {filteredProducts.length} products
-              </p>
             </div>
-          </div>
-          
-          {/* Products grid - this is the only scrollable part */}
-          <div className="px-4 pb-20 flex-1 overflow-y-auto">
+          ) : (
+            /* Desktop layout - categories, product count, and sort in one row */
+            <div className="flex items-center justify-between">
+              {/* Categories - Left */}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide flex-1">
+                <button
+                  onClick={() => setActiveCategory('All Products')}
+                  className={cn(
+                    "flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors border",
+                    activeCategory === 'All Products'
+                      ? "bg-[#4A5568] text-white border-[#4A5568]"
+                      : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143]"
+                  )}
+                >
+                  All
+                </button>
+                {categories.map(category => (
+                  <button
+                    key={category}
+                    onClick={() => setActiveCategory(category)}
+                    className={cn(
+                      "flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors border flex items-center gap-2",
+                      activeCategory === category
+                        ? "bg-cropsay-green text-white border-cropsay-green"
+                        : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143]"
+                    )}
+                  >
+                    {category === 'Seeds' && <Leaf size={16} />}
+                    {category === 'Fertilizers' && <Zap size={16} />}
+                    {category === 'Tools' && <Wrench size={16} />}
+                    {category}
+                  </button>
+                ))}
+              </div>
+              
+              {/* Right side - Product count and Sort */}
+              <div className="flex items-center gap-6 flex-shrink-0">
+                {/* Product count */}
+                <p className="text-sm text-gray-400 whitespace-nowrap">
+                  {filteredProducts.length} products
+                </p>
+
+                {/* Sort */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-gray-400">Sort:</span>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
+                    className="bg-[#10141E] border border-[#2A3143] rounded-lg px-3 py-1.5 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[120px]"
+                  >
+                    <option value="popular">Popular</option>
+                    <option value="price-low">Price: Low to High</option>
+                    <option value="price-high">Price: High to Low</option>
+                    <option value="newest">Newest</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Products Grid - Only this section scrollable */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto custom-scrollbar">
+          <div className={cn(
+            "p-4",
+            isMobile ? "pb-20" : "pb-4 px-8" // Add side padding for desktop
+          )}>
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
-                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-cropsay-green"></div>
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cropsay-green"></div>
               </div>
             ) : error ? (
-              <div className="text-center py-16 text-red-400">
-                <h3 className="text-xl mb-2">Error</h3>
-                <p>{error}</p>
-                <div className="flex justify-center mt-4 space-x-4">
-                  <button
-                    onClick={loadAllProducts}
-                    className="px-4 py-2 bg-cropsay-green text-white rounded-md"
-                  >
-                    Try Again
-                  </button>
-                  <button
-                    onClick={handleCreateTestProduct}
-                    className="px-4 py-2 bg-amber-600 text-white rounded-md"
-                  >
-                    Create Test Product
-                  </button>
-                </div>
+              <div className="text-center py-8 text-red-400">
+                <p className="mb-2">Error loading products</p>
+                <button 
+                  onClick={() => window.location.reload()}
+                  className="text-sm underline hover:no-underline"
+                >
+                  Try again
+                </button>
               </div>
             ) : filteredProducts.length === 0 ? (
-              <div className="text-center py-16">
-                <h3 className="text-xl mb-2">No Products Found</h3>
-                <p className="text-cropsay-grayText">Try adjusting your filters or search.</p>
-                <div className="flex justify-center mt-4 space-x-4">
+              <div className="text-center py-12">
+                <div className="text-gray-400 mb-4">
+                  <Package size={48} className="mx-auto mb-2 opacity-50" />
+                  <p className="text-lg mb-1">No products found</p>
+                  <p className="text-sm">Try adjusting your search or filters</p>
+                </div>
+                {(searchQuery || activeCategory !== 'All Products') && (
                   <button
                     onClick={clearFilters}
-                    className="px-4 py-2 bg-cropsay-green text-white rounded-md"
+                    className="text-cropsay-green hover:underline text-sm mt-2"
                   >
-                    Clear Filters
+                    Clear all filters
                   </button>
-                  <button
-                    onClick={handleCreateTestProduct}
-                    className="px-4 py-2 bg-amber-600 text-white rounded-md"
-                  >
-                    Create Test Product
-                  </button>
-                </div>
+                )}
               </div>
             ) : (
               <div className={cn(
-                "grid gap-3",
-                isMobile
-                  ? "grid-cols-2"
-                  : "grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                "grid gap-4",
+                isMobile 
+                  ? "grid-cols-2" 
+                  : "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7" // Better responsive breakpoints
               )}>
                 {filteredProducts.map(product => (
-                  <ProductCard key={product.id} product={product} />
+                  <ProductCard
+                    key={product.id}
+                    product={product}
+                    onClick={() => setSelectedProduct(product)}
+                  />
                 ))}
               </div>
             )}
           </div>
         </div>
       </div>
-      
-      {/* Floating cart button for mobile view */}
-      {items.length > 0 && (
-        <div className="fixed bottom-6 left-1/2 transform -translate-x-1/2 z-20 md:hidden">
-          <ShoppingCartButton />
+
+      {/* Filter Modal */}
+      {showFilters && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex" onClick={() => setShowFilters(false)}>
+          <div 
+            className="bg-[#1E2735] w-full max-w-sm ml-auto h-full overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Filter Header */}
+            <div className="sticky top-0 bg-[#1E2735] border-b border-[#2A3143] p-4 flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-white flex items-center gap-2">
+                <Filter size={20} />
+                Filters
+              </h2>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={clearFilters}
+                  className="text-sm text-cropsay-green hover:underline"
+                >
+                  Reset All
+                </button>
+                <button
+                  onClick={() => setShowFilters(false)}
+                  className="p-1 hover:bg-[#2A3143] rounded-full text-white"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+            </div>
+
+            {/* Filter Content */}
+            <div className="p-4 space-y-6">
+              {/* Categories */}
+              <div>
+                <h3 className="text-base font-medium text-white mb-3">Categories</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="category"
+                      checked={activeCategory === 'All Products'}
+                      onChange={() => {
+                        setActiveCategory('All Products');
+                        setShowFilters(false);
+                      }}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">All</span>
+                  </label>
+                  {categories.map((category) => (
+                    <label key={category} className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="category"
+                        checked={activeCategory === category}
+                        onChange={() => {
+                          setActiveCategory(category);
+                          setShowFilters(false);
+                        }}
+                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                      />
+                      <span className="ml-2 text-sm text-gray-300 flex items-center gap-2">
+                        {category === 'Seeds' && <Leaf size={16} className="text-cropsay-green" />}
+                        {category === 'Fertilizers' && <Zap size={16} className="text-cropsay-green" />}
+                        {category === 'Tools' && <Wrench size={16} className="text-cropsay-green" />}
+                        {category}
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Price Range */}
+              <div>
+                <h3 className="text-base font-medium text-white mb-3">Price Range</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">Under ₹1,000</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">₹1,000 - ₹2,500</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">₹2,500 - ₹5,000</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">Above ₹5,000</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Rating */}
+              <div>
+                <h3 className="text-base font-medium text-white mb-3">Rating</h3>
+                <div className="space-y-2">
+                  {[5, 4, 3, 2, 1].map((rating) => (
+                    <label key={rating} className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300 flex items-center gap-1">
+                        {Array.from({ length: rating }, (_, i) => (
+                          <Star key={i} size={14} className="fill-yellow-400 text-yellow-400" />
+                        ))}
+                        <span className="ml-1">& up</span>
+                      </span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Product detail modal */}
+      {selectedProduct && (
+        <div 
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
+          onClick={() => setSelectedProduct(null)}
+        >
+          <div 
+            className="bg-[#1E2735] rounded-lg p-6 max-w-md w-full border border-[#2A3143] max-h-[90vh] overflow-y-auto"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex justify-between items-start mb-4">
+              <h2 className="text-xl font-bold text-white">{selectedProduct.name}</h2>
+              <button
+                onClick={() => setSelectedProduct(null)}
+                className="text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={24} />
+              </button>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="bg-[#2A3143] rounded-lg p-4 text-center">
+                <div className="text-4xl mb-2">🌱</div>
+                <p className="text-gray-300 text-sm">{selectedProduct.description}</p>
+              </div>
+              
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="text-2xl font-bold text-cropsay-green">
+                    ₹{selectedProduct.price.toLocaleString()}
+                  </span>
+                </div>
+                <div className="text-right">
+                  <p className="text-sm text-gray-400">Category</p>
+                  <p className="text-white">{selectedProduct.category}</p>
+                </div>
+              </div>
+
+              <CartItemQuantity 
+                id={selectedProduct.id} 
+                quantity={items.find(item => item.id === selectedProduct.id)?.quantity || 0}
+              />
+            </div>
+          </div>
         </div>
       )}
       
-      {/* Shopping Cart Dialog */}
       <ShoppingCart />
     </div>
+    </>
   );
 };
 

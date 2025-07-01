@@ -122,58 +122,36 @@ END $$;
 -- STEP 5: Set up Row Level Security for products
 ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
 
-DO $$
-BEGIN
-  -- Anyone can read products
-  IF NOT EXISTS (
-    SELECT FROM pg_policies 
-    WHERE tablename = 'products' 
-    AND policyname = 'Anyone can read products'
-  ) THEN
-    CREATE POLICY "Anyone can read products" 
-      ON public.products FOR SELECT 
-      USING (TRUE);
-  END IF;
+-- Drop existing policies to avoid conflicts
+DROP POLICY IF EXISTS "Anyone can read products" ON public.products;
+DROP POLICY IF EXISTS "Sellers can insert their own products" ON public.products;
+DROP POLICY IF EXISTS "Sellers can update their own products" ON public.products;
+DROP POLICY IF EXISTS "Sellers can delete their own products" ON public.products;
+
+-- Create updated policies
+CREATE POLICY "Anyone can read products" 
+  ON public.products FOR SELECT 
+  USING (TRUE);
   
-  -- Sellers can insert their own products
-  IF NOT EXISTS (
-    SELECT FROM pg_policies 
-    WHERE tablename = 'products' 
-    AND policyname = 'Sellers can insert their own products'
-  ) THEN
-    CREATE POLICY "Sellers can insert their own products" 
-      ON public.products FOR INSERT 
-      TO authenticated 
-      WITH CHECK (auth.uid() = seller_id);
-  END IF;
+CREATE POLICY "Sellers can insert their own products" 
+  ON public.products FOR INSERT 
+  TO authenticated 
+  WITH CHECK (auth.uid() = seller_id);
+
+CREATE POLICY "Sellers can update their own products" 
+  ON public.products FOR UPDATE 
+  TO authenticated 
+  USING (auth.uid() = seller_id)
+  WITH CHECK (auth.uid() = seller_id);
   
-  -- Sellers can update their own products
-  IF NOT EXISTS (
-    SELECT FROM pg_policies 
-    WHERE tablename = 'products' 
-    AND policyname = 'Sellers can update their own products'
-  ) THEN
-    CREATE POLICY "Sellers can update their own products" 
-      ON public.products FOR UPDATE 
-      TO authenticated 
-      USING (auth.uid() = seller_id);
-  END IF;
-  
-  -- Sellers can delete their own products
-  IF NOT EXISTS (
-    SELECT FROM pg_policies 
-    WHERE tablename = 'products' 
-    AND policyname = 'Sellers can delete their own products'
-  ) THEN
-    CREATE POLICY "Sellers can delete their own products" 
-      ON public.products FOR DELETE 
-      TO authenticated 
-      USING (auth.uid() = seller_id);
-  END IF;
-END $$;
+CREATE POLICY "Sellers can delete their own products" 
+  ON public.products FOR DELETE 
+  TO authenticated 
+  USING (auth.uid() = seller_id);
 
 -- STEP 6: Create functions for product management
 -- Function to create or update a product
+DROP FUNCTION IF EXISTS public.create_or_update_product(TEXT, TEXT, NUMERIC, TEXT, TEXT, TEXT, INTEGER, TEXT[], INT);
 CREATE OR REPLACE FUNCTION public.create_or_update_product(
   product_name TEXT,
   product_description TEXT,
@@ -249,6 +227,7 @@ END;
 $$;
 
 -- Function to get seller's products
+DROP FUNCTION IF EXISTS public.get_seller_products();
 CREATE OR REPLACE FUNCTION public.get_seller_products()
 RETURNS SETOF public.products
 LANGUAGE sql
@@ -260,6 +239,7 @@ AS $$
 $$;
 
 -- Function to count a specific seller's products
+DROP FUNCTION IF EXISTS public.count_seller_products(UUID);
 CREATE OR REPLACE FUNCTION public.count_seller_products(seller_id_param UUID)
 RETURNS INTEGER
 LANGUAGE sql
@@ -270,6 +250,7 @@ AS $$
 $$;
 
 -- Function to update product quantity
+DROP FUNCTION IF EXISTS public.update_product_quantity(INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION public.update_product_quantity(
   product_id INTEGER,
   new_quantity INTEGER
@@ -305,6 +286,7 @@ $$;
 SELECT 'CropsayAI multivendor database configuration completed successfully!' as result;
 
 -- STEP 7: Add search function for products
+DROP FUNCTION IF EXISTS public.search_products(TEXT);
 CREATE OR REPLACE FUNCTION public.search_products(search_term TEXT)
 RETURNS SETOF public.products
 LANGUAGE sql
@@ -328,6 +310,7 @@ AS $$
 $$;
 
 -- STEP 8: Add function to get newest products
+DROP FUNCTION IF EXISTS public.get_newest_products(INTEGER);
 CREATE OR REPLACE FUNCTION public.get_newest_products(max_count INTEGER DEFAULT 10)
 RETURNS SETOF public.products
 LANGUAGE sql
@@ -340,6 +323,7 @@ AS $$
 $$;
 
 -- Add category-based product search
+DROP FUNCTION IF EXISTS public.get_products_by_category(TEXT, INTEGER);
 CREATE OR REPLACE FUNCTION public.get_products_by_category(category_name TEXT, max_count INTEGER DEFAULT 20)
 RETURNS SETOF public.products
 LANGUAGE sql
@@ -353,3 +337,58 @@ $$;
 
 -- Final success message
 SELECT 'CropsayAI multivendor database and search functions configured successfully!' as result;
+
+-- STEP 9: Add function to get best selling products (highest rated with most reviews)
+DROP FUNCTION IF EXISTS public.get_best_selling_products(INTEGER);
+CREATE OR REPLACE FUNCTION public.get_best_selling_products(max_count INTEGER DEFAULT 8)
+RETURNS SETOF public.products
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  SELECT * FROM public.products
+  WHERE in_stock = TRUE 
+    AND rating IS NOT NULL 
+    AND rating > 0
+    AND review_count IS NOT NULL 
+    AND review_count > 0
+  ORDER BY 
+    rating DESC, 
+    review_count DESC, 
+    created_at DESC
+  LIMIT max_count;
+$$;
+
+-- If no products have ratings yet, fall back to newest products
+DROP FUNCTION IF EXISTS public.get_best_selling_products_fallback(INTEGER);
+CREATE OR REPLACE FUNCTION public.get_best_selling_products_fallback(max_count INTEGER DEFAULT 8)
+RETURNS SETOF public.products
+LANGUAGE sql
+SECURITY DEFINER
+AS $$
+  -- First try to get products with ratings
+  WITH rated_products AS (
+    SELECT * FROM public.products
+    WHERE in_stock = TRUE 
+      AND rating IS NOT NULL 
+      AND rating > 0
+    ORDER BY 
+      rating DESC, 
+      review_count DESC NULLS LAST, 
+      created_at DESC
+    LIMIT max_count
+  ),
+  fallback_products AS (
+    SELECT * FROM public.products
+    WHERE in_stock = TRUE
+    ORDER BY created_at DESC
+    LIMIT max_count
+  )
+  SELECT * FROM rated_products
+  UNION ALL
+  SELECT * FROM fallback_products
+  WHERE NOT EXISTS (SELECT 1 FROM rated_products)
+  LIMIT max_count;
+$$;
+
+-- Final success message with best sellers
+SELECT 'CropsayAI database with best sellers function configured successfully!' as result;

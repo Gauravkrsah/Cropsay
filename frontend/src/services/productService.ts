@@ -349,3 +349,54 @@ export async function getProductsByCategory(category: string, maxCount: number =
     return [];
   }
 }
+
+// Get best selling products (highest rated with most reviews)
+export async function getBestSellingProducts(maxCount: number = 8): Promise<Product[]> {
+  try {
+    console.log(`Fetching best selling products (max: ${maxCount})...`);
+    
+    // First, try to get all products and sort them by rating client-side
+    // This approach works with existing functions while we wait for the database function to be deployed
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('in_stock', true)
+      .order('created_at', { ascending: false })
+      .limit(50); // Get more products to have a better selection
+
+    if (error) {
+      console.error('Error fetching products for best sellers:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) {
+      console.log('No products found for best sellers');
+      return [];
+    }
+
+    // Convert to frontend format
+    const products = data.map(mapSupabaseProductToProduct);
+    
+    // Sort by rating (if available), then by newest
+    const sortedProducts = products
+      .filter(product => product.inStock)
+      .sort((a, b) => {
+        // If both have ratings, sort by rating
+        if (a.rating && b.rating) {
+          return b.rating - a.rating;
+        }
+        // If only one has rating, prioritize it
+        if (a.rating && !b.rating) return -1;
+        if (!a.rating && b.rating) return 1;
+        // If neither has rating, sort by newest
+        return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+      })
+      .slice(0, maxCount);
+
+    console.log(`Successfully fetched ${sortedProducts.length} best selling products`);
+    return sortedProducts;
+  } catch (error) {
+    console.error('Exception fetching best selling products:', error);
+    return [];
+  }
+}

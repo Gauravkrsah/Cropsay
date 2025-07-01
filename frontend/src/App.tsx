@@ -14,6 +14,7 @@ import ExplorePage from "./pages/ExplorePage";
 import AuthPage from "./pages/AuthPage";
 import ResetPasswordPage from "./pages/ResetPasswordPage";
 import NotFound from "./pages/NotFound";
+import SearchPage from "./pages/SearchPage";
 import { CartProvider } from "./contexts/CartContext";
 import { AuthProvider } from "./contexts/AuthContext";
 import { PurchaseProvider } from "./contexts/PurchaseContext";
@@ -40,6 +41,7 @@ const App = () => (
                 <Route path="/shop" element={<ShopPage />} />                <Route path="/shop/product/:id" element={<ProductDetailPage />} />                <Route path="/sell" element={<SellPage />} />
                 <Route path="/learn" element={<LearnPage />} />
                 <Route path="/explore" element={<ExplorePage />} />
+                <Route path="/search" element={<SearchPage />} />
                 <Route path="/orders" element={<MinimalOrderHistoryPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />

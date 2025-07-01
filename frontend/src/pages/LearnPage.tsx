@@ -1,6 +1,7 @@
 
 import React from 'react';
-import { BookOpen, Video, Newspaper, Calendar, ArrowRight } from 'lucide-react';
+import { BookOpen, Video, Newspaper, Calendar, ArrowRight, Home, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const articles = [
   {
@@ -34,6 +35,7 @@ const courses = [
     lessons: 12,
     duration: "4 weeks",
     level: "Beginner",
+    thumbnail: "https://images.unsplash.com/photo-1574323347407-f5e1ad6d020b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
   },
   {
     id: 2,
@@ -42,6 +44,7 @@ const courses = [
     lessons: 8,
     duration: "3 weeks",
     level: "Intermediate",
+    thumbnail: "https://images.unsplash.com/photo-1500937386664-56d1dfef3854?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
   },
   {
     id: 3,
@@ -50,14 +53,31 @@ const courses = [
     lessons: 15,
     duration: "6 weeks",
     level: "Advanced",
+    thumbnail: "https://images.unsplash.com/photo-1416879595882-3373a0480b5b?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
   },
 ];
 
 const LearnPage = () => {
+  const navigate = useNavigate();
+  
   return (
     <div className="h-screen overflow-y-auto">
-      <div className="border-b border-cropsay-grayDark p-4">
-        <h1 className="text-2xl font-bold">Learn & Grow</h1>
+      <div className="sticky top-0 z-20 bg-[#1E2735] border-b border-[#2A3143]">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left - Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <button 
+                onClick={() => navigate("/")}
+                className="hover:text-white transition-colors"
+              >
+                <Home size={16} />
+              </button>
+              <ChevronRight size={14} />
+              <span className="text-white font-medium">Learn</span>
+            </div>
+          </div>
+        </div>
       </div>
       
       <div className="p-4">
@@ -69,20 +89,65 @@ const LearnPage = () => {
             </button>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {courses.map(course => (
-              <div key={course.id} className="bg-cropsay-darkSecondary rounded-lg overflow-hidden border border-cropsay-grayDark hover:border-cropsay-green transition-colors">
-                <div className="h-40 bg-cropsay-grayDark flex items-center justify-center">
-                  <Video size={32} className="text-cropsay-grayText" />
-                </div>
-                <div className="p-4">
-                  <div className="flex justify-between mb-2">
-                    <span className="text-xs bg-cropsay-dark px-2 py-1 rounded text-cropsay-grayText">{course.level}</span>
-                    <span className="text-xs text-cropsay-grayText">{course.lessons} lessons • {course.duration}</span>
+              <div key={course.id} className="bg-cropsay-darkSecondary rounded-lg overflow-hidden border border-cropsay-grayDark/50">
+                {/* Compact Thumbnail Container */}
+                <div className="relative aspect-video overflow-hidden">
+                  {/* Course Thumbnail Image */}
+                  <img 
+                    src={course.thumbnail} 
+                    alt={course.title}
+                    className="w-full h-full object-cover"
+                    onError={(e) => {
+                      // Fallback to gradient if image fails to load
+                      const target = e.target as HTMLImageElement;
+                      target.style.display = 'none';
+                      target.nextElementSibling?.classList.remove('hidden');
+                    }}
+                  />
+                  
+                  {/* Fallback gradient background */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-slate-800 via-slate-700 to-slate-900 hidden"></div>
+                  
+                  {/* Level Badge */}
+                  <div className="absolute top-2 left-2 bg-cropsay-green text-white text-xs px-2 py-1 rounded font-medium">
+                    {course.level}
                   </div>
-                  <h3 className="font-medium mb-2">{course.title}</h3>
-                  <p className="text-sm text-cropsay-grayText mb-4">by {course.instructor}</p>
-                  <button className="primary-button w-full">
+                  
+                  {/* Duration Badge */}
+                  <div className="absolute top-2 right-2 bg-black/70 text-white text-xs px-2 py-1 rounded">
+                    {course.duration}
+                  </div>
+                </div>
+                
+                {/* Compact Content Container */}
+                <div className="p-3">
+                  {/* Title */}
+                  <h3 className="font-medium text-sm mb-2 text-white line-clamp-2 leading-tight">
+                    {course.title}
+                  </h3>
+                  
+                  {/* Instructor - Compact */}
+                  <div className="flex items-center mb-2">
+                    <div className="w-6 h-6 bg-cropsay-green rounded-full flex items-center justify-center mr-2 flex-shrink-0">
+                      <span className="text-white text-xs font-medium">
+                        {course.instructor.split(' ').map(n => n[0]).join('').substring(0, 2)}
+                      </span>
+                    </div>
+                    <p className="text-xs text-cropsay-grayText truncate">
+                      {course.instructor}
+                    </p>
+                  </div>
+                  
+                  {/* Course Stats - Compact */}
+                  <div className="flex items-center justify-between text-xs text-cropsay-grayText mb-3">
+                    <span>{course.lessons} lessons</span>
+                    <span>{course.duration}</span>
+                  </div>
+                  
+                  {/* Compact Start Learning Button */}
+                  <button className="w-full bg-cropsay-green text-white py-2 px-3 rounded text-xs font-medium">
                     Start Learning
                   </button>
                 </div>

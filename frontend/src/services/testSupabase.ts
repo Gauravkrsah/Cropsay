@@ -6,7 +6,9 @@ import { supabase } from '@/integrations/supabase/client';
 // Test the connection to Supabase
 export async function testSupabaseConnection() {
   try {
-    const { data, error } = await supabase.from('profiles').select('count');
+    const { count, error } = await supabase
+      .from('profiles')
+      .select('*', { count: 'exact', head: true });
     
     if (error) {
       console.error('Supabase connection test failed:', error);
@@ -20,7 +22,7 @@ export async function testSupabaseConnection() {
     return {
       success: true,
       message: 'Connection successful',
-      data
+      data: count
     };
   } catch (e) {
     console.error('Exception testing Supabase connection:', e);
@@ -36,9 +38,9 @@ export async function testSupabaseConnection() {
 export async function testProductsAccess() {
   try {
     console.log('Testing products table access...');
-    const { data, error } = await supabase
+    const { count, error } = await supabase
       .from('products')
-      .select('count');
+      .select('*', { count: 'exact', head: true });
     
     if (error) {
       console.error('Products table access test failed:', error);
@@ -49,11 +51,11 @@ export async function testProductsAccess() {
       };
     }
     
-    console.log('Products table access successful:', data);
+    console.log('Products table access successful:', count);
     return {
       success: true,
       message: 'Products table access successful',
-      data
+      data: count
     };
   } catch (e) {
     console.error('Exception testing products access:', e);

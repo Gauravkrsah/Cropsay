@@ -8,8 +8,11 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { GenerateContentStreamResult } from '@google/generative-ai';
 import { agriculturalKnowledgeGraph } from '@/data/agriculturalKnowledgeGraph';
 
-// API key
-const GEMINI_API_KEY = '***REMOVED***';
+// API key from environment variables
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '***REMOVED***';
+
+// Debug logging (remove in production)
+console.log('Gemini API Key loaded:', GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : 'Not found');
 
 // Initialize the Google Generative AI
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
@@ -277,6 +280,17 @@ Provide a helpful, informative response with practical advice. Focus exclusively
         } catch (streamError) {
           console.error('Streaming API call failed:', streamError);
           
+          // Check if it's a quota error
+          const isQuotaError = streamError?.message?.includes('quota') || 
+                              streamError?.message?.includes('429') ||
+                              streamError?.toString?.().includes('quota') ||
+                              streamError?.toString?.().includes('429');
+          
+          if (isQuotaError) {
+            console.error('Quota limit reached for API key:', GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : 'Not found');
+            throw streamError; // Re-throw quota errors to be handled by outer catch
+          }
+          
           // Try with fallback model without streaming first
           try {
             console.log('Attempting fallback with simpler model...');
@@ -297,6 +311,17 @@ Provide a helpful, informative response with practical advice. Focus exclusively
             }
           } catch (fallbackError) {
             console.error('Fallback model also failed:', fallbackError);
+            
+            // Check if it's a quota error
+            const isQuotaError = fallbackError?.message?.includes('quota') || 
+                                fallbackError?.message?.includes('429') ||
+                                fallbackError?.toString?.().includes('quota') ||
+                                fallbackError?.toString?.().includes('429');
+            
+            if (isQuotaError) {
+              console.error('Quota limit reached for fallback model as well');
+              throw fallbackError; // Re-throw quota errors to be handled by outer catch
+            }
           }
           
           // Last resort: return a simple response and stream it

@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
-import { Search, MapPin, Users, TrendingUp, Calendar } from 'lucide-react';
+import { Search, MapPin, Users, TrendingUp, Calendar, Home, ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 const events = [
   {
@@ -61,19 +62,38 @@ const trends = [
 
 const ExplorePage = () => {
   const [activeTab, setActiveTab] = useState('trends');
+  const navigate = useNavigate();
 
   return (
     <div className="h-screen overflow-y-auto">
-      <div className="border-b border-cropsay-grayDark p-4">
-        <h1 className="text-2xl font-bold mb-4">Explore Agriculture</h1>
-        
-        <div className="relative mb-4">
-          <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText" />
-          <input
-            type="text"
-            placeholder="Search trends, events, and more..."
-            className="w-full bg-cropsay-darkSecondary border border-cropsay-grayDark rounded-lg py-2 pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"
-          />
+      <div className="sticky top-0 z-20 bg-[#1E2735] border-b border-[#2A3143]">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left - Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <button 
+                onClick={() => navigate("/")}
+                className="hover:text-white transition-colors"
+              >
+                <Home size={16} />
+              </button>
+              <ChevronRight size={14} />
+              <span className="text-white font-medium">Explore</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-4">
+        <div className="mb-4">
+          <div className="relative mb-4">
+            <Search size={18} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText" />
+            <input
+              type="text"
+              placeholder="Search trends, events, and more..."
+              className="w-full bg-cropsay-darkSecondary border border-cropsay-grayDark rounded-lg py-2 pl-10 pr-4 focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-all"
+            />
+          </div>
         </div>
         
         <div className="flex border-b border-cropsay-grayDark">

@@ -9,10 +9,10 @@ export async function testSupabaseConnection() {
     const { data: { user } } = await supabase.auth.getUser();
     console.log('Authentication status:', user ? 'Authenticated' : 'Anonymous');
 
-    // Test basic connection
-    const { data: testData, error: testError } = await supabase
+    // Test basic connection - count products
+    const { count, error: testError } = await supabase
       .from('products')
-      .select('count(*)', { count: 'exact' });
+      .select('*', { count: 'exact', head: true });
 
     if (testError) {
       console.error('Supabase connection error:', testError);
@@ -24,7 +24,7 @@ export async function testSupabaseConnection() {
       return false;
     }
 
-    console.log('Supabase connection successful. Product count:', testData);
+    console.log('Supabase connection successful. Product count:', count);
 
     // Test fetching actual products
     const { data: products, error: productsError } = await supabase

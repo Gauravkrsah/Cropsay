@@ -1,0 +1,312 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 215 28% 17%;
+    --foreground: 220 13% 91%;
+
+    --card: 215 28% 17%;
+    --card-foreground: 220 13% 91%;
+
+    --popover: 215 28% 17%;
+    --popover-foreground: 220 13% 91%;
+
+    --primary: 162 82% 40%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 217 19% 27%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217 19% 27%;
+    --muted-foreground: 215 20% 65%;
+
+    --accent: 217 19% 27%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 217 19% 27%;
+    --input: 217 19% 27%;
+    --ring: 162 82% 40%;
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 224 71% 9%;
+    --sidebar-foreground: 220 13% 91%;
+    --sidebar-primary: 162 82% 40%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 224 30% 12%;
+    --sidebar-accent-foreground: 220 13% 91%;
+    --sidebar-border: 224 30% 12%;
+    --sidebar-ring: 162 82% 40%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  /* Custom cursor for product cards */
+  .product-card-cursor {
+    cursor: pointer;
+  }
+  
+  body {
+    @apply bg-cropsay-dark text-cropsay-lightText;
+    font-feature-settings: "ss01", "ss02", "cv01", "cv02", "cv03";
+  }
+  
+  /* Custom scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: rgba(16, 20, 30, 0.3);
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: rgba(48, 59, 73, 0.8);
+    border-radius: 10px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(68, 79, 93, 0.8);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: rgba(16, 20, 30, 0.2);
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(48, 59, 73, 0.7);
+  }
+  
+  /* Hide scrollbar but keep scrolling functionality */
+  .hide-scrollbar {
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  
+  /* Line clamp utilities for text truncation */
+  .line-clamp-1 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+  }
+  
+  .line-clamp-2 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+  }
+  
+  .line-clamp-3 {
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 3;
+  }
+  
+  /* Touch target for better mobile accessibility */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Compact hero section for better mobile experience */
+  .hero-compact {
+    min-height: 60vh;
+  }
+  
+  @media (max-width: 768px) {
+    .hero-compact {
+      min-height: 50vh;
+    }
+  }
+  
+  /* Better responsive iframe container */
+  .aspect-video {
+    aspect-ratio: 16 / 9;
+  }
+  
+  @media (max-width: 640px) {
+    .aspect-video {
+      aspect-ratio: 4 / 3;
+    }
+  }
+}
+
+@layer components {
+  .chat-input {
+    @apply flex items-center w-full rounded-xl bg-cropsay-darkSecondary border border-cropsay-grayDark p-3 focus-within:border-cropsay-green focus-within:ring-1 focus-within:ring-cropsay-green transition-all;
+  }
+
+  .action-button {
+    @apply bg-cropsay-darkSecondary hover:bg-cropsay-grayDark text-cropsay-lightText px-4 py-2 rounded-lg transition-colors flex items-center gap-2;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 p-3 rounded-md transition-colors hover:bg-cropsay-grayDark;
+  }
+
+  .nav-link.active {
+    @apply bg-cropsay-green text-white hover:bg-cropsay-green/90;
+  }
+
+  .primary-button {
+    @apply bg-cropsay-green hover:bg-cropsay-green/90 text-white font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center;
+  }
+
+  .secondary-button {
+    @apply bg-transparent hover:bg-cropsay-grayDark border border-cropsay-grayMedium text-cropsay-lightText font-medium px-4 py-2 rounded-lg transition-colors flex items-center justify-center;
+  }
+
+  .topic-button {
+    @apply bg-cropsay-darkSecondary hover:bg-cropsay-grayDark text-cropsay-lightText px-4 py-2 rounded-lg transition-colors flex items-center gap-2;
+  }
+
+  /* Responsive utilities */
+  .container-responsive {
+    @apply w-full mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  .text-responsive {
+    @apply text-sm sm:text-base lg:text-lg;
+  }
+
+  .heading-responsive {
+    @apply text-lg sm:text-xl lg:text-2xl xl:text-3xl;
+  }
+
+  .button-responsive {
+    @apply px-3 py-2 text-sm sm:px-4 sm:py-2 sm:text-base lg:px-6 lg:py-3;
+  }
+
+  .card-responsive {
+    @apply p-4 sm:p-6 lg:p-8;
+  }
+
+  .grid-responsive {
+    @apply grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6;
+  }
+
+  /* Mobile-first touch targets */
+  .touch-target {
+    @apply min-h-[44px] min-w-[44px] flex items-center justify-center;
+  }
+
+  /* Enhanced mobile scrolling for product cards */
+  .product-scroll {
+    @apply flex gap-3 sm:gap-4 overflow-x-auto pb-4 scrollbar-hide;
+    scroll-padding-left: 1rem;
+    scroll-padding-right: 1rem;
+    scroll-snap-type: x mandatory;
+    padding: 0.5rem 0.25rem;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  }
+
+  .product-scroll > * {
+    scroll-snap-align: start;
+    flex-shrink: 0;
+  }
+  
+  @media (max-width: 640px) {
+    .product-scroll {
+      gap: 0.5rem;
+      padding-bottom: 1rem;
+      margin: 0 -0.25rem;
+      padding-left: 0.25rem;
+      padding-right: 0.25rem;
+    }
+  }
+  
+  /* Shopping cart specific styles */
+  .quantity-control {
+    @apply flex items-center bg-green-500 text-white rounded-md overflow-hidden;
+  }
+  
+  .quantity-button {
+    @apply p-1 hover:bg-green-600 transition-colors text-white font-bold w-8 h-full flex items-center justify-center;
+  }
+  
+  .quantity-display {
+    @apply px-2 bg-transparent text-white flex items-center justify-center min-w-[24px];
+  }
+
+  .cart-item {
+    @apply flex items-start gap-3 py-3 border-b border-gray-200/10;
+  }
+  
+  .cart-total {
+    @apply flex justify-between items-center font-medium text-lg pt-3;
+  }
+  
+  /* Blinking cursor for chat typing effect */
+  @keyframes blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0; }
+  }
+  
+  .cursor-blink {
+    display: inline-block;
+    animation: blink 1s step-end infinite;
+    margin-left: 1px;
+    font-weight: 300;
+  }
+}
+
+/* Mobile menu animations */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Extra small breakpoint for very small devices */
+@media (min-width: 475px) {
+  .xs\:grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .xs\:flex-row {
+    flex-direction: row;
+  }
+
+  .xs\:w-auto {
+    width: auto;
+  }
+}

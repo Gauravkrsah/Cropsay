@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, CheckCircle, Trash2, Edit, AlertCircle, Package, MoreVertical, Loader, Info, Image as ImageIcon, X, Truck } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Trash2, Edit, AlertCircle, Package, MoreVertical, Loader, Info, Image as ImageIcon, X, Truck, Home, ChevronRight } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   createProduct, 
   fetchSellerProducts, 
@@ -29,6 +30,7 @@ type OrderWithItems = {
 
 const SellPage = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('listing');
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -863,9 +865,25 @@ const SellPage = () => {
   
   return (
     <div className="h-screen overflow-y-auto">
-      <div className="border-b border-cropsay-grayDark p-4">
-        <h1 className="text-2xl font-bold mb-4">Sell Products & Services</h1>
-        
+      <div className="sticky top-0 z-20 bg-[#1E2735] border-b border-[#2A3143]">
+        <div className="px-4 py-3">
+          <div className="flex items-center justify-between">
+            {/* Left - Breadcrumb */}
+            <div className="flex items-center gap-2 text-sm text-gray-400">
+              <button 
+                onClick={() => navigate("/")}
+                className="hover:text-white transition-colors"
+              >
+                <Home size={16} />
+              </button>
+              <ChevronRight size={14} />
+              <span className="text-white font-medium">Sell</span>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div className="p-4">
         <div className="flex border-b border-cropsay-grayDark">
           <button 
             className={`pb-2 px-4 font-medium ${activeTab === 'listing' ? 'text-cropsay-green border-b-2 border-cropsay-green' : 'text-cropsay-grayText'}`}

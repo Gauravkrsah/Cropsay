@@ -19,12 +19,10 @@ export const getProductReviews = async (productId: number | string): Promise<Pro
   try {
     // Convert productId to number if it's a string
     const numericId = typeof productId === 'string' ? parseInt(productId) : productId;
-      // Try to fetch reviews from the product_reviews_view
+    
+    // Use the RPC function instead of querying the view directly
     const { data, error } = await supabase
-      .from('product_reviews_view')
-      .select('*')
-      .eq('product_id', numericId)
-      .order('created_at', { ascending: false });
+      .rpc('get_product_reviews', { product_id_param: numericId });
 
     if (error) {
       console.error('Error fetching reviews from database:', error);
