@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { Home, MessageSquare, ShoppingBag, DollarSign, BookOpen, Compass, Menu, X, LogIn } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -103,7 +103,7 @@ export const AppSidebar = ({
           "flex justify-center items-center border-b border-[#1E2735]/50 bg-gradient-to-r from-green-500/5 to-blue-500/5 backdrop-blur-sm",
           collapsed ? "p-3" : "p-5"
         )}>
-          <div className="flex items-center relative">
+          <Link to="/" className="flex items-center relative hover:opacity-80 transition-opacity">
             <div className="absolute inset-0 bg-gradient-to-r from-green-400/20 to-blue-400/20 blur-xl rounded-full opacity-50"></div>
             <img 
               src={collapsed ? "/mobile_cropsay_logo.svg" : "/desktop_cropsay_logo.svg"}
@@ -113,7 +113,7 @@ export const AppSidebar = ({
                 collapsed ? "w-9 h-9" : "w-16 h-16"
               )}
             />
-          </div>
+          </Link>
         </div>
 
         {/* Desktop Navigation */}
@@ -280,7 +280,7 @@ export const AppSidebar = ({
             "flex justify-between items-center border-b border-[#1E2735]/50 bg-gradient-to-r from-green-500/10 to-blue-500/10",
             isSmallMobile ? "p-3" : "p-4"
           )}>
-            <div className="flex items-center">
+            <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
               <img 
                 src="/mobile_cropsay_logo.svg" 
                 alt="Cropsay Logo" 
@@ -289,7 +289,7 @@ export const AppSidebar = ({
                   isSmallMobile ? "w-8 h-8" : "w-10 h-10"
                 )}
               />
-            </div>
+            </Link>
             <button
               onClick={() => setMobileMenuOpen(false)}
               className="p-2 rounded-xl hover:bg-[#1E2735] transition-all duration-200 text-gray-400 hover:text-white"

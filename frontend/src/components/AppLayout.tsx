@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Outlet, useNavigate, useLocation } from 'react-router-dom';
+import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { ExpertPanel } from './ExpertPanel';
 import { BookOpen, ShoppingBag, Users, HeadphonesIcon, HelpCircle, PhoneCall, MessageCircle, Home, MessageSquare, Menu, MoreHorizontal, Search, ShoppingCartIcon } from 'lucide-react';
@@ -389,7 +389,7 @@ export const AppLayout = () => {
           )}>
             <div className="flex items-center justify-between">
               {/* Logo */}
-              <div className="flex items-center">
+              <Link to="/" className="flex items-center hover:opacity-80 transition-opacity">
                 <img 
                   src="/mobile_cropsay_logo.svg" 
                   alt="Cropsay" 
@@ -398,7 +398,7 @@ export const AppLayout = () => {
                     isSmallMobile ? "w-[24px]" : "w-[32px]"
                   )} 
                 />
-              </div>
+              </Link>
 
               {/* Search Bar */}
               <form onSubmit={handleMobileSearch} className="flex-1 mx-3 sm:mx-4 relative">
