@@ -237,26 +237,46 @@ const ShopPage = () => {
           }
         }
         
+        @keyframes headerLoadingPulse {
+          0% {
+            opacity: 0.95;
+            box-shadow: 0 0 0 0 rgba(17, 185, 129, 0.1);
+          }
+          50% {
+            opacity: 1;
+            box-shadow: 0 2px 12px 0 rgba(17, 185, 129, 0.15);
+          }
+          100% {
+            opacity: 0.95;
+            box-shadow: 0 0 0 0 rgba(17, 185, 129, 0.1);
+          }
+        }
+        
+        .header-loading-animation {
+          animation: headerLoadingPulse 1.5s ease-in-out infinite;
+        }
+        
         .search-placeholder {
           animation: fadeInOut 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
       `}</style>
-      <div className="flex flex-col h-screen bg-[#1E2735]">
+      <div className="flex flex-col h-screen bg-[#1E2735] relative">
       {/* Combined Header Container - Breadcrumb, Actions, Categories, and Sort */}
       <div className={cn(
-        "fixed top-0 left-0 right-0 z-[100] bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] shadow-lg",
-      )} style={{ marginTop: "3rem" }}>
+        "z-[40] bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] shadow-lg transition-all duration-300",
+        isMobile ? "fixed top-[48px] left-0 right-0 shadow-md" : "fixed top-0 left-0 right-0" /* Added shadow to mobile header */
+      )} style={isMobile ? { minHeight: "auto" } : { marginLeft: "5.7rem", minHeight: "112px" }}>
         {/* Breadcrumb and Actions Row */}
         <div className={cn(
-          isMobile ? "px-4 py-1.5" : "px-8 py-1.5" // Consistent vertical padding with proper horizontal spacing
+          isMobile ? "px-4 py-1" : "px-8 py-2.5" // Reduced vertical padding for mobile, spacious for desktop
         )}>
           <div className="flex items-center justify-between">
             {/* Left - Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-400 flex-shrink-0"> 
+            <div className="flex items-center gap-1 text-gray-400 flex-shrink-0"> 
               <button 
                 onClick={() => navigate("/")}
-                className="hover:text-white transition-all duration-200 p-1.5 rounded-md hover:bg-[#2A3143]"
+                className="hover:text-white transition-all duration-200 p-1 rounded-md hover:bg-[#2A3143]"
                 aria-label="Home"
               >
                 <Home size={isMobile ? 16 : 18} className="flex-shrink-0" />
@@ -265,17 +285,17 @@ const ShopPage = () => {
               <span className={cn("text-white font-semibold truncate", isMobile ? "text-sm" : "text-base")}>Shop</span>
             </div>
 
-            {/* Center-Right - Search (Desktop only) */}
-            {!isMobile && (
+            {/* Center-Right - Search */}
+            {!isMobile ? (
               <div className="flex-1 flex justify-center ml-8 mr-8">
-                <div className="relative w-[600px] max-w-[600px]">
-                  <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
+                <div className="relative w-full max-w-[550px]">
+                  <Search size={22} className="absolute left-5 top-1/2 transform -translate-y-1/2 text-gray-400 z-10" />
                   <input
                     type="text"
                     placeholder=""
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-gradient-to-r from-[#10141E] to-[#0F1318] border border-[#2A3143] rounded-xl pl-12 pr-6 py-4 text-white placeholder-transparent focus:border-cropsay-green focus:ring-2 focus:ring-cropsay-green/25 outline-none transition-all duration-300 hover:border-gray-300 shadow-lg hover:shadow-xl"
+                    className="w-full bg-gradient-to-r from-[#10141E] to-[#0F1318] border border-[#2A3143] rounded-xl pl-14 pr-6 py-3.5 text-white placeholder-transparent focus:border-cropsay-green focus:ring-2 focus:ring-cropsay-green/25 outline-none transition-all duration-300 hover:border-gray-300 shadow-lg hover:shadow-xl"
                     style={{
                       fontSize: '16px',
                       fontWeight: '400'
@@ -298,6 +318,17 @@ const ShopPage = () => {
                     </div>
                   )}
                 </div>
+              </div>
+            ) : (
+              // Mobile search - hidden but implemented for consistency
+              <div className="sr-only">
+                <input
+                  type="text"
+                  placeholder="Search products"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full"
+                />
               </div>
             )}
 
@@ -353,17 +384,17 @@ const ShopPage = () => {
         {/* Categories, Product count and Sort row */}
         <div className={cn(
           "border-t border-[#2A3143] bg-gradient-to-b from-[#1A1F2E] to-[#171C29] backdrop-blur-sm",
-          isMobile ? "px-4 py-2" : "px-8 py-1.5" // Better padding for mobile
+          isMobile ? "px-4 py-1" : "px-8 py-2" // Reduced padding for mobile, kept same for desktop
         )}>
           {/* Mobile layout - stacked */}
           {isMobile ? (
-            <div className="flex flex-col space-y-2"> {/* Optimized spacing */}
+            <div className="flex flex-col space-y-1 min-h-[64px]"> {/* Reduced spacing for more compact layout */}
               {/* Categories */}
-              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 -mx-1 px-1"> {/* Better overflow handling with padding */}
+              <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1"> {/* Tighter spacing between buttons */}
                 <button
                   onClick={() => setActiveCategory('All Products')}
                   className={cn(
-                    "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border shadow-sm", // Better padding and animation
+                    "flex-shrink-0 px-2.5 py-1 rounded-full text-sm font-medium transition-all duration-200 border shadow-sm", // More compact for mobile
                     activeCategory === 'All Products'
                       ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-md"
                       : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
@@ -376,7 +407,7 @@ const ShopPage = () => {
                     key={category}
                     onClick={() => setActiveCategory(category)}
                     className={cn(
-                      "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-1.5 shadow-sm", // Tighter gap for mobile
+                      "flex-shrink-0 px-2.5 py-1 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-1 shadow-sm", // More compact for mobile
                       activeCategory === category
                         ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-md"
                         : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
@@ -395,12 +426,12 @@ const ShopPage = () => {
                 <p className="text-sm text-gray-400 font-medium whitespace-nowrap">
                   {filteredProducts.length} products
                 </p>
-                <div className="flex items-center gap-1.5 ml-2"> {/* Tighter gap for mobile */}
+                <div className="flex items-center gap-1 ml-2"> {/* Tighter gap for mobile */}
                   <span className="text-sm text-gray-400 font-medium whitespace-nowrap">Sort:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
-                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-2 py-1 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[110px] shadow-sm"
+                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-2 py-0.5 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[100px] shadow-sm"
                   >
                     <option value="popular">Popular</option>
                     <option value="price-low">Price: Low to High</option>
@@ -411,14 +442,14 @@ const ShopPage = () => {
               </div>
             </div>
           ) : (
-            /* Desktop layout - categories, product count, and sort in one row */
-            <div className="flex items-center justify-between">
+            /* Desktop layout - Single row with flex layout */
+            <div className="flex items-center justify-between h-12">
               {/* Categories - Left */}
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide flex-1">
+              <div className="flex gap-3 overflow-x-auto scrollbar-hide max-w-[65%] transition-all duration-300">
                 <button
                   onClick={() => setActiveCategory('All Products')}
                   className={cn(
-                    "flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors border",
+                    "flex-shrink-0 px-4 py-1.5 rounded-full text-base font-medium transition-colors border",
                     activeCategory === 'All Products'
                       ? "bg-[#4A5568] text-white border-[#4A5568]"
                       : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143]"
@@ -431,38 +462,38 @@ const ShopPage = () => {
                     key={category}
                     onClick={() => setActiveCategory(category)}
                     className={cn(
-                      "flex-shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-colors border flex items-center gap-2",
+                      "flex-shrink-0 px-4 py-1.5 rounded-full text-base font-medium transition-colors border flex items-center gap-2",
                       activeCategory === category
                         ? "bg-cropsay-green text-white border-cropsay-green"
                         : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143]"
                     )}
                   >
-                    {category === 'Seeds' && <Leaf size={16} />}
-                    {category === 'Fertilizers' && <Zap size={16} />}
-                    {category === 'Tools' && <Wrench size={16} />}
-                    {category}
+                    {category === 'Seeds' && <Leaf size={16} className="flex-shrink-0" />}
+                    {category === 'Fertilizers' && <Zap size={16} className="flex-shrink-0" />}
+                    {category === 'Tools' && <Wrench size={16} className="flex-shrink-0" />}
+                    <span className="truncate">{category}</span>
                   </button>
                 ))}
               </div>
               
-              {/* Right side - Product count and Sort */}
-              <div className="flex items-center gap-6 flex-shrink-0">
+              {/* Right side - Product count and Sort in a single line */}
+              <div className="flex items-center gap-5 flex-shrink-0">
                 {/* Product count */}
-                <p className="text-sm text-gray-400 whitespace-nowrap">
+                <p className="text-base text-gray-400 whitespace-nowrap font-medium">
                   {filteredProducts.length} products
                 </p>
 
                 {/* Sort */}
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-gray-400">Sort:</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-base text-gray-400 font-medium">Sort:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
-                    className="bg-[#10141E] border border-[#2A3143] rounded-lg px-3 py-1.5 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[120px]"
+                    className="bg-[#10141E] border border-[#2A3143] rounded-lg px-3 py-1.5 text-base text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none w-[130px]"
                   >
                     <option value="popular">Popular</option>
-                    <option value="price-low">Price: Low to High</option>
-                    <option value="price-high">Price: High to Low</option>
+                    <option value="price-low">Price: Low</option>
+                    <option value="price-high">Price: High</option>
                     <option value="newest">Newest</option>
                   </select>
                 </div>
@@ -474,15 +505,42 @@ const ShopPage = () => {
 
       {/* Products Grid - Only this section scrollable */}
       <div className="flex-1" style={{ 
-        paddingTop: isMobile ? "calc(3rem + 56px + 64px)" : "calc(3rem + 64px + 56px)", /* Account for the 3rem margin plus header height */
+        paddingTop: isMobile ? "112px" : "calc(64px + 48px + 16px)", /* Mobile: header height (48px top nav + ~64px for header) */
       }}>
         <div className="h-full overflow-y-auto custom-scrollbar product-container">
           <div className={cn(
-            isMobile ? "p-3 pb-28" : "p-4 pb-4 px-8" // More bottom padding for mobile navigation
+            isMobile ? "p-3 pb-28" : "p-4 pb-16 px-8" // Extra bottom padding for mobile to prevent content from being hidden
           )}>
             {isLoading ? (
-              <div className="flex justify-center items-center h-40">
-                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-cropsay-green"></div>
+              <div className="w-full mt-2">
+                {/* Loading indicator at the top */}
+                <div className="w-full flex justify-center items-center mb-4">
+                  <div className="h-1 bg-cropsay-green/20 rounded-full w-full max-w-md overflow-hidden relative">
+                    <div className="h-full bg-cropsay-green absolute left-0 top-0 animate-pulse" style={{ width: '30%', animationDuration: '1.5s' }}></div>
+                  </div>
+                </div>
+                {/* Skeleton loading for products */}
+                <div className={cn(
+                  "grid gap-4",
+                  isMobile 
+                    ? "grid-cols-2 gap-3" 
+                    : "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6"
+                )}>
+                  {Array.from({ length: 12 }).map((_, index) => (
+                    <div key={index} className="bg-[#1A1F2E] rounded-lg overflow-hidden shadow-md border border-[#2A3143] animate-pulse">
+                      {/* Image placeholder */}
+                      <div className="w-full aspect-square bg-[#2A3143]"></div>
+                      {/* Product title */}
+                      <div className="p-3 space-y-2">
+                        <div className="h-5 bg-[#2A3143] rounded w-3/4"></div>
+                        {/* Category */}
+                        <div className="h-4 bg-[#2A3143] rounded w-1/2 opacity-70"></div>
+                        {/* Price */}
+                        <div className="h-6 bg-[#2A3143] rounded w-1/3 mt-2"></div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             ) : error ? (
               <div className="text-center py-8 text-red-400">
@@ -531,13 +589,13 @@ const ShopPage = () => {
 
       {/* Filter Modal */}
       {showFilters && (
-        <div className="fixed inset-0 bg-black/50 z-[101] flex" onClick={() => setShowFilters(false)}>
+        <div className="fixed inset-0 bg-black/50 z-[90] flex" onClick={() => setShowFilters(false)}>
           <div 
             className="bg-[#1E2735] w-full max-w-sm ml-auto h-full overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Filter Header */}
-            <div className="sticky top-0 z-10 bg-[#1E2735] border-b border-[#2A3143] p-4 flex items-center justify-between">
+            <div className="sticky top-0 z-50 bg-[#1E2735] border-b border-[#2A3143] p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Filter size={20} />
                 Filters
@@ -662,13 +720,13 @@ const ShopPage = () => {
 
       {/* Orders Modal (Mobile) - Same as profile popup */}
       {showOrders && isMobile && (
-        <div className="fixed inset-0 bg-black/50 z-[101] flex items-start justify-center pt-16" onClick={() => setShowOrders(false)}>
+        <div className="fixed inset-0 bg-black/50 z-[90] flex items-start justify-center pt-16" onClick={() => setShowOrders(false)}>
           <div 
             className="bg-[#1E2735] w-10/12 max-w-xs rounded-lg overflow-hidden shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Orders Header */}
-            <div className="bg-[#1E2735] px-3 py-2 border-b border-[#2A3143] flex items-center justify-between sticky top-0 z-20">
+            <div className="bg-[#1E2735] px-3 py-2 border-b border-[#2A3143] flex items-center justify-between sticky top-0 z-50">
               <div>
                 <h2 className="text-base font-semibold text-white">My Orders</h2>
                 <p className="text-xs text-gray-400">Order history and status</p>
@@ -790,13 +848,13 @@ const ShopPage = () => {
       
       {/* Order Details Modal */}
       {showOrderDetails && selectedOrder && (
-        <div className="fixed inset-0 bg-black/50 z-[101] flex items-start justify-center pt-16" onClick={() => setShowOrderDetails(false)}>
+        <div className="fixed inset-0 bg-black/50 z-[90] flex items-start justify-center pt-16" onClick={() => setShowOrderDetails(false)}>
           <div 
             className="bg-[#1E2735] w-10/12 max-w-xs rounded-lg overflow-hidden shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Order Details Header */}
-            <div className="bg-[#1E2735] px-3 py-2 border-b border-[#2A3143] flex items-center justify-between sticky top-0 z-20">
+            <div className="bg-[#1E2735] px-3 py-2 border-b border-[#2A3143] flex items-center justify-between sticky top-0 z-50">
               <div>
                 <h2 className="text-base font-semibold text-white">Order Details</h2>
                 <p className="text-xs text-gray-400">Order #{selectedOrder.id?.slice(-6) || 'N/A'}</p>
