@@ -138,7 +138,7 @@ export const ShoppingCart = () => {
 
   // Khalti config (for frontend, only public key is used for widget, but payment is initiated via backend)
   const khaltiConfig = {
-    publicKey: '***REMOVED***', // Live public key
+    publicKey: 'c68726c852d943aab3b886bd381d3af7', // Live public key
     productIdentity: 'cropsay-cart',
     productName: 'Cropsay Order',
     productUrl: window.location.origin,

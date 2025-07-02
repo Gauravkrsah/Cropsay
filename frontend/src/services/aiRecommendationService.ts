@@ -9,11 +9,16 @@ import { chatService } from './chatService';
 import { agriculturalKnowledgeGraph } from '@/data/agriculturalKnowledgeGraph';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// API key
-const GEMINI_API_KEY = '***REMOVED***';
+// API key from environment variables
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
+
+// Validate API key
+if (!GEMINI_API_KEY) {
+  console.error('Error: VITE_GEMINI_API_KEY is missing in environment variables');
+}
 
 // Initialize the Google Generative AI
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || '');
 
 // Use Gemini 1.5 Flash model
 const MODEL_NAME = 'gemini-1.5-flash';

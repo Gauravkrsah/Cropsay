@@ -235,10 +235,10 @@ The system integrates with Gemini using the official Google Generative AI SDK wi
 import { GoogleGenerativeAI, GenerateContentStreamResult } from '@google/generative-ai';
 
 // API key stored securely and accessed via environment variable in production
-const GEMINI_API_KEY = '***REMOVED***';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
 
 // Initialize the Google Generative AI with proper error handling
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY || 'API_KEY_PLACEHOLDER');
 
 // Primary model configuration with optimized parameters
 const MODEL_NAME = 'gemini-1.5-flash'; // Using the Gemini 1.5 Flash model

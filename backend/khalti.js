@@ -3,7 +3,7 @@ import axios from 'axios';
 
 const router = express.Router();
 
-const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || '***REMOVED***'; // your sandbox live_secret_key
+const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || 'fb72e11e14004dd4ba652bb211a7d506'; // your sandbox live_secret_key
 
 // POST /api/khalti/initiate
 router.post('/khalti/initiate', async (req, res) => {

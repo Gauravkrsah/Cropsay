@@ -9,10 +9,12 @@ import { GenerateContentStreamResult } from '@google/generative-ai';
 import { agriculturalKnowledgeGraph } from '@/data/agriculturalKnowledgeGraph';
 
 // API key from environment variables
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY || '***REMOVED***';
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY;
 
-// Debug logging (remove in production)
-console.log('Gemini API Key loaded:', GEMINI_API_KEY ? `${GEMINI_API_KEY.substring(0, 10)}...` : 'Not found');
+// Validate API key
+if (!GEMINI_API_KEY) {
+  console.error('Error: VITE_GEMINI_API_KEY is missing in environment variables');
+}
 
 // Initialize the Google Generative AI
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);

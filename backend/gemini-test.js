@@ -1,8 +1,18 @@
 // Test script for Gemini API
 import { GoogleGenerativeAI } from '@google/generative-ai';
 
-// API key
-const GEMINI_API_KEY = '***REMOVED***';
+// Import dotenv to load environment variables
+import dotenv from 'dotenv';
+dotenv.config();
+
+// API key from environment variables
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
+
+// Validate API key
+if (!GEMINI_API_KEY) {
+  console.error('Error: GEMINI_API_KEY is missing in environment variables');
+  process.exit(1);
+}
 
 // Initialize the API
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);

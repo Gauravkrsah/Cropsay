@@ -10,8 +10,15 @@ const port = 3000;
 app.use(cors());
 app.use(express.json());
 
-// Gemini API key
-const GEMINI_API_KEY = '***REMOVED***';
+// Gemini API key from environment variables
+import dotenv from 'dotenv';
+dotenv.config();
+
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY;
+if (!GEMINI_API_KEY) {
+  console.error('GEMINI_API_KEY not found in environment variables');
+  process.exit(1);
+}
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // Endpoint to generate text
