@@ -12,6 +12,7 @@ import {
   getProductsByCategory,
   getNewestProducts
 } from '@/services/productService';
+import { getOrdersByUser } from '@/services/orderService';
 import { testSupabaseConnection, testProductsAccess, insertTestProduct } from '@/services/testSupabase';
 import ProductCard from '@/components/ProductCard';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -21,12 +22,18 @@ const ShopPage = () => {
   const [activeCategory, setActiveCategory] = useState('All Products');
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [showOrders, setShowOrders] = useState(false);
   const [products, setProducts] = useState<Product[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'popular' | 'price-low' | 'price-high' | 'newest'>('popular');
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [ordersError, setOrdersError] = useState<string | null>(null);
+  const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
+  const [showOrderDetails, setShowOrderDetails] = useState(false);
 
   const { items, openCart } = useCart();
   const { user } = useAuth();
@@ -81,6 +88,86 @@ const ShopPage = () => {
       setIsLoading(false);
     }
   }, [searchQuery, activeCategory]);
+  
+  // Load orders
+  const loadOrders = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setOrdersLoading(true);
+      setOrdersError(null);
+      const data = await getOrdersByUser(user.id);
+      setOrders(data);
+    } catch (err: any) {
+      console.error('Error loading orders:', err);
+      setOrdersError(err.message || 'Failed to load orders');
+    } finally {
+      setOrdersLoading(false);
+    }
+  }, [user?.id]);
+  
+  // Cancel order
+  const cancelOrder = useCallback(async (orderId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      setCancellingOrderId(orderId);
+      // Call API to cancel order
+      // Simulating API call with timeout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Update orders list with cancelled status
+      setOrders(prevOrders => 
+        prevOrders.map(order => 
+          order.id === orderId 
+            ? { ...order, status: 'Cancelled' } 
+            : order
+        )
+      );
+    } catch (err: any) {
+      console.error('Error cancelling order:', err);
+      // Show error toast or message
+    } finally {
+      setCancellingOrderId(null);
+    }
+  }, [user?.id]);
+  
+  // Delete order
+  const deleteOrder = useCallback(async (orderId: string) => {
+    if (!user?.id) return;
+    
+    try {
+      setCancellingOrderId(orderId);
+      // Call API to delete order
+      // Simulating API call with timeout
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Remove order from list
+      setOrders(prevOrders => prevOrders.filter(order => order.id !== orderId));
+    } catch (err: any) {
+      console.error('Error deleting order:', err);
+      // Show error toast or message
+    } finally {
+      setCancellingOrderId(null);
+    }
+  }, [user?.id]);
+  
+  // View order details in modal
+  const viewOrderDetails = useCallback((orderId: string) => {
+    // Find the selected order
+    const order = orders.find(o => o.id === orderId);
+    if (order) {
+      setSelectedOrder(order);
+      setShowOrderDetails(true);
+    }
+  }, [orders]);
+
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'auto';
+    };
+  }, []);
 
   useEffect(() => {
     loadProducts();
@@ -155,27 +242,27 @@ const ShopPage = () => {
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
       `}</style>
-      <div className="min-h-screen bg-[#1E2735]">
-      {/* Header - Breadcrumb and Actions */}
+      <div className="flex flex-col h-screen bg-[#1E2735]">
+      {/* Combined Header Container - Breadcrumb, Actions, Categories, and Sort */}
       <div className={cn(
-        "sticky z-40 bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] shadow-lg",
-        isMobile ? "top-0 -mt-px" : "top-0" // Use negative margin instead of negative top
-      )}>
+        "fixed top-0 left-0 right-0 z-[100] bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] shadow-lg",
+      )} style={{ marginTop: "3rem" }}>
         {/* Breadcrumb and Actions Row */}
         <div className={cn(
-          isMobile ? "px-4 py-1" : "px-8 py-1.5" // Further reduced padding for less height
+          isMobile ? "px-4 py-1.5" : "px-8 py-1.5" // Consistent vertical padding with proper horizontal spacing
         )}>
           <div className="flex items-center justify-between">
             {/* Left - Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm text-gray-400 flex-shrink-0"> {/* Increased gap for better spacing */}
+            <div className="flex items-center gap-2 text-sm text-gray-400 flex-shrink-0"> 
               <button 
                 onClick={() => navigate("/")}
-                className="hover:text-white transition-all duration-200 p-1 rounded-md hover:bg-[#2A3143]" // Enhanced hover effect
+                className="hover:text-white transition-all duration-200 p-1.5 rounded-md hover:bg-[#2A3143]"
+                aria-label="Home"
               >
-                <Home size={isMobile ? 16 : 18} /> {/* Slightly larger icons */}
+                <Home size={isMobile ? 16 : 18} className="flex-shrink-0" />
               </button>
-              <ChevronRight size={isMobile ? 12 : 14} className="text-gray-500" /> {/* Better color contrast */}
-              <span className={cn("text-white font-semibold", isMobile ? "text-sm" : "text-base")}>Shop</span> {/* Improved typography */}
+              <ChevronRight size={isMobile ? 12 : 14} className="text-gray-500 flex-shrink-0" />
+              <span className={cn("text-white font-semibold truncate", isMobile ? "text-sm" : "text-base")}>Shop</span>
             </div>
 
             {/* Center-Right - Search (Desktop only) */}
@@ -215,25 +302,34 @@ const ShopPage = () => {
             )}
 
             {/* Right - Filter and Orders */}
-            <div className="flex items-center gap-2 flex-shrink-0"> {/* Better spacing */}
+            <div className="flex items-center gap-1.5 flex-shrink-0"> {/* Tighter spacing for mobile */}
               <button
                 onClick={() => setShowFilters(true)}
                 className={cn(
                   "flex items-center rounded-xl transition-all duration-200 text-white border border-[#2A3143] bg-gradient-to-b from-[#10141E] to-[#0D1015] hover:from-[#2A3143] hover:to-[#242936] shadow-md hover:shadow-lg",
-                  isMobile ? "p-2" : "gap-2 px-3 py-2" // Better mobile padding
+                  isMobile ? "p-2.5" : "gap-2 px-3 py-2" // Better touch target for mobile
                 )}
+                aria-label="Filter products"
               >
-                <Filter size={isMobile ? 16 : 18} />
+                <Filter size={isMobile ? 16 : 18} className="flex-shrink-0" />
                 {!isMobile && <span className="font-medium">Filter</span>}
               </button>
               <button
-                onClick={() => navigate("/orders")}
+                onClick={() => {
+                  if (isMobile) {
+                    setShowOrders(true);
+                    loadOrders();
+                  } else {
+                    navigate("/orders");
+                  }
+                }}
                 className={cn(
                   "flex items-center rounded-xl transition-all duration-200 text-white border border-[#2A3143] bg-gradient-to-b from-[#10141E] to-[#0D1015] hover:from-[#2A3143] hover:to-[#242936] shadow-md hover:shadow-lg",
-                  isMobile ? "p-2" : "gap-2 px-3 py-2" // Better mobile padding
+                  isMobile ? "p-2.5" : "gap-2 px-3 py-2" // Better touch target for mobile
                 )}
+                aria-label="View orders"
               >
-                <ShoppingBag size={isMobile ? 16 : 18} />
+                <ShoppingBag size={isMobile ? 16 : 18} className="flex-shrink-0" />
                 {!isMobile && <span className="font-medium">Orders</span>}
               </button>
               {/* Only show cart icon on desktop */}
@@ -257,13 +353,13 @@ const ShopPage = () => {
         {/* Categories, Product count and Sort row */}
         <div className={cn(
           "border-t border-[#2A3143] bg-gradient-to-b from-[#1A1F2E] to-[#171C29] backdrop-blur-sm",
-          isMobile ? "px-4 py-1" : "px-8 py-1.5" // Further reduced padding for less height
+          isMobile ? "px-4 py-2" : "px-8 py-1.5" // Better padding for mobile
         )}>
           {/* Mobile layout - stacked */}
           {isMobile ? (
-            <div className="flex flex-col space-y-2.5"> {/* Better spacing */}
+            <div className="flex flex-col space-y-2"> {/* Optimized spacing */}
               {/* Categories */}
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide"> {/* Better gap */}
+              <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5 -mx-1 px-1"> {/* Better overflow handling with padding */}
                 <button
                   onClick={() => setActiveCategory('All Products')}
                   className={cn(
@@ -280,31 +376,31 @@ const ShopPage = () => {
                     key={category}
                     onClick={() => setActiveCategory(category)}
                     className={cn(
-                      "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-2 shadow-sm", // Better styling
+                      "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-1.5 shadow-sm", // Tighter gap for mobile
                       activeCategory === category
                         ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-md"
                         : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
                     )}
                   >
-                    {category === 'Seeds' && <Leaf size={14} />} {/* Appropriate icon size */}
-                    {category === 'Fertilizers' && <Zap size={14} />}
-                    {category === 'Tools' && <Wrench size={14} />}
-                    {category}
+                    {category === 'Seeds' && <Leaf size={14} className="flex-shrink-0" />}
+                    {category === 'Fertilizers' && <Zap size={14} className="flex-shrink-0" />}
+                    {category === 'Tools' && <Wrench size={14} className="flex-shrink-0" />}
+                    <span className="truncate">{category}</span>
                   </button>
                 ))}
               </div>
               
               {/* Product count and Sort */}
               <div className="flex items-center justify-between">
-                <p className="text-sm text-gray-400 font-medium"> {/* Better typography */}
+                <p className="text-sm text-gray-400 font-medium whitespace-nowrap">
                   {filteredProducts.length} products
                 </p>
-                <div className="flex items-center gap-2"> {/* Better gap */}
-                  <span className="text-sm text-gray-400 font-medium">Sort:</span>
+                <div className="flex items-center gap-1.5 ml-2"> {/* Tighter gap for mobile */}
+                  <span className="text-sm text-gray-400 font-medium whitespace-nowrap">Sort:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
-                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-3 py-1 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[110px] shadow-sm" // Better styling
+                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-2 py-1 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[110px] shadow-sm"
                   >
                     <option value="popular">Popular</option>
                     <option value="price-low">Price: Low to High</option>
@@ -377,11 +473,12 @@ const ShopPage = () => {
       </div>
 
       {/* Products Grid - Only this section scrollable */}
-      <div className="flex-1 overflow-hidden">
-        <div className="h-full overflow-y-auto custom-scrollbar">
+      <div className="flex-1" style={{ 
+        paddingTop: isMobile ? "calc(3rem + 56px + 64px)" : "calc(3rem + 64px + 56px)", /* Account for the 3rem margin plus header height */
+      }}>
+        <div className="h-full overflow-y-auto custom-scrollbar product-container">
           <div className={cn(
-            "p-4",
-            isMobile ? "pb-20" : "pb-4 px-8" // Add side padding for desktop
+            isMobile ? "p-3 pb-28" : "p-4 pb-4 px-8" // More bottom padding for mobile navigation
           )}>
             {isLoading ? (
               <div className="flex justify-center items-center h-40">
@@ -415,16 +512,15 @@ const ShopPage = () => {
               </div>
             ) : (
               <div className={cn(
-                "grid gap-4",
+                "grid",
                 isMobile 
-                  ? "grid-cols-2" 
-                  : "grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7" // Better responsive breakpoints
+                  ? "grid-cols-2 gap-3" // Tighter gap for mobile
+                  : "grid-cols-3 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7" // Responsive breakpoints
               )}>
                 {filteredProducts.map(product => (
                   <ProductCard
                     key={product.id}
                     product={product}
-                    onClick={() => setSelectedProduct(product)}
                   />
                 ))}
               </div>
@@ -435,13 +531,13 @@ const ShopPage = () => {
 
       {/* Filter Modal */}
       {showFilters && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex" onClick={() => setShowFilters(false)}>
+        <div className="fixed inset-0 bg-black/50 z-[101] flex" onClick={() => setShowFilters(false)}>
           <div 
             className="bg-[#1E2735] w-full max-w-sm ml-auto h-full overflow-y-auto"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Filter Header */}
-            <div className="sticky top-0 bg-[#1E2735] border-b border-[#2A3143] p-4 flex items-center justify-between">
+            <div className="sticky top-0 z-10 bg-[#1E2735] border-b border-[#2A3143] p-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-white flex items-center gap-2">
                 <Filter size={20} />
                 Filters
@@ -564,48 +660,270 @@ const ShopPage = () => {
         </div>
       )}
 
-      {/* Product detail modal */}
-      {selectedProduct && (
-        <div 
-          className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4"
-          onClick={() => setSelectedProduct(null)}
-        >
+      {/* Orders Modal (Mobile) - Same as profile popup */}
+      {showOrders && isMobile && (
+        <div className="fixed inset-0 bg-black/50 z-[101] flex items-start justify-center pt-16" onClick={() => setShowOrders(false)}>
           <div 
-            className="bg-[#1E2735] rounded-lg p-6 max-w-md w-full border border-[#2A3143] max-h-[90vh] overflow-y-auto"
+            className="bg-[#1E2735] w-10/12 max-w-xs rounded-lg overflow-hidden shadow-xl"
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex justify-between items-start mb-4">
-              <h2 className="text-xl font-bold text-white">{selectedProduct.name}</h2>
+            {/* Orders Header */}
+            <div className="bg-[#1E2735] px-3 py-2 border-b border-[#2A3143] flex items-center justify-between sticky top-0 z-20">
+              <div>
+                <h2 className="text-base font-semibold text-white">My Orders</h2>
+                <p className="text-xs text-gray-400">Order history and status</p>
+              </div>
               <button
-                onClick={() => setSelectedProduct(null)}
-                className="text-gray-400 hover:text-white transition-colors"
+                onClick={() => setShowOrders(false)}
+                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-[#2A3143]"
               >
-                <X size={24} />
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Orders Content */}
+            <div className="overflow-y-auto" style={{ maxHeight: "60vh" }}>
+              {!user ? (
+                <div className="text-center py-6">
+                  <div className="text-gray-400 mb-3">
+                    <ShoppingBag size={36} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-base mb-1">Please log in</p>
+                    <p className="text-xs">You need to be logged in to view your orders</p>
+                  </div>
+                </div>
+              ) : ordersLoading ? (
+                <div className="flex justify-center items-center py-6">
+                  <div className="animate-spin rounded-full h-6 w-6 border-2 border-t-transparent border-cropsay-green"></div>
+                </div>
+              ) : ordersError ? (
+                <div className="text-center py-6">
+                  <div className="text-red-400 mb-3">
+                    <p className="text-base mb-1">Error loading orders</p>
+                    <p className="text-xs">{ordersError}</p>
+                  </div>
+                </div>
+              ) : orders.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="text-gray-400 mb-3">
+                    <ShoppingBag size={36} className="mx-auto mb-2 opacity-50" />
+                    <p className="text-base mb-1">No orders yet</p>
+                    <p className="text-xs">Your order history will appear here</p>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {orders.map(order => (
+                    <div key={order.id} className="px-3 py-2 border-b border-[#2A3143]/50 last:border-b-0">
+                      <div className="flex justify-between items-baseline">
+                        <h3 className="text-xs font-medium text-white truncate">Order #{order.id?.slice(-6) || 'N/A'}</h3>
+                        <span className="text-cropsay-green text-xs font-medium">₹{order.total}</span>
+                      </div>
+                      
+                      <div className="flex items-center justify-between mt-1 mb-1">
+                        <p className="text-[10px] text-gray-400">
+                          {order.date ? new Date(order.date).toLocaleString('en-US', {
+                            month: 'numeric',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          }) : 'N/A'} · Items: {order.items?.length || 1}
+                        </p>
+                        
+                        <span className={cn(
+                          "text-[10px] font-medium",
+                          order.status === 'Paid' || order.status === 'Delivered' 
+                            ? 'text-green-400' 
+                            : order.status === 'Pending' 
+                            ? 'text-yellow-400' 
+                            : order.status === 'Cancelled'
+                            ? 'text-red-400'
+                            : 'text-gray-400'
+                        )}>
+                          {order.status || 'Unknown'}
+                        </span>
+                      </div>
+                      
+                      <div className="flex justify-end items-center gap-1.5">
+                        {order.status === 'Cancelled' ? (
+                          <button
+                            onClick={() => deleteOrder(order.id)}
+                            disabled={cancellingOrderId === order.id}
+                            className="bg-red-900/40 text-white hover:bg-red-900/60 text-[10px] py-0.5 px-2 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[45px]"
+                          >
+                            {cancellingOrderId === order.id ? (
+                              <div className="h-2 w-2 border-[1.5px] border-white border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              "Delete"
+                            )}
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => cancelOrder(order.id)}
+                            disabled={cancellingOrderId === order.id || order.status === 'Delivered'}
+                            className={cn(
+                              "bg-red-900/40 text-white hover:bg-red-900/60 text-[10px] py-0.5 px-2 rounded disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center min-w-[45px]",
+                              order.status === 'Delivered' && "opacity-50 cursor-not-allowed"
+                            )}
+                          >
+                            {cancellingOrderId === order.id ? (
+                              <div className="h-2 w-2 border-[1.5px] border-white border-t-transparent rounded-full animate-spin"></div>
+                            ) : (
+                              "Cancel"
+                            )}
+                          </button>
+                        )}
+                        <button
+                          onClick={() => viewOrderDetails(order.id)}
+                          className="bg-[#2A3143] text-white hover:bg-[#3A4453] text-[10px] py-0.5 px-2 rounded"
+                        >
+                          View
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+      
+      {/* Order Details Modal */}
+      {showOrderDetails && selectedOrder && (
+        <div className="fixed inset-0 bg-black/50 z-[101] flex items-start justify-center pt-16" onClick={() => setShowOrderDetails(false)}>
+          <div 
+            className="bg-[#1E2735] w-10/12 max-w-xs rounded-lg overflow-hidden shadow-xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Order Details Header */}
+            <div className="bg-[#1E2735] px-3 py-2 border-b border-[#2A3143] flex items-center justify-between sticky top-0 z-20">
+              <div>
+                <h2 className="text-base font-semibold text-white">Order Details</h2>
+                <p className="text-xs text-gray-400">Order #{selectedOrder.id?.slice(-6) || 'N/A'}</p>
+              </div>
+              <button
+                onClick={() => setShowOrderDetails(false)}
+                className="text-gray-400 hover:text-white p-1 rounded-full hover:bg-[#2A3143]"
+              >
+                <X size={18} />
               </button>
             </div>
             
-            <div className="space-y-4">
-              <div className="bg-[#2A3143] rounded-lg p-4 text-center">
-                <div className="text-4xl mb-2">🌱</div>
-                <p className="text-gray-300 text-sm">{selectedProduct.description}</p>
-              </div>
-              
-              <div className="flex items-center justify-between">
+            {/* Order Details Content */}
+            <div className="p-2 overflow-y-auto" style={{ maxHeight: "60vh" }}>
+              {/* Order Status and Date */}
+              <div className="flex justify-between items-center mb-2">
                 <div>
-                  <span className="text-2xl font-bold text-cropsay-green">
-                    ₹{selectedProduct.price.toLocaleString()}
+                  <span className={cn(
+                    "text-[10px] font-medium",
+                    selectedOrder.status === 'Paid' || selectedOrder.status === 'Delivered' 
+                      ? 'text-green-400' 
+                      : selectedOrder.status === 'Pending' 
+                      ? 'text-yellow-400' 
+                      : selectedOrder.status === 'Cancelled'
+                      ? 'text-red-400'
+                      : 'text-gray-400'
+                  )}>
+                    {selectedOrder.status || 'Unknown'}
                   </span>
                 </div>
-                <div className="text-right">
-                  <p className="text-sm text-gray-400">Category</p>
-                  <p className="text-white">{selectedProduct.category}</p>
+                <p className="text-[10px] text-gray-400">
+                  {selectedOrder.date ? new Date(selectedOrder.date).toLocaleString('en-US', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                  }) : 'N/A'}
+                </p>
+              </div>
+              
+              {/* Order Info */}
+              <div className="space-y-1.5 mb-2">
+                <div className="bg-[#232B3B] p-1.5 rounded">
+                  <h3 className="text-[10px] font-medium text-gray-300">Payment Method</h3>
+                  <p className="text-xs text-white">{selectedOrder.payment_method || 'COD'}</p>
+                </div>
+                
+                <div className="bg-[#232B3B] p-1.5 rounded">
+                  <h3 className="text-[10px] font-medium text-gray-300">Shipping Address</h3>
+                  <p className="text-xs text-white">{selectedOrder.address || 'Not specified'}</p>
+                </div>
+                
+                <div className="bg-[#232B3B] p-1.5 rounded">
+                  <h3 className="text-[10px] font-medium text-gray-300">Contact</h3>
+                  <p className="text-xs text-white">{selectedOrder.phone || 'Not specified'}</p>
                 </div>
               </div>
-
-              <CartItemQuantity 
-                id={selectedProduct.id} 
-                quantity={items.find(item => item.id === selectedProduct.id)?.quantity || 0}
-              />
+              
+              {/* Order Items */}
+              <div className="mb-2">
+                <h3 className="text-[10px] font-medium text-gray-300 mb-1">Items</h3>
+                {selectedOrder.items && Array.isArray(selectedOrder.items) && selectedOrder.items.length > 0 ? (
+                  <div className="space-y-1.5">
+                    {selectedOrder.items.map((item: any, idx: number) => (
+                      <div key={idx} className="flex justify-between bg-[#232B3B] p-1.5 rounded">
+                        <div>
+                          <p className="text-xs text-white font-medium">{item.name}</p>
+                          <p className="text-[10px] text-gray-400">Qty: {item.quantity}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-xs text-white">₹{item.price}</p>
+                          <p className="text-[10px] text-gray-400">₹{(item.price * item.quantity).toFixed(2)}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">No items in this order</p>
+                )}
+              </div>
+              
+              {/* Order Total */}
+              <div className="border-t border-[#2A3143] pt-2 mb-2">
+                <div className="flex justify-between">
+                  <p className="text-[10px] text-gray-400">Subtotal</p>
+                  <p className="text-xs text-white">₹{selectedOrder.total?.toLocaleString() || '0'}</p>
+                </div>
+                <div className="flex justify-between">
+                  <p className="text-[10px] text-gray-400">Shipping</p>
+                  <p className="text-xs text-white">₹0</p>
+                </div>
+                <div className="flex justify-between">
+                  <p className="text-[10px] text-gray-400">Tax</p>
+                  <p className="text-xs text-white">Included</p>
+                </div>
+                <div className="flex justify-between font-medium mt-1">
+                  <p className="text-xs text-white">Total</p>
+                  <p className="text-sm text-cropsay-green font-medium">₹{selectedOrder.total?.toLocaleString() || '0'}</p>
+                </div>
+              </div>
+              
+              {/* Order Actions */}
+              <div className="flex justify-end gap-1.5 mt-2">
+                <button
+                  onClick={() => setShowOrderDetails(false)}
+                  className="px-2 py-1 text-[10px] text-white bg-[#2A3143] hover:bg-[#3A4453] rounded"
+                >
+                  Close
+                </button>
+                
+                {selectedOrder.status !== 'Cancelled' && selectedOrder.status !== 'Delivered' && (
+                  <button
+                    onClick={() => {
+                      cancelOrder(selectedOrder.id);
+                      setShowOrderDetails(false);
+                    }}
+                    className="px-2 py-1 text-[10px] text-white bg-red-900/40 hover:bg-red-900/60 rounded"
+                    disabled={cancellingOrderId === selectedOrder.id}
+                  >
+                    {cancellingOrderId === selectedOrder.id ? (
+                      <div className="h-2 w-2 border-[1.5px] border-white border-t-transparent rounded-full animate-spin"></div>
+                    ) : (
+                      "Cancel Order"
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         </div>

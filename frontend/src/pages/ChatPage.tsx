@@ -1411,11 +1411,6 @@ const ChatPage = () => {
                       data-history-toggle
                     >
                       <History size={20} />
-                      {chatSessions.length > 1 && (
-                        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                          {chatSessions.length}
-                        </span>
-                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Chat History</TooltipContent>
@@ -1442,9 +1437,9 @@ const ChatPage = () => {
         </div>
       )}
 
-      {/* Mobile Header - Fixed below app header */}
+      {/* Mobile Header - Fixed below app header with responsive positioning */}
       {isMobile && (
-        <div className="fixed top-[50px] left-0 right-0 z-30 py-1.5 px-2 flex justify-between items-center shadow-sm border-b border-cropsay-grayDark/30 backdrop-blur-md bg-[#1E2735]/50">
+        <div className="fixed left-0 right-0 z-30 py-1.5 px-2 flex justify-between items-center shadow-sm border-b border-cropsay-grayDark/30 backdrop-blur-md bg-[#1E2735]/75 mobile-chat-header-responsive">
           <div className="flex items-center space-x-2">
             <div className="flex items-center gap-1.5 text-sm text-gray-400">
               <button 
@@ -1471,11 +1466,6 @@ const ChatPage = () => {
                       data-history-toggle
                     >
                       <History size={18} />
-                      {chatSessions.length > 1 && (
-                        <span className="absolute -top-1 -right-1 bg-green-500 text-white text-xs rounded-full w-4 h-4 flex items-center justify-center">
-                          {chatSessions.length}
-                        </span>
-                      )}
                     </Button>
                   </TooltipTrigger>
                   <TooltipContent>Chat History</TooltipContent>
@@ -1525,8 +1515,8 @@ const ChatPage = () => {
         </div>
       )}
 
-      {/* Main Chat Area - with padding top to account for fixed header */}
-      <div className={`flex-1 ${isMobile ? 'overflow-y-auto pt-[80px] pb-[85px] mobile-chat-container scrollbar-hide' : 'overflow-y-auto scrollbar-hide'} ${isMobile ? 'py-0' : 'py-6'} bg-[#1E2735] ${isMobile ? 'flex flex-col' : ''}`}>
+      {/* Main Chat Area - with responsive padding top to account for fixed header */}
+      <div className={`flex-1 ${isMobile ? 'overflow-y-auto mobile-chat-main-responsive pb-[85px] mobile-chat-container scrollbar-hide' : 'overflow-y-auto scrollbar-hide'} ${isMobile ? 'py-0' : 'py-6'} bg-[#1E2735] ${isMobile ? 'flex flex-col' : ''}`}>
         {loading ? (
           <div className="h-full flex flex-col justify-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
@@ -1745,7 +1735,7 @@ const ChatPage = () => {
       
       {/* Chat Input */}
       <div className={`${isMobile ? 'fixed bottom-[75px] left-0 right-0 z-30 p-2 mobile-chat-input' : 'sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30'}`}>
-        <div className={`${isMobile ? 'max-w-full mx-2.5' : 'max-w-4xl px-4 md:px-8 lg:px-10'} mx-auto`}>
+        <div className={`${isMobile ? 'max-w-full mx-2.5' : 'max-w-4xl px-6 md:px-12 lg:px-16'} mx-auto`}>
           <form onSubmit={handleSubmit} className="relative flex flex-col">
             <div className="relative flex items-center bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
               <textarea

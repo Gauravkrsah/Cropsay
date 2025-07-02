@@ -68,6 +68,8 @@
   .mobile-chat-input {
     padding-bottom: max(8px, env(safe-area-inset-bottom, 8px));
     margin-bottom: env(safe-area-inset-bottom, 10px);
+    margin: 10px;
+    margin-right: 18px;
     /* Safe area bottom padding for iOS devices */
     /* Removed background for clean look */
   }
@@ -365,7 +367,7 @@
   /* Enhanced mobile-specific chat styles */
   .mobile-chat-container {
     @apply sticky bottom-0 w-full bg-[#1E2735] border-t border-[#2A3143]/30 z-20 flex-shrink-0;
-    padding: 8px;
+    padding: 8px 18px;
     min-height: 64px;
     /* Handle mobile keyboard viewport changes */
     position: -webkit-sticky;
@@ -390,7 +392,7 @@
 
   .mobile-chat-inner {
     @apply w-full max-w-full;
-    padding: 0 8px;
+    padding: 8px;
   }
 
   .mobile-chat-form {
@@ -400,11 +402,11 @@
   .mobile-input-wrapper {
     @apply relative flex items-center w-full rounded-xl bg-[#10141E] border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all;
     min-height: 48px;
-  }
+    }
 
   .mobile-textarea {
     @apply flex-1 bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none overflow-y-auto;
-    padding: 12px 60px 12px 12px;
+    padding: 12px 50px 12px 12px;
     min-height: 48px;
     max-height: 120px;
     line-height: 1.4;
@@ -412,7 +414,7 @@
     -webkit-appearance: none;
     appearance: none;
     -webkit-border-radius: 0;
-    border-radius: 12px;
+    border-radius:20px;
     /* Smooth transitions */
     transition: height 0.2s ease-out;
     /* Prevent content jumping */
@@ -430,7 +432,7 @@
   /* Ensure proper touch handling on mobile */
   .mobile-input-wrapper {
     @apply relative flex items-center w-full rounded-xl bg-[#10141E] border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all;
-    min-height: 48px;
+    min-height: 50px;
     touch-action: manipulation;
     /* Prevent layout shifts */
     contain: layout style;
@@ -440,6 +442,7 @@
   @media screen and (max-width: 768px) {
     .mobile-chat-container {
       padding-bottom: env(safe-area-inset-bottom, 8px);
+
     }
     
     .mobile-textarea {
@@ -817,3 +820,11 @@
     width: auto;
   }
 }
+
+/* Consistent spacing for taller mobile screens */
+@media screen and (min-height: 800px) {
+  .mobile-consistent-gap {
+    margin-top: 15px;
+  }
+}
+
