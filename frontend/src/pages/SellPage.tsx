@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Camera, Upload, CheckCircle, Trash2, Edit, AlertCircle, Package, MoreVertical, Loader, Info, Image as ImageIcon, X, Truck, Home, ChevronRight, Search, ChevronDown } from 'lucide-react';
+import { Camera, Upload, CheckCircle, Trash2, Edit, AlertCircle, Package, MoreVertical, Loader, Info, Image as ImageIcon, X, Truck, Home, ChevronRight, Search, ChevronDown, RefreshCw, User, Download, BarChart3 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { 
   createProduct, 
   fetchSellerProducts, 
@@ -10,12 +16,26 @@ import {
   uploadProductImage,
   ProductFormData 
 } from '@/services/productService';
-import { getSellerOrders } from '@/services/orderService';
+import { getSellerOrders, verifyOrderStatus, fetchAllOrdersDirectly } from '@/services/orderService';
 import { updateOrderStatus, batchUpdateOrderStatus, markCODOrdersAsShippedAndPaid } from '@/services/orderService';
 import { Product } from '@/data/productData';
 import { getCategories, getSubcategories } from '@/data/productData';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
+
+// Type for vendor application form
+type VendorApplicationData = {
+  fullName: string;
+  email: string;
+  businessName: string;
+  businessAddress: string;
+  phoneNumber: string;
+  businessType: string;
+  description: string;
+  website?: string;
+  taxId?: string;
+  agreedToTerms: boolean;
+};
 
 // Status Option component for order status dropdown
 type StatusOptionProps = {
@@ -28,31 +48,9 @@ type StatusOptionProps = {
   onClick: (orderId: string, status: string) => void;
 };
 
-const StatusOption = ({ emoji, status, description, value, currentStatus, orderId, onClick }: StatusOptionProps) => {
-  const isActive = currentStatus.toLowerCase() === value.toLowerCase();
-  
-  return (
-    <li 
-      className={cn(
-        "px-3 py-2 hover:bg-cropsay-grayDark/50 cursor-pointer flex items-start",
-        isActive ? "bg-cropsay-grayDark" : ""
-      )}
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick(orderId, value);
-      }}
-    >
-      <span className="mr-2 text-lg">{emoji}</span>
-      <div className="flex-1">
-        <div className="flex items-center">
-          <span className="font-medium text-white text-sm">{status}</span>
-          {isActive && <span className="ml-2 text-xs bg-cropsay-green/20 text-cropsay-green px-1.5 py-0.5 rounded">Current</span>}
-        </div>
-        {description && <p className="text-xs text-cropsay-grayText mt-0.5">{description}</p>}
-      </div>
-    </li>
-  );
-};
+// This component is no longer needed as we're using a popup instead of dropdown
+// Keeping the type definition for reference
+;
 
 // Type for seller orders
 type OrderWithItems = {
@@ -70,9 +68,22 @@ type OrderWithItems = {
 };
 
 const SellPage = () => {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  
+  // Check if user is authenticated and has a cropsay.com email domain
+  const isVendor = user?.email?.endsWith('@cropsay.com') || false;
+  
+  // Redirect to login if not authenticated, but only after auth has finished loading
+  useEffect(() => {
+    // Only redirect if auth loading is complete and user is not available
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, navigate, authLoading]);
+  
+  // Default to listing tab for creating products
   const [activeTab, setActiveTab] = useState('listing');
   const [loading, setLoading] = useState(false);
   
@@ -135,6 +146,10 @@ const SellPage = () => {
   // Order details dialog state
   const [showOrderDetailsDialog, setShowOrderDetailsDialog] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
+  const [isUpdatingOrderStatus, setIsUpdatingOrderStatus] = useState(false);
+  
+  // Analytics modal state
+  const [showAnalyticsModal, setShowAnalyticsModal] = useState(false);
   
   // Get categories for dropdown
   const categories = getCategories();
@@ -148,25 +163,32 @@ const SellPage = () => {
       setSubcategories([]);
     }
   }, [productForm.category]);
-    // Load seller products when tab changes to 'manage'
+  
+  // Load seller products when tab changes to 'manage'
   useEffect(() => {
-    if (activeTab === 'manage') {
-      loadSellerProducts();
-    } else if (activeTab === 'orders') {
-      loadSellerOrders();
+    if (isVendor) {
+      if (activeTab === 'manage') {
+        // Always refresh products when switching to manage tab
+        loadSellerProducts();
+      } else if (activeTab === 'orders') {
+        loadSellerOrders();
+      } else if (activeTab === 'listing') {
+        // Don't reset the form when switching to listing tab
+        // This allows users to navigate to the create listing tab without resetting their form
+      }
     }
-  }, [activeTab]);
+  }, [activeTab, isVendor]);
   
   // Set up auto-refresh interval for orders
   useEffect(() => {
-    if (activeTab === 'orders') {
+    if (isVendor && activeTab === 'orders') {
       const interval = setInterval(() => {
         loadSellerOrders();
       }, 60000); // 60 seconds interval
       
       return () => clearInterval(interval);
     }
-  }, [activeTab]);
+  }, [activeTab, isVendor]);
   
   // Load products created by the seller
   const loadSellerProducts = async () => {
@@ -175,6 +197,7 @@ const SellPage = () => {
     setIsLoadingProducts(true);
     try {
       const products = await fetchSellerProducts();
+      console.log('Loaded seller products:', products); // Debug logging
       setSellerProducts(products);
     } catch (error) {
       console.error('Error loading seller products:', error);
@@ -190,7 +213,26 @@ const SellPage = () => {
     
     setIsLoadingOrders(true);
     try {
+      // Get orders through the main function
       const orders = await getSellerOrders();
+      console.log('Loaded seller orders:', orders); // Debug logging
+      
+      // If we have any updated orders, verify their status directly
+      if (orders && orders.length > 0) {
+        console.log('Verifying first order status directly from DB...');
+        try {
+          const verifiedOrder = await verifyOrderStatus(orders[0].id);
+          console.log(`Direct DB check for order ${orders[0].id}: status=${verifiedOrder.status}, from API: ${orders[0].status}`);
+          
+          // If there's a discrepancy, refresh from DB directly
+          if (verifiedOrder.status !== orders[0].status) {
+            console.warn(`Status mismatch for order ${orders[0].id}! API: ${orders[0].status}, DB: ${verifiedOrder.status}`);
+          }
+        } catch (verifyErr) {
+          console.error('Error verifying order:', verifyErr);
+        }
+      }
+      
       setSellerOrders(orders as OrderWithItems[]);
     } catch (error) {
       console.error('Error loading seller orders:', error);
@@ -309,16 +351,20 @@ const SellPage = () => {
           setSuccessMessage('Product updated successfully!');
           // Refresh products list
           loadSellerProducts();
-          // Reset form
-          resetForm();
+          // Reset form and switch to manage tab
+          resetForm(true);
         }
       } else {
         // Create new product
         result = await createProduct(productData);
         if (result) {
+          // Load products first to ensure they're available in the manage tab
+          await loadSellerProducts();
           setSuccessMessage('Product created successfully!');
-          // Reset form
-          resetForm();
+          
+          // Reset form but stay on the current tab
+          // This allows users to create another product if they want
+          resetForm(false);
         }
       }
       
@@ -334,7 +380,7 @@ const SellPage = () => {
   };
   
   // Reset form and state
-  const resetForm = () => {
+  const resetForm = (switchTab = true) => {
     setProductForm({
       name: '',
       description: '',
@@ -347,7 +393,11 @@ const SellPage = () => {
     });
     setSelectedFiles([]);
     setEditingProduct(null);
-    setActiveTab('manage'); // Switch to manage tab after successful creation
+    
+    // Only switch tabs if parameter is true (default)
+    if (switchTab) {
+      setActiveTab('manage'); // Switch to manage tab after successful creation
+    }
   };
   
   // Handle edit product button
@@ -461,47 +511,334 @@ const SellPage = () => {
           isMobile ? "w-full max-w-sm" : "w-full max-w-md"
         )}>
           <div className={cn("p-6", isMobile ? "p-4" : "p-6")}>
-            <div className="flex items-center mb-4">
-              <div className="bg-red-100 rounded-full p-2 mr-3">
-                <AlertCircle size={24} className="text-red-600" />
+            
+            
+            
+            
+            
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Vendor Application Form Component
+  const VendorApplicationForm = () => {
+    const [vendorForm, setVendorForm] = useState<VendorApplicationData>({
+      fullName: user?.user_metadata?.full_name || '',
+      email: user?.email || '',
+      businessName: '',
+      businessAddress: '',
+      phoneNumber: user?.user_metadata?.phone || '',
+      businessType: '',
+      description: '',
+      website: '',
+      taxId: '',
+      agreedToTerms: false
+    });
+    
+    const [submitting, setSubmitting] = useState(false);
+    const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+    
+    const handleVendorInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const { name, value, type } = e.target;
+      
+      if (type === 'checkbox') {
+        const checkbox = e.target as HTMLInputElement;
+        setVendorForm(prev => ({
+          ...prev,
+          [name]: checkbox.checked
+        }));
+      } else {
+        setVendorForm(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    };
+    
+    const handleVendorSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Validation
+      if (!vendorForm.fullName || !vendorForm.email || !vendorForm.businessName || 
+          !vendorForm.businessAddress || !vendorForm.phoneNumber || 
+          !vendorForm.businessType || !vendorForm.description || !vendorForm.agreedToTerms) {
+        setErrorMessage('Please fill in all required fields');
+        return;
+      }
+      
+      setErrorMessage('');
+      setSubmitting(true);
+      
+      try {
+        // Here you would implement the API call to submit the vendor application
+        // For now we'll just simulate a successful submission
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        setSuccessMessage('Your vendor application has been submitted successfully! We will review it and get back to you soon.');
+        setApplicationSubmitted(true);
+      } catch (error) {
+        console.error('Error submitting vendor application:', error);
+        setErrorMessage('Failed to submit application. Please try again later.');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+    
+    if (applicationSubmitted) {
+      return (
+        <div className="max-w-2xl mx-auto text-center py-8">
+          <div className="bg-cropsay-darkSecondary rounded-lg p-6">
+            <div className="w-16 h-16 bg-green-800/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle size={32} className="text-green-500" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Application Submitted!</h2>
+            <p className="text-cropsay-grayText mb-6">
+              Thank you for applying to become a vendor on CropsayAI. Our team will review your application and contact you soon.
+            </p>
+            <div className="bg-cropsay-dark/50 rounded-lg p-4 mb-4">
+              <h3 className="font-medium mb-2">What happens next?</h3>
+              <ol className="list-decimal list-inside text-left text-sm space-y-2">
+                <li>Our team will review your application (usually within 2-3 business days)</li>
+                <li>We may contact you for additional information if needed</li>
+                <li>Once approved, you'll receive vendor credentials to access the seller platform</li>
+                <li>You can then start listing your products and managing your store</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="max-w-2xl mx-auto">
+        {renderNotification()}
+        
+        <div className="bg-cropsay-darkSecondary rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Become a Vendor</h2>
+          <p className="text-cropsay-grayText mb-6">
+            Join our marketplace to reach more customers and grow your agricultural business.
+            Complete this form to apply for a vendor account.
+          </p>
+          
+          <form onSubmit={handleVendorSubmit}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="fullName" className="block text-sm font-medium mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    name="fullName"
+                    value={vendorForm.fullName}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  />
+                  {user?.user_metadata?.full_name && <p className="text-xs text-cropsay-grayText mt-1">Auto-filled from your profile</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-1">Email *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={vendorForm.email}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                    readOnly
+                  />
+                  <p className="text-xs text-cropsay-grayText mt-1">Email address from your account will be used</p>
+                </div>
               </div>
-              <h3 className={cn("font-semibold text-white", isMobile ? "text-lg" : "text-xl")}>
-                Delete Product
-              </h3>
+              
+              <div>
+                <label htmlFor="businessName" className="block text-sm font-medium mb-1">Business Name *</label>
+                <input
+                  type="text"
+                  id="businessName"
+                  name="businessName"
+                  value={vendorForm.businessName}
+                  onChange={handleVendorInputChange}
+                  className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="businessAddress" className="block text-sm font-medium mb-1">Business Address *</label>
+                <input
+                  type="text"
+                  id="businessAddress"
+                  name="businessAddress"
+                  value={vendorForm.businessAddress}
+                  onChange={handleVendorInputChange}
+                  className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium mb-1">Phone Number *</label>
+                  <input
+                    type="tel"
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={vendorForm.phoneNumber}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  />
+                  {user?.user_metadata?.phone && <p className="text-xs text-cropsay-grayText mt-1">Auto-filled from your profile</p>}
+                </div>
+                
+                <div>
+                  <label htmlFor="businessType" className="block text-sm font-medium mb-1">Business Type *</label>
+                  <select
+                    id="businessType"
+                    name="businessType"
+                    value={vendorForm.businessType}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  >
+                    <option value="">Select business type</option>
+                    <option value="farm">Farm</option>
+                    <option value="agricultural_supplier">Agricultural Supplier</option>
+                    <option value="seeds_nursery">Seeds & Nursery</option>
+                    <option value="equipment_dealer">Equipment Dealer</option>
+                    <option value="organic_producer">Organic Producer</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium mb-1">Business Description *</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={vendorForm.description}
+                  onChange={handleVendorInputChange}
+                  rows={4}
+                  className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  required
+                  placeholder="Tell us about your business, products, and experience..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="website" className="block text-sm font-medium mb-1">Website (Optional)</label>
+                  <input
+                    type="url"
+                    id="website"
+                    name="website"
+                    value={vendorForm.website}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    placeholder="https://yourbusiness.com"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="taxId" className="block text-sm font-medium mb-1">Tax ID/Business Registration (Optional)</label>
+                  <input
+                    type="text"
+                    id="taxId"
+                    name="taxId"
+                    value={vendorForm.taxId}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-start mt-4">
+                <div className="flex items-center h-5">
+                  <input
+                    id="agreedToTerms"
+                    name="agreedToTerms"
+                    type="checkbox"
+                    checked={vendorForm.agreedToTerms}
+                    onChange={handleVendorInputChange}
+                    className="w-4 h-4 border border-cropsay-grayDark rounded bg-cropsay-dark focus:ring-cropsay-green"
+                    required
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="agreedToTerms" className="text-cropsay-grayText">
+                    I agree to the <a href="#" className="text-cropsay-green hover:underline">Terms and Conditions</a> and <a href="#" className="text-cropsay-green hover:underline">Vendor Policies</a> *
+                  </label>
+                </div>
+              </div>
             </div>
             
-            <p className="text-cropsay-grayText mb-6">
-              Are you sure you want to delete <span className="font-medium text-white">"{productToDelete.name}"</span>? 
-              This action cannot be undone.
-            </p>
+            <div className="mt-6">
+              <button
+                type="submit"
+                disabled={submitting}
+                className={cn(
+                  "w-full py-3 px-4 bg-gradient-to-r from-cropsay-green to-green-500 text-white rounded-md font-medium transition-all",
+                  submitting ? "opacity-70 cursor-not-allowed" : "hover:shadow-lg"
+                )}
+              >
+                {submitting ? (
+                  <div className="flex items-center justify-center">
+                    <Loader size={18} className="animate-spin mr-2" />
+                    Submitting Application...
+                  </div>
+                ) : "Submit Application"}
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <div className="bg-cropsay-dark rounded-lg p-6">
+          <h3 className="text-lg font-medium mb-4">Benefits of Becoming a Vendor</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Expanded Reach</h4>
+                <p className="text-sm text-cropsay-grayText">Connect with farmers and agricultural professionals across the region</p>
+              </div>
+            </div>
             
-            <div className={cn("flex gap-3", isMobile ? "flex-col" : "flex-row justify-end")}>
-              <button
-                onClick={cancelDeleteProduct}
-                className={cn(
-                  "px-4 py-2 border border-cropsay-grayDark text-cropsay-grayText hover:text-white hover:border-cropsay-grayMedium rounded-md transition-colors",
-                  isMobile ? "w-full" : ""
-                )}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={confirmDeleteProduct}
-                disabled={loading}
-                className={cn(
-                  "px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-md transition-colors flex items-center justify-center",
-                  isMobile ? "w-full" : ""
-                )}
-              >
-                {loading ? (
-                  <>
-                    <Loader size={16} className="animate-spin mr-2" />
-                    Deleting...
-                  </>
-                ) : (
-                  'Delete Product'
-                )}
-              </button>
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Easy Management</h4>
+                <p className="text-sm text-cropsay-grayText">Powerful tools to manage your listings, inventory and orders</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Secure Payments</h4>
+                <p className="text-sm text-cropsay-grayText">Reliable payment processing with protection for vendors</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Analytics & Insights</h4>
+                <p className="text-sm text-cropsay-grayText">Gain valuable data on your sales and customer behavior</p>
+              </div>
             </div>
           </div>
         </div>
@@ -514,6 +851,29 @@ const SellPage = () => {
     return (
       <div className={cn("max-w-2xl mx-auto", isMobile ? "p-2" : "p-4")}>
         {renderNotification()}
+        
+        {/* Success message with navigation option */}
+        {successMessage && (
+          <div className="flex flex-wrap items-center justify-between bg-green-900/50 border border-green-700 p-3 rounded-md mb-4">
+            <div className="flex items-center">
+              <CheckCircle size={20} className="mr-2 text-green-500" />
+              <span>Product successfully {editingProduct ? 'updated' : 'created'}!</span>
+            </div>
+            <div className="mt-2 sm:mt-0">
+              <button 
+                className="text-sm bg-cropsay-green px-3 py-1.5 rounded-md hover:bg-green-600 transition-colors flex items-center"
+                onClick={() => {
+                  setActiveTab('manage');
+                  // Force reload products when switching to manage tab
+                  setTimeout(() => loadSellerProducts(), 100);
+                }}
+              >
+                <Package size={16} className="mr-1.5" />
+                View All Products
+              </button>
+            </div>
+          </div>
+        )}
         
         <div className={cn("bg-cropsay-darkSecondary rounded-lg", isMobile ? "p-4" : "p-6")}>
           <h2 className={cn("font-medium mb-6", isMobile ? "text-lg" : "text-xl")}>
@@ -751,17 +1111,16 @@ const SellPage = () => {
                 )}
               </button>
               
-              {editingProduct && (
-                <button 
-                  type="button"
-                  onClick={resetForm}
-                  className={cn(
-                    "w-full mt-3 text-cropsay-grayText hover:text-white transition-colors rounded-lg border border-cropsay-grayDark hover:border-cropsay-grayMedium",
-                    isMobile ? "py-2.5 text-sm" : "py-2"
-                  )}
-                >
-                  Cancel Editing
-                </button>
+              {editingProduct && (              <button 
+                type="button"
+                onClick={() => resetForm(true)}
+                className={cn(
+                  "w-full mt-3 text-cropsay-grayText hover:text-white transition-colors rounded-lg border border-cropsay-grayDark hover:border-cropsay-grayMedium",
+                  isMobile ? "py-2.5 text-sm" : "py-2"
+                )}
+              >
+                Cancel Editing
+              </button>
               )}
             </div>
           </form>
@@ -783,15 +1142,29 @@ const SellPage = () => {
         ) : sellerProducts.length === 0 ? (
           <div className="text-center py-16">
             <div className="flex justify-center">
-              <div className="bg-cropsay-darkSecondary p-6 rounded-full">
-                <Package size={48} className="text-cropsay-grayText" />
-              </div>
+              
             </div>
             <h3 className={cn("mt-6", isMobile ? "text-lg" : "text-xl")}>No Active Listings</h3>
             <p className="text-cropsay-grayText mt-2">You don't have any product listings yet.</p>
             <button 
               className="primary-button mt-6 mx-auto"
-              onClick={() => setActiveTab('listing')}
+              onClick={() => {
+                // Reset the form first before changing tabs to ensure clean state
+                setProductForm({
+                  name: '',
+                  description: '',
+                  price: 0,
+                  category: '',
+                  subcategory: '',
+                  brand: '',
+                  quantity: 0,
+                  images: []
+                });
+                setSelectedFiles([]);
+                setEditingProduct(null);
+                // Then switch to listing tab
+                setActiveTab('listing');
+              }}
             >
               Create Your First Listing
             </button>
@@ -799,79 +1172,66 @@ const SellPage = () => {
         ) : (
           <div>
             <div className={cn("mb-4 items-center", isMobile ? "flex flex-col space-y-3" : "flex justify-between")}>
-              <h2 className={cn("font-medium", isMobile ? "text-lg" : "text-xl")}>Your Products</h2>
-              <button 
-                className={cn("primary-button", isMobile ? "w-full" : "")}
-                onClick={() => setActiveTab('listing')}
-              >
-                {isMobile ? "Add Product" : "Add New Product"}
-              </button>
+              <div>
+                <h3 className={cn("text-lg font-medium", isMobile ? "text-center mb-2" : "")}>Your Products</h3>
+              </div>
+              <div>
+                <button
+                  className="flex items-center bg-cropsay-green hover:bg-green-600 text-white px-3 py-2 rounded-md transition-colors"
+                  onClick={() => {
+                    setProductForm({
+                      name: '',
+                      description: '',
+                      price: 0,
+                      category: '',
+                      subcategory: '',
+                      brand: '',
+                      quantity: 0,
+                      images: []
+                    });
+                    setSelectedFiles([]);
+                    setEditingProduct(null);
+                    setActiveTab('listing');
+                  }}
+                >
+                  <Upload size={18} className="mr-2" />
+                  Add New Product
+                </button>
+              </div>
             </div>
             
             {/* Mobile Card Layout */}
             {isMobile ? (
               <div className="space-y-3">
                 {sellerProducts.map((product) => (
-                  <div key={product.id} className="bg-cropsay-darkSecondary rounded-lg p-4 border border-cropsay-grayDark">
-                    <div className="flex items-start space-x-3">
-                      {/* Product Image */}
-                      <div className="w-16 h-16 bg-cropsay-grayDark rounded-md overflow-hidden flex items-center justify-center flex-shrink-0">
-                        {product.images && product.images.length > 0 ? (
-                          <img 
-                            src={product.images[0]} 
-                            alt={product.name}
-                            className="w-full h-full object-cover"
-                          />
+                  <div key={product.id} className="bg-cropsay-darkSecondary p-4 rounded-lg shadow-md">
+                    <div className="flex justify-between items-center mb-3">
+                      <h3 className="font-medium text-white">{product.name}</h3>
+                      <div className="flex space-x-2">
+                        <button onClick={() => handleEditProduct(product)} className="p-1.5 bg-cropsay-dark rounded-full hover:bg-cropsay-grayDark">
+                          <Edit size={14} />
+                        </button>
+                        <button onClick={() => handleDeleteProduct(product)} className="p-1.5 bg-cropsay-dark rounded-full hover:bg-red-900/50">
+                          <Trash2 size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex gap-3">
+                      <div className="w-16 h-16 bg-cropsay-dark rounded flex-shrink-0 overflow-hidden">
+                        {product.images && product.images[0] ? (
+                          <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
                         ) : (
-                          <ImageIcon size={20} className="text-cropsay-grayText" />
+                          <div className="w-full h-full flex items-center justify-center">
+                            <Package size={24} className="text-cropsay-grayText" />
+                          </div>
                         )}
                       </div>
-                      
-                      {/* Product Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex justify-between items-start mb-2">
-                          <div className="flex-1 min-w-0">
-                            <h3 className="font-medium text-sm truncate">{product.name}</h3>
-                            <p className="text-xs text-cropsay-grayText">{product.brand}</p>
-                          </div>
-                          
-                          {/* Action Buttons */}
-                          <div className="flex items-center space-x-1 ml-2">
-                            <button
-                              onClick={() => handleEditProduct(product)}
-                              className="p-2 bg-cropsay-grayDark rounded-md hover:bg-cropsay-grayMedium transition-colors"
-                              title="Edit product"
-                            >
-                              <Edit size={14} className="text-cropsay-green" />
-                            </button>
-                            <button
-                              onClick={() => handleDeleteProduct(product)}
-                              className="p-2 bg-cropsay-grayDark rounded-md hover:bg-cropsay-grayMedium transition-colors"
-                              title="Delete product"
-                            >
-                              <Trash2 size={14} className="text-red-400" />
-                            </button>
-                          </div>
+                      <div className="flex-1">
+                        <div className="flex justify-between">
+                          <div className="text-cropsay-green font-medium">₹{product.price.toFixed(2)}</div>
+                          <div className="text-cropsay-grayText text-sm">Stock: {product.quantity}</div>
                         </div>
-                        
-                        {/* Product Details */}
-                        <div className="grid grid-cols-2 gap-2 text-xs">
-                          <div>
-                            <span className="text-cropsay-grayText">Price:</span>
-                            <span className="ml-1 font-medium">रू {product.price.toFixed(2)}</span>
-                          </div>
-                          <div>
-                            <span className="text-cropsay-grayText">Qty:</span>
-                            <span className="ml-1 font-medium">{product.quantity || 0}</span>
-                          </div>
-                          <div className="col-span-2">
-                            <span className="text-cropsay-grayText">Category:</span>
-                            <span className="ml-1 font-medium">{product.category}</span>
-                            {product.subcategory && (
-                              <span className="text-cropsay-grayText"> / {product.subcategory}</span>
-                            )}
-                          </div>
-                        </div>
+                        <div className="mt-1 text-xs text-cropsay-grayText truncate">{product.category} &gt; {product.subcategory}</div>
                       </div>
                     </div>
                   </div>
@@ -880,72 +1240,60 @@ const SellPage = () => {
             ) : (
               /* Desktop Table Layout */
               <div className="bg-cropsay-darkSecondary rounded-lg overflow-hidden">
-                <div className="overflow-x-auto">
-                  <table className="w-full table-auto">
-                    <thead className="bg-cropsay-grayDark">
-                      <tr>
-                        <th className="py-3 px-4 text-left text-sm">Product</th>
-                        <th className="py-3 px-4 text-left text-sm">Price</th>
-                        <th className="py-3 px-4 text-left text-sm">Quantity</th>
-                        <th className="py-3 px-4 text-left text-sm">Category</th>
-                        <th className="py-3 px-4 text-left text-sm">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-cropsay-grayDark">
-                      {sellerProducts.map((product) => (
-                        <tr key={product.id}>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-3">
-                              <div className="w-10 h-10 bg-cropsay-grayDark rounded-md overflow-hidden flex items-center justify-center">
-                                {product.images && product.images.length > 0 ? (
-                                  <img 
-                                    src={product.images[0]} 
-                                    alt={product.name}
-                                    className="w-full h-full object-cover"
-                                  />
-                                ) : (
-                                  <ImageIcon size={16} className="text-cropsay-grayText" />
-                                )}
-                              </div>
-                              <div>
-                                <div className="font-medium">{product.name}</div>
-                                <div className="text-xs text-cropsay-grayText">
-                                  {product.brand}
+                <table className="w-full">
+                  <thead>
+                    <tr className="text-xs text-cropsay-grayText border-b border-cropsay-grayDark bg-cropsay-dark">
+                      <th className="py-3 px-4 text-left">Product</th>
+                      <th className="py-3 px-4 text-left">Category</th>
+                      <th className="py-3 px-4 text-left">Price</th>
+                      <th className="py-3 px-4 text-left">Stock</th>
+                      <th className="py-3 px-4 text-left">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sellerProducts.map((product) => (
+                      <tr key={product.id} className="border-b border-cropsay-grayDark">
+                        <td className="py-3 px-4">
+                          <div className="flex items-center">
+                            <div className="w-12 h-12 bg-cropsay-dark rounded mr-3 overflow-hidden">
+                              {product.images && product.images[0] ? (
+                                <img src={product.images[0]} alt={product.name} className="w-full h-full object-cover" />
+                              ) : (
+                                <div className="w-full h-full flex items-center justify-center">
+                                  <Package size={18} className="text-cropsay-grayText" />
                                 </div>
-                              </div>
+                              )}
                             </div>
-                          </td>
-                          <td className="py-3 px-4">रू {product.price.toFixed(2)}</td>
-                          <td className="py-3 px-4">{product.quantity || 0}</td>
-                          <td className="py-3 px-4">
-                            <div>{product.category}</div>
-                            {product.subcategory && (
-                              <div className="text-xs text-cropsay-grayText">{product.subcategory}</div>
-                            )}
-                          </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleEditProduct(product)}
-                                className="p-1.5 bg-cropsay-grayDark rounded-md hover:bg-cropsay-grayMedium transition-colors"
-                                title="Edit product"
-                              >
-                                <Edit size={16} className="text-cropsay-green" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteProduct(product)}
-                                className="p-1.5 bg-cropsay-grayDark rounded-md hover:bg-cropsay-grayMedium transition-colors"
-                                title="Delete product"
-                              >
-                                <Trash2 size={16} className="text-red-400" />
-                              </button>
+                            <div>
+                              <div className="font-medium text-white">{product.name}</div>
+                              <div className="text-xs text-cropsay-grayText">{product.brand || 'No brand'}</div>
                             </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                          </div>
+                        </td>
+                        <td className="py-3 px-4 text-sm">
+                          <div className="text-cropsay-grayText">{product.category}</div>
+                          <div className="text-xs">{product.subcategory}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-cropsay-green font-medium">₹{product.price.toFixed(2)}</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="text-sm">{product.quantity} units</div>
+                        </td>
+                        <td className="py-3 px-4">
+                          <div className="flex space-x-3">
+                            <button onClick={() => handleEditProduct(product)} className="p-1.5 bg-cropsay-dark rounded-full hover:bg-cropsay-grayDark">
+                              <Edit size={14} />
+                            </button>
+                            <button onClick={() => handleDeleteProduct(product)} className="p-1.5 bg-cropsay-dark rounded-full hover:bg-red-900/50">
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
@@ -956,872 +1304,1177 @@ const SellPage = () => {
   
   // Orders management with responsive design
   const renderOrders = () => {
-    const formatDate = (dateString: string) => {
-      const date = new Date(dateString);
-      return date.toLocaleDateString('en-US', {
-        year: 'numeric',
-        month: 'short',
-        day: 'numeric',
-      });
-    };
-    
-    // Helper function to get status color
-    const getStatusColor = (status: string) => {
-      switch (status.toLowerCase()) {
-        case 'pending':
-        case 'order_received':
-          return 'text-yellow-400';
-        case 'paid':
-        case 'payment_received':
-        case 'completed':
-        case 'delivered':
-          return 'text-green-400';
-        case 'cancelled':
-          return 'text-red-400';
-        case 'shipped':
-        case 'out_for_delivery':
-          return 'text-blue-400';
-        case 'processing':
-        case 'inventory_check':
-        case 'packaging':
-          return 'text-orange-400';
-        case 'returned':
-          return 'text-purple-400';
-        default:
-          return 'text-cropsay-grayText';
-      }
-    };
-    
-    // Get emoji for status
-    const getStatusEmoji = (status: string) => {
-      switch (status.toLowerCase()) {
-        case 'order_received': return '📦';
-        case 'payment_received': return '💳';
-        case 'processing': return '⚙️';
-        case 'inventory_check': return '📊';
-        case 'packaging': return '🎁';
-        case 'shipped': return '🚚';
-        case 'out_for_delivery': return '📍';
-        case 'delivered': return '✅';
-        case 'returned': return '↩️';
-        case 'cancelled': return '❌';
-        default: return '📦';
-      }
-    };
-    
-    // Filter and sort orders based on search, date, status, and sort criteria
-    const getFilteredOrders = () => {
-      return sellerOrders
-        .filter(order => {
-          // Search filter
-          if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            const searchInOrder = 
-              order.id.toLowerCase().includes(query) ||
-              order.customer_name?.toLowerCase().includes(query) ||
-              order.customer_email?.toLowerCase().includes(query);
-              
-            if (!searchInOrder) return false;
-          }
-          
-          // Date filter
-          if (dateFilter !== 'all') {
-            const orderDate = new Date(order.date);
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            const yesterday = new Date(today);
-            yesterday.setDate(yesterday.getDate() - 1);
-            
-            const weekStart = new Date(today);
-            weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-            
-            const monthStart = new Date(today);
-            monthStart.setDate(1);
-            
-            const lastMonthStart = new Date(today);
-            lastMonthStart.setMonth(lastMonthStart.getMonth() - 1);
-            lastMonthStart.setDate(1);
-            
-            const lastMonthEnd = new Date(today);
-            lastMonthEnd.setDate(0);
-            
-            switch (dateFilter) {
-              case 'today':
-                if (orderDate < today || orderDate >= new Date(today.getTime() + 86400000))
-                  return false;
-                break;
-              case 'yesterday':
-                if (orderDate < yesterday || orderDate >= today)
-                  return false;
-                break;
-              case 'week':
-                if (orderDate < weekStart)
-                  return false;
-                break;
-              case 'month':
-                if (orderDate < monthStart)
-                  return false;
-                break;
-              case 'last_month':
-                if (orderDate < lastMonthStart || orderDate >= monthStart)
-                  return false;
-                break;
-            }
-          }
-          
-          // Status filter
-          if (statusFilter !== 'all' && order.status.toLowerCase() !== statusFilter) {
-            return false;
-          }
-          
-          return true;
-        })
-        .sort((a, b) => {
-          switch (sortBy) {
-            case 'date_desc':
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-            case 'date_asc':
-              return new Date(a.date).getTime() - new Date(b.date).getTime();
-            case 'total_desc':
-              return b.total - a.total;
-            case 'total_asc':
-              return a.total - b.total;
-            default:
-              return new Date(b.date).getTime() - new Date(a.date).getTime();
-          }
-        });
-    };
-
-    // Order details dialog
-    const renderOrderDetailsDialog = () => {
-      if (!showOrderDetailsDialog || !selectedOrder) return null;
-
-      return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={cn(
-            "bg-cropsay-darkSecondary rounded-lg border border-cropsay-grayDark shadow-xl flex flex-col",
-            isMobile ? "w-full max-w-sm max-h-[65vh]" : "w-full max-w-2xl max-h-[90vh]"
-          )}>
-            {/* Header - Fixed */}
-            <div className={cn(
-              "flex-shrink-0 flex items-center justify-between border-b border-cropsay-grayDark",
-              isMobile ? "p-2" : "p-6"
-            )}>
-              <div className="flex items-center">
-                <div className={cn("bg-cropsay-green/20 rounded-full mr-2", isMobile ? "p-1" : "p-2")}>
-                  <Package size={isMobile ? 16 : 24} className="text-cropsay-green" />
-                </div>
-                <div>
-                  <h3 className={cn("font-semibold text-white", isMobile ? "text-sm" : "text-xl")}>
-                    Order Details
-                  </h3>
-                  <p className={cn("text-cropsay-grayText", isMobile ? "text-xs leading-tight" : "text-sm")}>
-                    #{selectedOrder.id.slice(0, 8)}
-                  </p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowOrderDetailsDialog(false)}
-                className={cn("hover:bg-cropsay-grayDark rounded-md transition-colors", isMobile ? "p-1" : "p-2")}
-              >
-                <X size={isMobile ? 16 : 18} className="text-cropsay-grayText" />
-              </button>
-            </div>
-            
-            {/* Scrollable Content Area */}
-            <div className="flex-1 overflow-y-auto">
-              <div className={cn("p-1", isMobile ? "p-2" : "p-6")}>
-                <div className={cn("space-y-3", isMobile ? "space-y-1.5" : "space-y-4")}>
-                  {/* Customer Information */}
-                  <div className={cn("bg-cropsay-grayDark/30 rounded-lg", isMobile ? "p-2" : "p-4")}>
-                    <h4 className={cn("font-medium text-white flex items-center", isMobile ? "text-xs mb-1" : "mb-3")}>
-                      <Home size={isMobile ? 12 : 14} className={cn("text-cropsay-green", isMobile ? "mr-1" : "mr-2")} />
-                      Customer
-                    </h4>
-                    <div className={cn("space-y-1", isMobile ? "text-xs" : "text-sm")}>
-                      <div className="flex justify-between">
-                        <span className="text-cropsay-grayText">Name:</span>
-                        <span className="text-white font-medium">{selectedOrder.customer_name || 'Unknown Customer'}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-cropsay-grayText">Email:</span>
-                        <span className="text-white text-right flex-1 ml-2 truncate">{selectedOrder.customer_email || 'No email'}</span>
-                      </div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-cropsay-grayText">Phone:</span>
-                        <span className="text-white text-right flex-1 ml-2">{selectedOrder.phone || 'No phone'}</span>
-                      </div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-cropsay-grayText">Customer Address:</span>
-                        <span className="text-white text-right flex-1 ml-2">{selectedOrder.customer_address || 'No customer address'}</span>
-                      </div>
-                      <div className="flex justify-between items-start">
-                        <span className="text-cropsay-grayText">Delivery Address:</span>
-                        <span className="text-white text-right flex-1 ml-2">{selectedOrder.address || 'No delivery address'}</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Order Information */}
-                  <div className={cn("bg-cropsay-grayDark/30 rounded-lg", isMobile ? "p-2" : "p-4")}>
-                    <h4 className={cn("font-medium text-white flex items-center", isMobile ? "text-xs mb-1" : "mb-3")}>
-                      <Info size={isMobile ? 12 : 14} className={cn("text-cropsay-green", isMobile ? "mr-1" : "mr-2")} />
-                      Order Info
-                    </h4>
-                    <div className={cn("space-y-1", isMobile ? "text-xs" : "text-sm")}>
-                      <div className="flex justify-between">
-                        <span className="text-cropsay-grayText">Date:</span>
-                        <span className="text-white">{formatDate(selectedOrder.date)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-cropsay-grayText">Payment:</span>
-                        <span className="text-white">{selectedOrder.payment_method}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-cropsay-grayText">Status:</span>
-                        <span className={getStatusColor(selectedOrder.status)}>
-                          {selectedOrder.status}
-                        </span>
-                      </div>
-                      <div className={cn("flex justify-between items-center pt-1 border-t border-cropsay-grayDark", isMobile ? "pt-1" : "pt-2")}>
-                        <span className="text-cropsay-grayText font-medium">Total:</span>
-                        <span className={cn("text-cropsay-green font-semibold", isMobile ? "text-sm" : "text-lg")}>
-                          रू {selectedOrder.total.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Order Items */}
-                  <div className={cn("bg-cropsay-grayDark/30 rounded-lg", isMobile ? "p-2" : "p-4")}>
-                    <h4 className={cn("font-medium text-white flex items-center", isMobile ? "text-xs mb-1" : "mb-3")}>
-                      <Package size={isMobile ? 12 : 14} className={cn("text-cropsay-green", isMobile ? "mr-1" : "mr-2")} />
-                      Items ({selectedOrder.items.length})
-                    </h4>
-                    <div className={cn("space-y-2", isMobile ? "space-y-1" : "space-y-3")}>
-                      {selectedOrder.items.map((item, index) => (
-                        <div key={index} className={cn(
-                          "bg-cropsay-darkPrimary rounded-md",
-                          isMobile ? "p-1.5" : "p-3"
-                        )}>
-                          {isMobile ? (
-                            /* Compact mobile layout */
-                            <div className="space-y-0.5">
-                              <div className="flex justify-between items-start">
-                                <span className="font-medium text-white text-xs leading-tight flex-1 pr-2">{item.name}</span>
-                                <span className="text-cropsay-green font-medium text-xs whitespace-nowrap">
-                                  रू {(item.price * item.quantity).toFixed(2)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between text-xs text-cropsay-grayText">
-                                <span>रू {item.price} × {item.quantity}</span>
-                              </div>
-                            </div>
-                          ) : (
-                            /* Desktop layout */
-                            <div className="flex justify-between items-center">
-                              <div className="flex-1">
-                                <div className="font-medium text-white">{item.name}</div>
-                                <div className="text-xs text-cropsay-grayText">
-                                  Unit Price: रू {item.price}
-                                </div>
-                              </div>
-                              <div className="text-center px-3">
-                                <div className="text-sm text-cropsay-grayText">Qty</div>
-                                <div className="font-medium text-white">{item.quantity}</div>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm text-cropsay-grayText">Subtotal</div>
-                                <div className="font-medium text-cropsay-green">
-                                  रू {(item.price * item.quantity).toFixed(2)}
-                                </div>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Footer - Fixed */}
-            <div className={cn(
-              "flex-shrink-0 flex justify-end border-t border-cropsay-grayDark",
-              isMobile ? "p-2" : "p-6"
-            )}>
-              <button
-                onClick={() => setShowOrderDetailsDialog(false)}
-                className={cn(
-                  "bg-cropsay-green hover:bg-cropsay-green/90 text-white rounded-md transition-colors",
-                  isMobile ? "w-full py-1.5 text-xs" : "px-6 py-2"
-                )}
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    };
-    
-    // Show status update popup
-    const showUpdateStatusPopup = (order: OrderWithItems) => {
-      setOrderToUpdate(order);
-      setShowStatusUpdatePopup(true);
-    };
-    
-    // Handle order status update
-    const handleStatusUpdate = async (orderId: string, newStatus: string) => {
-      try {
-        // Close popup
-        setShowStatusUpdatePopup(false);
-        setOpenOrderStatusDropdown(null);
-        
-        // Format status for display
-        const statusMap: {[key: string]: string} = {
-          'order_received': 'Order Received',
-          'payment_received': 'Payment Received',
-          'payment_received_cod': 'Payment Received (COD)',
-          'processing': 'Processing',
-          'inventory_check': 'Inventory Check',
-          'packaging': 'Packaging',
-          'shipped': 'Shipped',
-          'out_for_delivery': 'Out for Delivery',
-          'delivered': 'Delivered',
-          'cancelled': 'Cancelled',
-          'returned': 'Returned',
-        };
-        
-        const displayStatus = statusMap[newStatus] || newStatus;
-        
-        setLoading(true);
-        await updateOrderStatus(orderId, displayStatus);
-        
-        // Update the order locally to avoid reloading the entire list
-        setSellerOrders(prevOrders => 
-          prevOrders.map(order => 
-            order.id === orderId 
-              ? {...order, status: displayStatus} 
-              : order
-          )
-        );
-        
-        setSuccessMessage(`Order status updated to ${displayStatus}`);
-        
-        // Special handling for COD orders marked as delivered
-        if (newStatus === 'payment_received_cod') {
-          // Update payment status to Paid as well
-          await updateOrderStatus(orderId, 'Paid');
-          
-          // Update local orders again
-          setSellerOrders(prevOrders => 
-            prevOrders.map(order => 
-              order.id === orderId 
-                ? {...order, status: 'Paid'} 
-                : order
-            )
-          );
-          
-          setSuccessMessage('Order marked as delivered and payment received');
-        }
-      } catch (error) {
-        console.error('Error updating order status:', error);
-        setErrorMessage('Failed to update order status');
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    // Render status update popup
-    const renderStatusUpdatePopup = () => {
-      if (!showStatusUpdatePopup || !orderToUpdate) return null;
+    // Filter orders based on search term and status filter
+    const filteredOrders = sellerOrders.filter(order => {
+      // Filter by search term (id, customer name, or customer email)
+      const matchesSearch = searchQuery === '' || 
+        order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (order.customer_name && order.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (order.customer_email && order.customer_email.toLowerCase().includes(searchQuery.toLowerCase()));
       
-      return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className={cn(
-            "bg-cropsay-darkSecondary rounded-lg border border-cropsay-grayDark shadow-xl",
-            isMobile ? "w-full max-w-sm" : "w-full max-w-md"
-          )}>
-            <div className="p-4 border-b border-cropsay-grayDark flex items-center justify-between">
-              <div className="flex items-center">
-                <div className="bg-cropsay-green/20 rounded-full p-2 mr-2">
-                  <Package size={isMobile ? 18 : 20} className="text-cropsay-green" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white">Update Order Status</h3>
-                  <p className="text-xs text-cropsay-grayText">Order #{orderToUpdate.id.slice(0, 8)}</p>
-                </div>
-              </div>
-              <button 
-                onClick={() => setShowStatusUpdatePopup(false)}
-                className="p-1.5 hover:bg-cropsay-grayDark rounded-md"
-              >
-                <X size={18} className="text-cropsay-grayText" />
-              </button>
-            </div>
-            
-            <div className="max-h-80 overflow-y-auto p-2">
-              <div className="space-y-1">
-                <StatusOption 
-                  emoji="📦" 
-                  status="Order Received" 
-                  description="Arrives in 3 days" 
-                  value="order_received"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                {orderToUpdate.payment_method === "Prepaid" && (
-                  <StatusOption 
-                    emoji="💳" 
-                    status="Payment Received" 
-                    description="Prepaid" 
-                    value="payment_received"
-                    currentStatus={orderToUpdate.status}
-                    orderId={orderToUpdate.id}
-                    onClick={handleStatusUpdate}
-                  />
-                )}
-                
-                <StatusOption 
-                  emoji="⚙️" 
-                  status="Processing" 
-                  description="Arrives in 3 days" 
-                  value="processing"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                <StatusOption 
-                  emoji="📊" 
-                  status="Inventory Check" 
-                  description="Arrives in 2–3 days" 
-                  value="inventory_check"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                <StatusOption 
-                  emoji="🎁" 
-                  status="Packaging" 
-                  description="Arrives in 2 days" 
-                  value="packaging"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                <StatusOption 
-                  emoji="🚚" 
-                  status="Shipped" 
-                  description="Arrives in 1–2 days" 
-                  value="shipped"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                <StatusOption 
-                  emoji="📍" 
-                  status="Out for Delivery" 
-                  description="Arrives today" 
-                  value="out_for_delivery"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                <StatusOption 
-                  emoji="✅" 
-                  status="Delivered" 
-                  description="Order Complete" 
-                  value="delivered"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                {orderToUpdate.payment_method === "COD" && (
-                  <StatusOption 
-                    emoji="💵" 
-                    status="Payment Received (COD)" 
-                    value="payment_received_cod"
-                    currentStatus={orderToUpdate.status}
-                    orderId={orderToUpdate.id}
-                    onClick={handleStatusUpdate}
-                  />
-                )}
-                
-                <StatusOption 
-                  emoji="↩️" 
-                  status="Returned" 
-                  description="Refund Initiated" 
-                  value="returned"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-                
-                <StatusOption 
-                  emoji="❌" 
-                  status="Cancelled" 
-                  value="cancelled"
-                  currentStatus={orderToUpdate.status}
-                  orderId={orderToUpdate.id}
-                  onClick={handleStatusUpdate}
-                />
-              </div>
-            </div>
-            
-            <div className="p-3 border-t border-cropsay-grayDark flex justify-end">
-              <button 
-                onClick={() => setShowStatusUpdatePopup(false)}
-                className="px-4 py-2 bg-cropsay-grayDark hover:bg-cropsay-grayMedium text-white rounded-md"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      );
-    };
+      // Filter by status
+      const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+      
+      // Filter by date
+      let matchesDate = true;
+      if (dateFilter === 'today') {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const orderDate = new Date(order.date);
+        matchesDate = orderDate >= today;
+      } else if (dateFilter === 'week') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        const orderDate = new Date(order.date);
+        matchesDate = orderDate >= weekAgo;
+      } else if (dateFilter === 'month') {
+        const monthAgo = new Date();
+        monthAgo.setMonth(monthAgo.getMonth() - 1);
+        const orderDate = new Date(order.date);
+        matchesDate = orderDate >= monthAgo;
+      }
+      
+      return matchesSearch && matchesStatus && matchesDate;
+    });
+    
+    // Apply sorting
+    const sortedOrders = [...filteredOrders].sort((a, b) => {
+      if (sortBy === 'date_desc') {
+        return new Date(b.date).getTime() - new Date(a.date).getTime();
+      } else if (sortBy === 'date_asc') {
+        return new Date(a.date).getTime() - new Date(b.date).getTime();
+      } else if (sortBy === 'total_desc') {
+        return b.total - a.total;
+      } else if (sortBy === 'total_asc') {
+        return a.total - b.total;
+      }
+      return 0;
+    });
     
     return (
       <div className={cn(isMobile ? "p-2" : "p-4")}>
         {renderNotification()}
         
-        {isLoadingOrders ? (
-          <div className="flex justify-center py-16">
-            <Loader size={36} className="animate-spin text-cropsay-green" />
-          </div>
-        ) : sellerOrders.length === 0 ? (
-          <div className="text-center py-16">
-            <div className="flex justify-center">
-              <div className="bg-cropsay-darkSecondary p-6 rounded-full">
-                <CheckCircle size={48} className="text-cropsay-grayText" />
+        <div className="bg-cropsay-darkSecondary rounded-lg overflow-hidden">
+          <div className="p-4 border-b border-cropsay-grayDark">
+            <div className={cn("mb-4", isMobile ? "space-y-3" : "flex items-center justify-between gap-4")}>
+              {/* Search */}
+              <div className={cn("relative", isMobile ? "w-full" : "w-64")}>
+                <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText" />
+                <input
+                  type="text"
+                  placeholder="Search orders..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-3 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
+                />
               </div>
-            </div>
-            <h3 className={cn("mt-6", isMobile ? "text-lg" : "text-xl")}>No Orders Yet</h3>
-            <p className="text-cropsay-grayText mt-2">You haven't received any orders yet.</p>
-          </div>
-        ) : (
-          <div>
-            <h2 className={cn("font-medium mb-4", isMobile ? "text-lg" : "text-xl")}>Orders for Your Products</h2>
-
-            {/* Search and Filter Orders */}
-            <div className={cn(
-              "mb-4 bg-cropsay-darkSecondary rounded-lg border border-cropsay-grayDark",
-              isMobile ? "p-3" : "p-4"
-            )}>
-              <div className={cn(
-                isMobile ? "space-y-3" : "flex items-center justify-between gap-4"
-              )}>
-                {/* Search */}
-                <div className={cn(
-                  "relative",
-                  isMobile ? "w-full" : "w-1/3"
-                )}>
-                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-cropsay-grayText" />
-                  <input
-                    type="text"
-                    placeholder="Search by order ID, customer name..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="w-full bg-black border border-cropsay-grayDark rounded-md pl-10 pr-3 py-2 text-sm text-white placeholder-cropsay-grayText focus:outline-none focus:ring-1 focus:ring-cropsay-green"
-                  />
+              
+              <div className={cn(isMobile ? "grid grid-cols-2 gap-2" : "flex items-center gap-2")}>
+                {/* Date Filter */}
+                <div className="relative">
+                  <select
+                    value={dateFilter}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
+                  >
+                    <option value="all">All Time</option>
+                    <option value="today">Today</option>
+                    <option value="week">This Week</option>
+                    <option value="month">This Month</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
                 </div>
                 
-                <div className={cn(
-                  "flex items-center gap-3",
-                  isMobile ? "flex-wrap" : "flex-nowrap"
-                )}>
-                  {/* Date Filter */}
-                  <div className="relative">
-                    <select
-                      value={dateFilter}
-                      onChange={(e) => setDateFilter(e.target.value)}
-                      className="bg-black border border-cropsay-grayDark rounded-md pl-3 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-1 focus:ring-cropsay-green"
-                    >
-                      <option value="all">All Dates</option>
-                      <option value="today">Today</option>
-                      <option value="yesterday">Yesterday</option>
-                      <option value="week">This Week</option>
-                      <option value="month">This Month</option>
-                      <option value="last_month">Last Month</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-cropsay-grayText" />
-                  </div>
+                {/* Status Filter */}
+                <div className="relative">
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="pending">Pending</option>
+                    <option value="processing">Processing</option>
+                    <option value="shipped">Shipped</option>
+                    <option value="delivered">Delivered</option>
+                    <option value="cancelled">Cancelled</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
+                </div>
+                
+                {/* Sort By */}
+                <div className="relative">
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
+                  >
+                    <option value="date_desc">Newest First</option>
+                    <option value="date_asc">Oldest First</option>
+                    <option value="total_desc">Highest Amount</option>
+                    <option value="total_asc">Lowest Amount</option>
+                  </select>
+                  <ChevronDown size={14} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
+                </div>
+                
+                {/* Download Orders Button */}
+                <button
+                  onClick={handleDownloadOrders}
+                  className={cn(
+                    "text-white bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center",
+                    isMobile ? "py-2 w-full col-span-2" : "px-3 py-2"
+                  )}
+                  title="Download orders data as CSV"
+                >
+                  <Download size={14} className={cn("text-cropsay-grayText", isMobile ? "mr-2" : "")} />
+                  <span className={isMobile ? "" : "sr-only"}>Download Orders</span>
+                </button>
+                
+                {/* Action Buttons */}
+                <div className={cn("flex gap-2", isMobile ? "col-span-2" : "")}>
+                  {/* Refresh Button */}
+                  <button
+                    onClick={() => loadSellerOrders()}
+                    className={cn(
+                      "text-white bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center",
+                      isMobile ? "flex-1 py-2" : "px-3 py-2"
+                    )}
+                    title="Refresh order data"
+                  >
+                    <RefreshCw size={14} className={cn("text-cropsay-grayText", isMobile ? "mr-2" : "")} />
+                    <span className={isMobile ? "" : "sr-only"}>Refresh</span>
+                  </button>
                   
-                  {/* Status Filter */}
-                  <div className="relative">
-                    <select
-                      value={statusFilter}
-                      onChange={(e) => setStatusFilter(e.target.value)}
-                      className="bg-black border border-cropsay-grayDark rounded-md pl-3 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-1 focus:ring-cropsay-green"
-                    >
-                      <option value="all">All Statuses</option>
-                      <option value="order_received">Order Received</option>
-                      <option value="payment_received">Payment Received</option>
-                      <option value="processing">Processing</option>
-                      <option value="inventory_check">Inventory Check</option>
-                      <option value="packaging">Packaging</option>
-                      <option value="shipped">Shipped</option>
-                      <option value="out_for_delivery">Out for Delivery</option>
-                      <option value="delivered">Delivered</option>
-                      <option value="returned">Returned</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-cropsay-grayText" />
-                  </div>
-                  
-                  {/* Sort By */}
-                  <div className="relative">
-                    <select
-                      value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
-                      className="bg-black border border-cropsay-grayDark rounded-md pl-3 pr-8 py-2 text-sm text-white appearance-none focus:outline-none focus:ring-1 focus:ring-cropsay-green"
-                    >
-                      <option value="date_desc">Newest First</option>
-                      <option value="date_asc">Oldest First</option>
-                      <option value="total_desc">Highest Amount</option>
-                      <option value="total_asc">Lowest Amount</option>
-                    </select>
-                    <ChevronDown size={14} className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-cropsay-grayText" />
-                  </div>
+                  {/* Analytics Button */}
+                  <button
+                    onClick={handleShowAnalytics}
+                    className={cn(
+                      "text-white bg-cropsay-darkSecondary border border-cropsay-green hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center",
+                      isMobile ? "flex-1 py-2" : "px-3 py-2"
+                    )}
+                    title="View order analytics"
+                  >
+                    <BarChart3 size={14} className={cn("text-cropsay-green", isMobile ? "mr-2" : "")} />
+                    <span className={isMobile ? "" : "sr-only"}>Analytics</span>
+                  </button>
                 </div>
               </div>
             </div>
             
-            {/* Mobile Card Layout */}
-            {isMobile ? (
-              <div className="space-y-3">
-                {getFilteredOrders().map((order) => (
-                  <div key={order.id} className="bg-cropsay-darkSecondary rounded-lg p-4 border border-cropsay-grayDark">
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="font-medium text-sm">#{order.id.slice(0, 8)}</h3>
-                        <p className="text-xs text-cropsay-grayText">{formatDate(order.date)}</p>
-                      </div>
-                      <div className="flex items-center">
-                        <span className="text-sm mr-1">{getStatusEmoji(order.status)}</span>
-                        <span className={cn("text-xs font-medium", getStatusColor(order.status))}>
+            <div className="text-xs text-cropsay-grayText">
+              Showing {sortedOrders.length} {sortedOrders.length === 1 ? 'order' : 'orders'}
+            </div>
+          </div>
+          
+          {isLoadingOrders ? (
+            <div className="flex justify-center py-16">
+              <Loader size={36} className="animate-spin text-cropsay-green" />
+            </div>
+          ) : sortedOrders.length === 0 ? (
+            <div className="text-center py-16">
+              <h3 className={cn("mt-6", isMobile ? "text-lg" : "text-xl")}>No Orders Found</h3>
+              <p className="text-cropsay-grayText mt-2">No orders match your current filters</p>
+            </div>
+          ) : (
+            <div>
+              {/* Mobile Card Layout */}
+              {isMobile ? (
+                <div className="p-2 space-y-3">
+                  {sortedOrders.map((order) => (
+                    <div 
+                      key={order.id}
+                      className="bg-cropsay-dark p-3 rounded-lg border border-cropsay-grayDark"
+                    >
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="text-xs text-cropsay-grayText">Order ID</p>
+                          <p className="text-sm font-medium">#{order.id.substring(0, 8)}</p>
+                        </div>
+                        <span className={cn(
+                          "px-2 py-1 rounded-full text-xs font-medium",
+                          order.status === 'pending' ? "bg-yellow-900/30 text-yellow-400" :
+                          order.status === 'processing' ? "bg-blue-900/30 text-blue-400" :
+                          order.status === 'shipped' ? "bg-indigo-900/30 text-indigo-400" :
+                          order.status === 'delivered' ? "bg-green-900/30 text-green-400" :
+                          order.status === 'cancelled' ? "bg-red-900/30 text-red-400" :
+                          "bg-gray-900/30 text-gray-400"
+                        )}>
                           {order.status}
                         </span>
                       </div>
-                    </div>
-                    
-                    <div className="space-y-2 text-xs">
-                      <div>
-                        <span className="text-cropsay-grayText">Customer:</span>
-                        <span className="ml-1 font-medium">{order.customer_name}</span>
-                      </div>
-                      <div>
-                        <span className="text-cropsay-grayText">Email:</span>
-                        <span className="ml-1">{order.customer_email}</span>
-                      </div>
-                      <div>
-                        <span className="text-cropsay-grayText">Total:</span>
-                        <span className="ml-1 font-medium">रू {order.total.toFixed(2)}</span>
-                      </div>
-                      <div>
-                        <span className="text-cropsay-grayText">Payment:</span>
-                        <span className="ml-1">{order.payment_method}</span>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center justify-between mt-4 pt-3 border-t border-cropsay-grayDark">
-                      <button
-                        onClick={() => handleViewOrderDetails(order)}
-                        className="flex items-center space-x-1 text-cropsay-green text-sm"
-                      >
-                        <Info size={14} />
-                        <span>View Details</span>
-                      </button>
                       
-                      {/* Status Update Dropdown */}
-                      <button
-                        onClick={() => showUpdateStatusPopup(order)}
-                        className="flex items-center space-x-1 bg-cropsay-grayDark hover:bg-cropsay-grayMedium text-white px-3 py-1.5 rounded text-sm transition-colors"
-                      >
-                        <span>Update Status</span>
-                        <Package size={14} />
-                      </button>
+                      <div className="grid grid-cols-2 gap-2 mb-3 text-xs">
+                        <div>
+                          <p className="text-cropsay-grayText">Date</p>
+                          <p>{new Date(order.date).toLocaleDateString()}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-cropsay-grayText">Customer</p>
+                          <p className="truncate">{order.customer_name || 'Anonymous'}</p>
+                        </div>
+                        <div>
+                          <p className="text-cropsay-grayText">Items</p>
+                          <p>{order.items?.length || 0}</p>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-cropsay-grayText">Total</p>
+                          <p className="text-cropsay-green font-medium">रू{order.total?.toFixed(2)}</p>
+                        </div>
+                      </div>
+                      
+                      <div className="flex justify-between items-center">
+                        <button 
+                          onClick={() => {
+                            setOrderToUpdate(order);
+                            setShowStatusUpdatePopup(true);
+                          }}
+                          className="text-xs bg-cropsay-darkSecondary px-3 py-1.5 rounded border border-cropsay-grayDark"
+                        >
+                          Update Status
+                        </button>
+                        <button
+                          onClick={() => handleViewOrderDetails(order)}
+                          className="text-xs bg-cropsay-green/20 text-cropsay-green px-3 py-1.5 rounded border border-cropsay-green/30"
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              /* Desktop Table Layout */
-              <div className="bg-cropsay-darkSecondary rounded-lg overflow-hidden">
+                  ))}
+                </div>
+              ) : (
                 <div className="overflow-x-auto">
-                  <table className="w-full table-auto">
-                    <thead className="bg-cropsay-grayDark">
-                      <tr>
-                        <th className="py-3 px-4 text-left text-sm">Order</th>
-                        <th className="py-3 px-4 text-left text-sm">Date</th>
-                        <th className="py-3 px-4 text-left text-sm">Customer</th>
-                        <th className="py-3 px-4 text-left text-sm">Total</th>
-                        <th className="py-3 px-4 text-left text-sm">Status</th>
-                        <th className="py-3 px-4 text-left text-sm">Actions</th>
+                  <table className="w-full">
+                    <thead>
+                      <tr className="bg-cropsay-dark">
+                        <th className="py-3 px-4 text-left text-xs font-medium text-cropsay-grayText">Order ID</th>
+                        <th className="py-3 px-4 text-left text-xs font-medium text-cropsay-grayText">Date</th>
+                        <th className="py-3 px-4 text-left text-xs font-medium text-cropsay-grayText">Customer</th>
+                        <th className="py-3 px-4 text-left text-xs font-medium text-cropsay-grayText">Items</th>
+                        <th className="py-3 px-4 text-left text-xs font-medium text-cropsay-grayText">Total</th>
+                        <th className="py-3 px-4 text-left text-xs font-medium text-cropsay-grayText">Status</th>
+                        <th className="py-3 px-4 text-xs font-medium text-cropsay-grayText">Actions</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-cropsay-grayDark">
-                      {getFilteredOrders().map((order) => (
-                        <tr key={order.id}>
-                          <td className="py-3 px-4">
-                            #{order.id.slice(0, 8)}
-                          </td>
-                          <td className="py-3 px-4">{formatDate(order.date)}</td>
-                          <td className="py-3 px-4">
-                            <div>{order.customer_name}</div>
-                            <div className="text-xs text-cropsay-grayText">{order.customer_email}</div>
-                          </td>
-                          <td className="py-3 px-4">रू {order.total.toFixed(2)}</td>
-                          <td className="py-3 px-4">
+                      {sortedOrders.map((order) => (
+                        <tr key={order.id} className="hover:bg-cropsay-grayDark/20">
+                          <td className="py-3 px-4 text-sm">#{order.id.substring(0, 8)}</td>
+                          <td className="py-3 px-4 text-sm">{new Date(order.date).toLocaleDateString()}</td>
+                          <td className="py-3 px-4 text-sm">{order.customer_name}</td>
+                          <td className="py-3 px-4 text-sm">{order.items?.length || 0} items</td>
+                          <td className="py-3 px-4 text-sm">रू {order.total?.toFixed(2)}</td>
+                          <td className="py-3 px-4 text-sm">
                             <div className="flex items-center">
-                              <span className="mr-1.5">{getStatusEmoji(order.status)}</span>
-                              <span className={getStatusColor(order.status)}>
+                              <span className={cn(
+                                "px-2 py-1 rounded-full text-xs font-medium mr-2",
+                                order.status === 'pending' ? "bg-yellow-900/30 text-yellow-400" :
+                                order.status === 'processing' ? "bg-blue-900/30 text-blue-400" :
+                                order.status === 'shipped' ? "bg-indigo-900/30 text-indigo-400" :
+                                order.status === 'delivered' ? "bg-green-900/30 text-green-400" :
+                                order.status === 'cancelled' ? "bg-red-900/30 text-red-400" :
+                                "bg-gray-900/30 text-gray-400"
+                              )}>
                                 {order.status}
                               </span>
+                              <button 
+                                className="text-xs text-cropsay-grayText hover:text-white bg-cropsay-dark px-2 py-1 rounded-md"
+                                onClick={() => {
+                                  setOrderToUpdate(order);
+                                  setShowStatusUpdatePopup(true);
+                                }}
+                              >
+                                Update
+                              </button>
                             </div>
                           </td>
-                          <td className="py-3 px-4">
-                            <div className="flex items-center space-x-2">
-                              <button
-                                onClick={() => handleViewOrderDetails(order)}
-                                className="p-1.5 bg-cropsay-grayDark rounded-md hover:bg-cropsay-grayMedium transition-colors"
-                                title="View order details"
-                              >
-                                <Info size={16} className="text-cropsay-green" />
-                              </button>
-                              
-                              {/* Status Update Button */}
-                              <button
-                                onClick={() => showUpdateStatusPopup(order)}
-                                className="p-1.5 bg-cropsay-grayDark rounded-md hover:bg-cropsay-grayMedium transition-colors"
-                                title="Update Status"
-                              >
-                                <Package size={16} className="text-white" />
-                              </button>
-                            </div>
+                          <td className="py-3 px-4 text-sm">
+                            <button 
+                              className="text-cropsay-green hover:text-green-400 transition-colors"
+                              onClick={() => handleViewOrderDetails(order)}
+                            >
+                              View Details
+                            </button>
                           </td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              </div>
-            )}
-          </div>
-        )}
+              )}
+            </div>
+          )}
+        </div>
         
-        {/* Order Details Dialog */}
         {renderOrderDetailsDialog()}
         
+        {/* Analytics Modal */}
+        {renderAnalyticsModal()}
+        
         {/* Status Update Popup */}
-        {renderStatusUpdatePopup()}
+        {showStatusUpdatePopup && orderToUpdate && (
+          <StatusUpdatePopup 
+            isOpen={showStatusUpdatePopup}
+            onClose={() => setShowStatusUpdatePopup(false)}
+            orderId={orderToUpdate.id}
+            currentStatus={orderToUpdate.status}
+            onStatusUpdate={(orderId, newStatus) => handleUpdateOrderStatus(orderId, newStatus)}
+          />
+        )}
       </div>
     );
   };
   
-  return (
-    <div className="h-full flex flex-col bg-cropsay-darkPrimary overflow-hidden">
-      {/* Enhanced Fixed Header with Breadcrumb */}
-      <div className="flex-shrink-0 bg-gradient-to-r from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] backdrop-blur-sm shadow-lg z-20">
-        <div className={cn(isMobile ? "px-4 py-0.5" : "px-8 py-3")}>
-          <div className="flex items-center justify-between">
-            {/* Enhanced Breadcrumb */}
-            <div className="flex items-center gap-2 text-sm">
-              <button 
-                onClick={() => navigate("/")}
-                className="flex items-center gap-1 text-gray-400 hover:text-white transition-colors rounded-md p-1.5 hover:bg-[#2A3143]"
-              >
-                <Home size={isMobile ? 16 : 18} />
-                {!isMobile && <span>Home</span>}
-              </button>
-              <ChevronRight size={isMobile ? 12 : 14} className="text-gray-500" />
-              <span className={cn("text-white font-semibold", isMobile ? "text-sm" : "text-base")}>
-                Seller Dashboard
-              </span>
+  // Order details dialog
+  const renderOrderDetailsDialog = () => {
+    if (!showOrderDetailsDialog || !selectedOrder) return null;
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className={cn(
+            "bg-cropsay-dark rounded-lg shadow-xl overflow-hidden flex flex-col",
+            isMobile 
+              ? "w-full max-w-[95%] max-h-[80vh]" 
+              : "w-full max-w-3xl max-h-[85vh]"
+          )}
+        >
+          {/* Header */}
+          <div className="bg-cropsay-darkSecondary p-3 sticky top-0 z-10 flex justify-between items-center border-b border-cropsay-grayDark">
+            <div className="flex items-center overflow-hidden max-w-[70%]">
+              <h3 className={cn("font-semibold text-cropsay-green truncate", isMobile ? "text-sm" : "text-lg")}>
+                Order #{selectedOrder.id}
+              </h3>
+              <StatusBadge status={selectedOrder.status} className="ml-2 shrink-0" />
             </div>
-            
-            {/* Mobile menu indicator */}
-            {isMobile && (
-              <div className="text-xs text-gray-400 bg-[#2A3143] px-2 py-1 rounded">
-                {activeTab === 'listing' && 'Create'}
-                {activeTab === 'manage' && 'Manage'}
-                {activeTab === 'orders' && 'Orders'}
+            <div className="flex space-x-2">
+              <button 
+                className="p-1 rounded-full hover:bg-cropsay-grayDark"
+                onClick={() => loadSellerOrders()}
+                title="Refresh order data"
+              >
+                <RefreshCw size={18} />
+              </button>
+              <button 
+                className="p-1 rounded-full hover:bg-cropsay-grayDark"
+                onClick={() => setShowOrderDetailsDialog(false)}
+                title="Close dialog"
+              >
+                <X size={18} />
+              </button>
+            </div>
+          </div>
+          
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto">
+            {isMobile ? (
+              // Mobile-optimized layout
+              <div className="p-3">
+                {/* Summary Section - Always visible */}
+                <div className="bg-cropsay-darkSecondary rounded-lg p-3 mb-3">
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="flex flex-col">
+                      <p className="text-xs text-cropsay-grayLight">Date</p>
+                      <p className="text-sm">{new Date(selectedOrder.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex flex-col items-end">
+                      <p className="text-xs text-cropsay-grayLight">Customer</p>
+                      <p className="text-sm truncate">{selectedOrder.customer_name || 'N/A'}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <span className="text-sm font-medium mr-1">Total:</span>
+                      <span className="text-sm font-bold">Rs. {selectedOrder.total?.toFixed(2) || '0.00'}</span>
+                    </div>
+                    <button 
+                      className="text-xs bg-cropsay-green text-cropsay-dark px-2 py-1 rounded-full hover:bg-opacity-80 flex-shrink-0"
+                      onClick={() => {
+                        setOrderToUpdate(selectedOrder);
+                        setShowStatusUpdatePopup(true);
+                      }}
+                    >
+                      Update Status
+                    </button>
+                  </div>
+                </div>
+
+                {/* Accordion Sections */}
+                <Accordion type="single" collapsible defaultValue="items" className="space-y-2">
+                  {/* Order Items */}
+                  <AccordionItem value="items" className="border-0">
+                    <AccordionTrigger className="bg-cropsay-darkSecondary rounded-lg px-3 py-2 text-sm hover:no-underline">
+                      Order Items
+                    </AccordionTrigger>
+                    <AccordionContent className="bg-cropsay-darkSecondary/50 rounded-lg mt-1 p-2">
+                      <div className="divide-y divide-cropsay-grayDark">
+                        {selectedOrder.items?.map((item, index) => (
+                          <div key={index} className="py-2 first:pt-0 last:pb-0">
+                            <div className="flex justify-between">
+                              <div className="flex-1">
+                                <p className="text-sm font-medium break-words">{item.name}</p>
+                                <p className="text-xs text-cropsay-grayLight">
+                                  {item.quantity} × Rs. {item.price.toFixed(2)}
+                                </p>
+                              </div>
+                              <p className="text-sm font-medium whitespace-nowrap ml-2">
+                                Rs. {(item.quantity * item.price).toFixed(2)}
+                              </p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Customer Info */}
+                  <AccordionItem value="customer" className="border-0">
+                    <AccordionTrigger className="bg-cropsay-darkSecondary rounded-lg px-3 py-2 text-sm hover:no-underline">
+                      Customer Information
+                    </AccordionTrigger>
+                    <AccordionContent className="bg-cropsay-darkSecondary/50 rounded-lg mt-1 p-2">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-cropsay-grayLight">Name</p>
+                          <p className="break-words">{selectedOrder.customer_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-cropsay-grayLight">Phone</p>
+                          <p>{selectedOrder.phone || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-cropsay-grayLight">Email</p>
+                          <p className="break-words text-xs">{selectedOrder.customer_email || 'N/A'}</p>
+                        </div>
+                        <div className="col-span-2">
+                          <p className="text-xs text-cropsay-grayLight">Address</p>
+                          <p className="break-words text-xs">{selectedOrder.address || selectedOrder.customer_address || 'N/A'}</p>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+
+                  {/* Payment Info */}
+                  <AccordionItem value="payment" className="border-0">
+                    <AccordionTrigger className="bg-cropsay-darkSecondary rounded-lg px-3 py-2 text-sm hover:no-underline">
+                      Payment Information
+                    </AccordionTrigger>
+                    <AccordionContent className="bg-cropsay-darkSecondary/50 rounded-lg mt-1 p-2">
+                      <div className="grid grid-cols-2 gap-3 text-sm">
+                        <div>
+                          <p className="text-xs text-cropsay-grayLight">Method</p>
+                          <p>{selectedOrder.payment_method || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-cropsay-grayLight">Status</p>
+                          <p>{selectedOrder.status === 'delivered' ? 'Paid' : 'Pending'}</p>
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                </Accordion>
+              </div>
+            ) : (
+              // Desktop layout - unchanged
+              <div className="p-4">
+                <div className="space-y-4">
+                  {/* Order Info */}
+                  <div className="bg-cropsay-darkSecondary rounded-lg p-4">
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Status</p>
+                        <div className="flex items-center mt-1">
+                          <StatusBadge status={selectedOrder.status} />
+                          <button 
+                            className="ml-2 text-xs bg-cropsay-green text-cropsay-dark px-2 py-1 rounded hover:bg-opacity-80"
+                            onClick={() => {
+                              setOrderToUpdate(selectedOrder);
+                              setShowStatusUpdatePopup(true);
+                            }}
+                          >
+                            Update
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Date</p>
+                        <p>{new Date(selectedOrder.date).toLocaleString()}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Customer Info */}
+                  <div className="bg-cropsay-darkSecondary rounded-lg p-4">
+                    <h4 className="text-md font-medium mb-3 flex items-center">
+                      <User size={16} className="mr-2" />
+                      Customer Information
+                    </h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Name</p>
+                        <p className="break-words">{selectedOrder.customer_name || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Email</p>
+                        <p className="break-words">{selectedOrder.customer_email || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Phone</p>
+                        <p>{selectedOrder.phone || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Address</p>
+                        <p className="break-words">{selectedOrder.address || selectedOrder.customer_address || 'N/A'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Order Items */}
+                  <div className="bg-cropsay-darkSecondary rounded-lg p-4">
+                    <h4 className="text-md font-medium mb-3">Order Items</h4>
+                    <div className="divide-y divide-cropsay-grayDark">
+                      {selectedOrder.items?.map((item, index) => (
+                        <div key={index} className="py-3 first:pt-0 last:pb-0">
+                          <div className="flex justify-between">
+                            <div className="flex-1">
+                              <p className="font-medium break-words">{item.name}</p>
+                              <p className="text-sm text-cropsay-grayLight">
+                                Qty: {item.quantity} × Rs. {item.price.toFixed(2)}
+                              </p>
+                            </div>
+                            <p className="font-medium whitespace-nowrap ml-4">
+                              Rs. {(item.quantity * item.price).toFixed(2)}
+                            </p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Order Totals */}
+                  <div className="bg-cropsay-darkSecondary rounded-lg p-4">
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <p>Subtotal</p>
+                        <p>Rs. {selectedOrder.total?.toFixed(2) || '0.00'}</p>
+                      </div>
+                      <div className="flex justify-between">
+                        <p>Shipping</p>
+                        <p>Rs. {0.00}</p>
+                      </div>
+                      <div className="flex justify-between font-semibold">
+                        <p>Total</p>
+                        <p>Rs. {selectedOrder.total?.toFixed(2) || '0.00'}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Payment Information */}
+                  <div className="bg-cropsay-darkSecondary rounded-lg p-4">
+                    <h4 className="text-md font-medium mb-3">Payment Information</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Payment Method</p>
+                        <p>{selectedOrder.payment_method || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-cropsay-grayLight">Payment Status</p>
+                        <p>{selectedOrder.status === 'delivered' ? 'Paid' : 'Pending'}</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
               </div>
             )}
           </div>
+          
+          {/* Footer - Actions */}
+          {isMobile ? (
+            <div className="bg-cropsay-darkSecondary p-3 border-t border-cropsay-grayDark">
+              <button 
+                className="w-full py-2 bg-cropsay-dark hover:bg-opacity-80 text-white rounded-md text-sm"
+                onClick={() => setShowOrderDetailsDialog(false)}
+              >
+                Close
+              </button>
+            </div>
+          ) : (
+            <div className="bg-cropsay-darkSecondary p-4 border-t border-cropsay-grayDark">
+              <div className="flex justify-end space-x-2">
+                <button 
+                  className="px-4 py-2 bg-cropsay-dark hover:bg-opacity-80 text-white rounded-md"
+                  onClick={() => setShowOrderDetailsDialog(false)}
+                >
+                  Close
+                </button>
+                <button 
+                  className="px-4 py-2 bg-cropsay-green text-cropsay-dark rounded-md hover:bg-opacity-80"
+                  onClick={() => {
+                    setOrderToUpdate(selectedOrder);
+                    setShowStatusUpdatePopup(true);
+                  }}
+                >
+                  Update Status
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
+    );
+  };
+  
+  // Status Update Popup component
+  type StatusUpdatePopupProps = {
+    isOpen: boolean;
+    onClose: () => void;
+    orderId: string;
+    currentStatus: string;
+    onStatusUpdate: (orderId: string, newStatus: string) => Promise<void>;
+  };
+
+  const StatusUpdatePopup = ({ isOpen, onClose, orderId, currentStatus, onStatusUpdate }: StatusUpdatePopupProps) => {
+    if (!isOpen) return null;
+    
+    // Show loading state when updating status
+    const [localUpdating, setLocalUpdating] = useState(false);
+    
+    const statusOptions = [
+      { emoji: "⏳", status: "Pending", description: "Order received, awaiting processing", value: "pending" },
+      { emoji: "⚙️", status: "Processing", description: "Order is being prepared", value: "processing" },
+      { emoji: "🚚", status: "Shipped", description: "Order is on the way", value: "shipped" },
+      { emoji: "✅", status: "Delivered", description: "Order has been delivered", value: "delivered" },
+      { emoji: "❌", status: "Cancelled", description: "Order has been cancelled", value: "cancelled" }
+    ];
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-cropsay-darkSecondary rounded-lg w-full max-w-md overflow-hidden shadow-xl">
+          <div className="flex items-center justify-between p-4 border-b border-cropsay-grayDark">
+            <h3 className="font-medium text-white">Update Order Status</h3>
+            <button 
+              className="p-1 rounded-full hover:bg-cropsay-dark"
+              onClick={onClose}
+            >
+              <X size={18} />
+            </button>
+          </div>
+          
+          <div className="p-4">
+            <p className="text-sm text-cropsay-grayText mb-4">
+              Current status: <span className="font-medium text-white">{currentStatus}</span>
+            </p>
+            
+            <div className="space-y-2">
+              {statusOptions.map((option) => (
+                <button
+                  key={option.value}
+                  className={cn(
+                    "w-full p-3 flex items-start border rounded-md transition-colors",
+                    currentStatus === option.value
+                      ? "bg-cropsay-grayDark border-cropsay-green"
+                      : "bg-cropsay-dark border-cropsay-grayDark hover:border-cropsay-grayMedium"
+                  )}
+                  onClick={async () => {
+                    if (isUpdatingOrderStatus || localUpdating) return;
+                    setLocalUpdating(true);
+                    try {
+                      await onStatusUpdate(orderId, option.value);
+                    } finally {
+                      setLocalUpdating(false);
+                    }
+                  }}
+                  disabled={isUpdatingOrderStatus || localUpdating}
+                >
+                  <span className="mr-3 text-xl">{option.emoji}</span>
+                  <div className="text-left">
+                    <div className="font-medium">{option.status}</div>
+                    <div className="text-xs text-cropsay-grayText mt-1">{option.description}</div>
+                  </div>
+                  {currentStatus === option.value && (
+                    <div className="ml-auto">
+                      <span className="bg-cropsay-green/20 text-cropsay-green text-xs px-2 py-1 rounded">Current</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
+          
+          <div className="bg-cropsay-dark p-4 flex justify-end">
+            <button 
+              className="px-4 py-2 bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md text-sm transition-colors"
+              onClick={onClose}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+  
+  // Status Badge component
+  const StatusBadge = ({ status, className = '' }: { status: string, className?: string }) => {
+    // Get color based on status
+    const getStatusColor = (status: string) => {
+      switch (status.toLowerCase()) {
+        case 'pending':
+          return 'bg-yellow-500 text-yellow-900';
+        case 'processing':
+          return 'bg-blue-500 text-blue-900';
+        case 'shipped':
+          return 'bg-purple-500 text-purple-900';
+        case 'delivered':
+          return 'bg-green-500 text-green-900';
+        case 'cancelled':
+          return 'bg-red-500 text-red-900';
+        case 'refunded':
+          return 'bg-orange-500 text-orange-900';
+        default:
+          return 'bg-gray-500 text-gray-900';
+      }
+    };
+
+    return (
+      <span className={`px-2 py-1 rounded text-xs font-medium ${getStatusColor(status)} ${className}`}>
+        {status.charAt(0).toUpperCase() + status.slice(1)}
+      </span>
+    );
+  };
+
+  // Handle updating order status
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    try {
+      setIsUpdatingOrderStatus(true);
       
-      {/* Enhanced Fixed Tab Navigation */}
-      <div className="flex-shrink-0 bg-gradient-to-b from-[#1A1F2E] to-[#171C29] border-b border-[#2A3143] backdrop-blur-sm shadow-md z-10">
-        <div className={cn(isMobile ? "px-4 py-2" : "px-8 py-5")}>
-          <div className={cn("flex", isMobile ? "justify-center" : "justify-start")}>
-            <div className={cn(
-              "flex bg-[#2A3143] rounded-lg shadow-inner",
-              isMobile ? "w-full p-1" : "inline-flex p-2 gap-3 min-w-[500px]"
-            )}>
+      console.log(`Updating order ${orderId} status to ${newStatus}...`);
+      await updateOrderStatus(orderId, newStatus);
+      
+      // Verify the update was successful
+      try {
+        const verifiedOrder = await verifyOrderStatus(orderId);
+        console.log(`Status update verification for ${orderId}: DB shows ${verifiedOrder.status}, requested ${newStatus}`);
+        
+        // If verification fails, we'll still show the optimistic update
+        // but log the discrepancy
+        if (verifiedOrder.status !== newStatus) {
+          console.warn(`Status mismatch after update! Requested: ${newStatus}, DB has: ${verifiedOrder.status}`);
+        }
+      } catch (verifyErr) {
+        console.error('Error verifying order status update:', verifyErr);
+      }
+      
+      // Update the order in the current state
+      const updatedOrders = sellerOrders.map(order => 
+        order.id === orderId ? { ...order, status: newStatus } : order
+      );
+      setSellerOrders(updatedOrders);
+      
+      // Update selected order if it's the one being edited
+      if (selectedOrder && selectedOrder.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: newStatus });
+      }
+      
+      setSuccessMessage(`Order status updated to ${newStatus}`);
+      setShowStatusUpdatePopup(false);
+      
+      // Refresh orders after a delay to ensure DB is in sync
+      setTimeout(() => {
+        loadSellerOrders();
+      }, 2000);
+    } catch (error) {
+      console.error('Error updating order status:', error);
+      setErrorMessage('Failed to update order status');
+    } finally {
+      setIsUpdatingOrderStatus(false);
+    }
+  };
+
+  // Function to download orders as Excel file
+  const handleDownloadOrders = () => {
+    try {
+      // Convert filtered orders to CSV format
+      const headers = ['Order ID', 'Date', 'Customer', 'Status', 'Items', 'Total'];
+      
+      let csvContent = headers.join(',') + '\n';
+      
+      // Filter and sort orders (same logic as in renderOrders)
+      const filteredOrders = sellerOrders.filter(order => {
+        const matchesSearch = searchQuery === '' || 
+          order.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (order.customer_name && order.customer_name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+          (order.customer_email && order.customer_email.toLowerCase().includes(searchQuery.toLowerCase()));
+        
+        const matchesStatus = statusFilter === 'all' || order.status === statusFilter;
+        
+        let matchesDate = true;
+        if (dateFilter === 'today') {
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          const orderDate = new Date(order.date);
+          matchesDate = orderDate >= today;
+        } else if (dateFilter === 'week') {
+          const weekAgo = new Date();
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          const orderDate = new Date(order.date);
+          matchesDate = orderDate >= weekAgo;
+        } else if (dateFilter === 'month') {
+          const monthAgo = new Date();
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          const orderDate = new Date(order.date);
+          matchesDate = orderDate >= monthAgo;
+        }
+        
+        return matchesSearch && matchesStatus && matchesDate;
+      });
+      
+      const ordersToExport = [...filteredOrders].sort((a, b) => {
+        if (sortBy === 'date_desc') {
+          return new Date(b.date).getTime() - new Date(a.date).getTime();
+        } else if (sortBy === 'date_asc') {
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        } else if (sortBy === 'total_desc') {
+          return b.total - a.total;
+        } else if (sortBy === 'total_asc') {
+          return a.total - b.total;
+        }
+        return 0;
+      });
+      
+      ordersToExport.forEach(order => {
+        const row = [
+          `"${order.id}"`,
+          `"${new Date(order.date).toLocaleDateString()}"`,
+          `"${order.customer_name || 'Anonymous'}"`,
+          `"${order.status}"`,
+          `"${order.items?.length || 0}"`,
+          `"${order.total?.toFixed(2) || '0.00'}"`
+        ];
+        
+        csvContent += row.join(',') + '\n';
+      });
+      
+      // Create a CSV file and trigger download
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      
+      // Create filename with current date
+      const date = new Date();
+      const filename = `cropsay_orders_${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}-${date.getDate().toString().padStart(2, '0')}.csv`;
+      
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      setSuccessMessage('Orders data downloaded successfully');
+    } catch (error) {
+      console.error('Error downloading orders:', error);
+      setErrorMessage('Failed to download orders data');
+    }
+  };
+  
+  // Function to show analytics modal
+  const handleShowAnalytics = () => {
+    setShowAnalyticsModal(true);
+  };
+  
+  // Render order analytics modal
+  const renderAnalyticsModal = () => {
+    if (!showAnalyticsModal) return null;
+    
+    // Calculate analytics from orders data
+    const totalOrders = sellerOrders.length;
+    const totalSales = sellerOrders.reduce((sum, order) => sum + (order.total || 0), 0);
+    const pendingOrders = sellerOrders.filter(order => order.status === 'pending').length;
+    const processingOrders = sellerOrders.filter(order => order.status === 'processing').length;
+    const shippedOrders = sellerOrders.filter(order => order.status === 'shipped').length;
+    const deliveredOrders = sellerOrders.filter(order => order.status === 'delivered').length;
+    const cancelledOrders = sellerOrders.filter(order => order.status === 'cancelled').length;
+    
+    // Group orders by date to show daily sales
+    const ordersByDate = sellerOrders.reduce((acc, order) => {
+      const date = new Date(order.date).toLocaleDateString();
+      if (!acc[date]) {
+        acc[date] = { count: 0, total: 0 };
+      }
+      acc[date].count += 1;
+      acc[date].total += (order.total || 0);
+      return acc;
+    }, {} as Record<string, { count: number, total: number }>);
+    
+    // Get top 5 dates by sales
+    const topDates = Object.entries(ordersByDate)
+      .sort((a, b) => b[1].total - a[1].total)
+      .slice(0, 5);
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div 
+          className={cn(
+            "bg-cropsay-dark rounded-lg shadow-xl overflow-hidden flex flex-col",
+            isMobile 
+              ? "w-full max-w-[95%] max-h-[80vh]" 
+              : "w-full max-w-3xl max-h-[85vh]"
+          )}
+        >
+          {/* Header */}
+          <div className="bg-cropsay-darkSecondary p-3 sticky top-0 z-10 flex justify-between items-center border-b border-cropsay-grayDark">
+            <h3 className="text-lg font-semibold text-cropsay-green">Order Analytics</h3>
+            <button 
+              className="p-1 rounded-full hover:bg-cropsay-grayDark"
+              onClick={() => setShowAnalyticsModal(false)}
+              title="Close analytics"
+            >
+              <X size={18} />
+            </button>
+          </div>
+          
+          {/* Content - Scrollable */}
+          <div className="flex-1 overflow-y-auto p-4">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+              {/* Summary Cards */}
+              <div className="bg-cropsay-darkSecondary rounded-lg p-3 col-span-2 md:col-span-1">
+                <h4 className="text-sm font-medium mb-2 text-cropsay-grayLight">Total Orders</h4>
+                <p className="text-2xl font-bold">{totalOrders}</p>
+              </div>
+              
+              <div className="bg-cropsay-darkSecondary rounded-lg p-3 col-span-2 md:col-span-1">
+                <h4 className="text-sm font-medium mb-2 text-cropsay-grayLight">Total Sales</h4>
+                <p className="text-2xl font-bold text-cropsay-green">रू {totalSales.toFixed(2)}</p>
+              </div>
+              
+              <div className="bg-cropsay-darkSecondary rounded-lg p-3 col-span-2 md:col-span-1">
+                <h4 className="text-sm font-medium mb-2 text-cropsay-grayLight">Average Order Value</h4>
+                <p className="text-2xl font-bold">रू {totalOrders ? (totalSales / totalOrders).toFixed(2) : '0.00'}</p>
+              </div>
+              
+              {/* Order Status Breakdown */}
+              <div className="bg-cropsay-darkSecondary rounded-lg p-3 col-span-2 md:col-span-3">
+                <h4 className="text-sm font-medium mb-2">Order Status</h4>
+                <div className="grid grid-cols-5 gap-2">
+                  <div className="flex flex-col items-center">
+                    <div className="h-16 bg-yellow-900/30 rounded-md flex items-end w-full mb-1 overflow-hidden">
+                      <div 
+                        className="bg-yellow-500 w-full" 
+                        style={{height: `${totalOrders ? (pendingOrders / totalOrders) * 100 : 0}%`}}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-center">{pendingOrders}</p>
+                    <p className="text-xs text-cropsay-grayLight">Pending</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="h-16 bg-blue-900/30 rounded-md flex items-end w-full mb-1 overflow-hidden">
+                      <div 
+                        className="bg-blue-500 w-full" 
+                        style={{height: `${totalOrders ? (processingOrders / totalOrders) * 100 : 0}%`}}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-center">{processingOrders}</p>
+                    <p className="text-xs text-cropsay-grayLight">Processing</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="h-16 bg-indigo-900/30 rounded-md flex items-end w-full mb-1 overflow-hidden">
+                      <div 
+                        className="bg-indigo-500 w-full" 
+                        style={{height: `${totalOrders ? (shippedOrders / totalOrders) * 100 : 0}%`}}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-center">{shippedOrders}</p>
+                    <p className="text-xs text-cropsay-grayLight">Shipped</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="h-16 bg-green-900/30 rounded-md flex items-end w-full mb-1 overflow-hidden">
+                      <div 
+                        className="bg-green-500 w-full" 
+                        style={{height: `${totalOrders ? (deliveredOrders / totalOrders) * 100 : 0}%`}}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-center">{deliveredOrders}</p>
+                    <p className="text-xs text-cropsay-grayLight">Delivered</p>
+                  </div>
+                  <div className="flex flex-col items-center">
+                    <div className="h-16 bg-red-900/30 rounded-md flex items-end w-full mb-1 overflow-hidden">
+                      <div 
+                        className="bg-red-500 w-full" 
+                        style={{height: `${totalOrders ? (cancelledOrders / totalOrders) * 100 : 0}%`}}
+                      ></div>
+                    </div>
+                    <p className="text-xs text-center">{cancelledOrders}</p>
+                    <p className="text-xs text-cropsay-grayLight">Cancelled</p>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Top Sales by Date */}
+              <div className="bg-cropsay-darkSecondary rounded-lg p-3 col-span-2 md:col-span-3">
+                <h4 className="text-sm font-medium mb-2">Top Sales Days</h4>
+                <div className="space-y-2">
+                  {topDates.length > 0 ? (
+                    topDates.map(([date, data]) => (
+                      <div key={date} className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm">{date}</p>
+                          <p className="text-xs text-cropsay-grayLight">{data.count} orders</p>
+                        </div>
+                        <p className="text-sm font-medium text-cropsay-green">रू {data.total.toFixed(2)}</p>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-cropsay-grayLight">No sales data available</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+          
+          {/* Footer */}
+          <div className="bg-cropsay-darkSecondary p-3 border-t border-cropsay-grayDark">
+            <div className="flex justify-end">
               <button 
-                className={cn(
-                  "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
-                  isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
-                  activeTab === 'listing' 
-                    ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
-                    : 'text-gray-300 hover:text-white hover:bg-[#374151]'
-                )}
-                onClick={() => setActiveTab('listing')}
+                className="px-4 py-2 bg-cropsay-dark hover:bg-opacity-80 text-white rounded-md"
+                onClick={() => setShowAnalyticsModal(false)}
               >
-                {isMobile ? "Create" : "Create Listing"}
-              </button>
-              <button 
-                className={cn(
-                  "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
-                  isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
-                  activeTab === 'manage' 
-                    ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
-                    : 'text-gray-300 hover:text-white hover:bg-[#374151]'
-                )}
-                onClick={() => setActiveTab('manage')}
-              >
-                {isMobile ? "Manage" : "Manage Listings"}
-              </button>
-              <button 
-                className={cn(
-                  "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
-                  isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
-                  activeTab === 'orders' 
-                    ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
-                    : 'text-gray-300 hover:text-white hover:bg-[#374151]'
-                )}
-                onClick={() => setActiveTab('orders')}
-              >
-                Orders
+                Close
               </button>
             </div>
           </div>
         </div>
       </div>
-      
-      {/* Scrollable Content Area */}
-      <div className="flex-1 overflow-y-auto">
-        <div className={cn("min-h-full", isMobile ? "pt-2" : "pt-4")}>
-          {activeTab === 'listing' && renderCreateListingForm()}
-          {activeTab === 'manage' && renderManageListings()}
-          {activeTab === 'orders' && renderOrders()}
+    );
+  };
+  
+  // Show loading spinner while authentication state is being determined
+  if (authLoading) {
+    return (
+      <div className="h-full flex flex-col items-center justify-center bg-cropsay-darkPrimary">
+        <div className="flex flex-col items-center space-y-4">
+          <Loader className="h-12 w-12 animate-spin text-cropsay-green" />
+          <p className="text-lg text-gray-300">Loading seller dashboard...</p>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="h-full flex flex-col bg-cropsay-darkPrimary overflow-hidden">
+      {/* Enhanced Fixed Header with Breadcrumb */}
+      <div className="sticky top-0 bg-gradient-to-r from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] backdrop-blur-sm shadow-lg z-20">
+        <div className={cn(isMobile ? "px-4 py-0.5" : "px-8 py-3")}>
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <h1 className={cn("font-bold text-white", isMobile ? "text-lg" : "text-2xl")}>
+                {isVendor ? "Seller Dashboard" : "Become a Vendor"}
+              </h1>
+              <div className="flex items-center text-cropsay-grayText text-sm">
+                <Home size={14} className="mr-1" />
+                <ChevronRight size={14} className="mx-1" />
+                <span>Sell</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
       
-      {/* Delete Confirmation Dialog */}
-      {renderDeleteDialog()}
+      {isVendor ? (
+        <>
+          {/* Enhanced Fixed Tab Navigation - Only for vendors */}
+          <div className="flex-shrink-0 bg-gradient-to-b from-[#1A1F2E] to-[#171C29] border-b border-[#2A3143] backdrop-blur-sm shadow-md z-10">
+            <div className={cn(isMobile ? "px-4 py-2" : "px-8 py-5")}>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                <button 
+                  className={cn(
+                    "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
+                    isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
+                    activeTab === 'listing' 
+                      ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-[#374151]'
+                  )}
+                  onClick={() => setActiveTab('listing')}
+                >
+                  {isMobile ? "Create" : "Create Listing"}
+                </button>
+                <button 
+                  className={cn(
+                    "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
+                    isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
+                    activeTab === 'manage' 
+                      ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-[#374151]'
+                  )}
+                  onClick={() => setActiveTab('manage')}
+                >
+                  {isMobile ? "Manage" : "Manage Listings"}
+                </button>
+                <button 
+                  className={cn(
+                    "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
+                    isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
+                    activeTab === 'orders' 
+                      ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-[#374151]'
+                  )}
+                  onClick={() => setActiveTab('orders')}
+                >
+                  Orders
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Scrollable Content Area for vendors */}
+          <div className="flex-1 overflow-y-auto">
+            <div className={cn("min-h-full", isMobile ? "pt-2" : "pt-4")}>
+              {activeTab === 'listing' && renderCreateListingForm()}
+              {activeTab === 'manage' && renderManageListings()}
+              {activeTab === 'orders' && renderOrders()}
+            </div>
+          </div>
+          
+          {/* Delete Confirmation Dialog */}
+          {renderDeleteDialog()}
+          
+          {/* Order details dialog */}
+          {renderOrderDetailsDialog()}
+        </>
+      ) : (
+        /* Content for non-vendor users - Application Form */
+        <div className="flex-1 overflow-y-auto py-4 px-4">
+          <VendorApplicationForm />
+        </div>
+      )}
+      
+      {/* Status Update Popup - for order status updates */}
+      <StatusUpdatePopup 
+        isOpen={showStatusUpdatePopup}
+        onClose={() => setShowStatusUpdatePopup(false)}
+        orderId={orderToUpdate?.id || ''}
+        currentStatus={orderToUpdate?.status || ''}
+        onStatusUpdate={async (orderId, newStatus) => {
+          try {
+            setIsUpdatingOrderStatus(true);
+            await updateOrderStatus(orderId, newStatus);
+            
+            // Update the order in the current state
+            const updatedOrders = sellerOrders.map(order => 
+              order.id === orderId ? { ...order, status: newStatus } : order
+            );
+            setSellerOrders(updatedOrders);
+            
+            setSuccessMessage(`Order status updated to ${newStatus}`);
+            setShowStatusUpdatePopup(false);
+          } catch (error) {
+            console.error('Error updating order status:', error);
+            setErrorMessage('Failed to update order status');
+          } finally {
+            setIsUpdatingOrderStatus(false);
+          }
+        }}
+      />
     </div>
   );
 };

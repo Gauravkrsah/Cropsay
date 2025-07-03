@@ -1,0 +1,1013 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Camera, Upload, CheckCircle, Trash2, Edit, AlertCircle, Package, MoreVertical, Loader, Info, Image as ImageIcon, X, Truck, Home, ChevronRight, Search, ChevronDown } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useNavigate } from 'react-router-dom';
+import { 
+  createProduct, 
+  fetchSellerProducts, 
+  updateProduct, 
+  deleteProduct, 
+  uploadProductImage,
+  ProductFormData 
+} from '@/services/productService';
+import { getSellerOrders } from '@/services/orderService';
+import { updateOrderStatus, batchUpdateOrderStatus, markCODOrdersAsShippedAndPaid } from '@/services/orderService';
+import { Product } from '@/data/productData';
+import { getCategories, getSubcategories } from '@/data/productData';
+import { useIsMobile } from '@/hooks/use-mobile';
+import { cn } from '@/lib/utils';
+
+// Type for vendor application form
+type VendorApplicationData = {
+  fullName: string;
+  email: string;
+  businessName: string;
+  businessAddress: string;
+  phoneNumber: string;
+  businessType: string;
+  description: string;
+  website?: string;
+  taxId?: string;
+  agreedToTerms: boolean;
+};
+
+// Status Option component for order status dropdown
+type StatusOptionProps = {
+  emoji: string;
+  status: string;
+  description?: string;
+  value: string;
+  currentStatus: string;
+  orderId: string;
+  onClick: (orderId: string, status: string) => void;
+};
+
+const StatusOption = ({ emoji, status, description, value, currentStatus, orderId, onClick }: StatusOptionProps) => {
+  const isActive = currentStatus.toLowerCase() === value.toLowerCase();
+  
+  return (
+    <li 
+      className={cn(
+        "px-3 py-2 hover:bg-cropsay-grayDark/50 cursor-pointer flex items-start",
+        isActive ? "bg-cropsay-grayDark" : ""
+      )}
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick(orderId, value);
+      }}
+    >
+      <span className="mr-2 text-lg">{emoji}</span>
+      <div className="flex-1">
+        <div className="flex items-center">
+          <span className="font-medium text-white text-sm"></span>
+          {isActive &&}
+        </div>
+        {description && <p className="text-xs text-cropsay-grayText mt-0.5">{description}</p>}
+      </div>
+    </li>
+  );
+};
+
+// Type for seller orders
+type OrderWithItems = {
+  id: string;
+  date: string;
+  status: string;
+  payment_method: string;
+  total: number;
+  items: any[]; // This would include the product IDs that belong to the seller
+  customer_name: string;
+  customer_email: string;
+  customer_address: string;
+  phone: string;
+  address: string;
+};
+
+const SellPage = () => {
+  const { user } = useAuth();
+  const navigate = useNavigate();
+  const isMobile = useIsMobile();
+  
+  // Check if user is authenticated and has a cropsay.com email domain
+  const isVendor = user?.email?.endsWith('@cropsay.com') || false;
+  
+  // Redirect to login if not authenticated
+  useEffect(() => {
+    if (!user) {
+      navigate('/auth');
+    }
+  }, [user, navigate]);
+  
+  const [activeTab, setActiveTab] = useState('listing');
+  const [loading, setLoading] = useState(false);
+  
+  // Search, filter and sort state
+  const [searchQuery, setSearchQuery] = useState("");
+  const [dateFilter, setDateFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("date_desc");
+  const [openOrderStatusDropdown, setOpenOrderStatusDropdown] = useState<string | null>(null);
+  
+  // Status update popup state
+  const [showStatusUpdatePopup, setShowStatusUpdatePopup] = useState(false);
+  const [orderToUpdate, setOrderToUpdate] = useState<OrderWithItems | null>(null);
+  
+  // Close dropdowns when clicking outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setOpenOrderStatusDropdown(null);
+    };
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }, []);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  
+  // Product Form State
+  const [productForm, setProductForm] = useState<ProductFormData>({
+    name: '',
+    description: '',
+    price: 0,
+    category: '',
+    subcategory: '',
+    brand: '',
+    quantity: 0,
+    images: []
+  });
+  
+  // File Upload State
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [isUploading, setIsUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  // Product Management State
+  const [sellerProducts, setSellerProducts] = useState<Product[]>([]);
+  const [isLoadingProducts, setIsLoadingProducts] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  // Orders State
+  const [sellerOrders, setSellerOrders] = useState<OrderWithItems[]>([]);
+  const [isLoadingOrders, setIsLoadingOrders] = useState(false);
+  
+  // Delete confirmation dialog state
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  
+  // Order details dialog state
+  const [showOrderDetailsDialog, setShowOrderDetailsDialog] = useState(false);
+  const [selectedOrder, setSelectedOrder] = useState<OrderWithItems | null>(null);
+  
+  // Get categories for dropdown
+  const categories = getCategories();
+  const [subcategories, setSubcategories] = useState<string[]>([]);
+
+  // Handle category change to populate subcategories
+  useEffect(() => {
+    if (productForm.category) {
+      setSubcategories(getSubcategories(productForm.category));
+    } else {
+      setSubcategories([]);
+    }
+  }, [productForm.category]);
+  
+  // Load seller products when tab changes to 'manage'
+  useEffect(() => {
+    if (isVendor && activeTab === 'manage') {
+      loadSellerProducts();
+    } else if (isVendor && activeTab === 'orders') {
+      loadSellerOrders();
+    }
+  }, [activeTab, isVendor]);
+  
+  // Set up auto-refresh interval for orders
+  useEffect(() => {
+    if (isVendor && activeTab === 'orders') {
+      const interval = setInterval(() => {
+        loadSellerOrders();
+      }, 60000); // 60 seconds interval
+      
+      return () => clearInterval(interval);
+    }
+  }, [activeTab, isVendor]);
+  
+  // Load products created by the seller
+  const loadSellerProducts = async () => {
+    if (!user) return;
+    
+    setIsLoadingProducts(true);
+    try {
+      const products = await fetchSellerProducts();
+      setSellerProducts(products);
+    } catch (error) {
+      console.error('Error loading seller products:', error);
+      setErrorMessage('Failed to load your product listings');
+    } finally {
+      setIsLoadingProducts(false);
+    }
+  };
+  
+  // Load orders for the seller's products
+  const loadSellerOrders = async () => {
+    if (!user) return;
+    
+    setIsLoadingOrders(true);
+    try {
+      const orders = await getSellerOrders();
+      setSellerOrders(orders as OrderWithItems[]);
+    } catch (error) {
+      console.error('Error loading seller orders:', error);
+      setErrorMessage('Failed to load your orders');
+    } finally {
+      setIsLoadingOrders(false);
+    }
+  };
+  
+  // Handle image file selection
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) {
+      const filesArray = Array.from(e.target.files);
+      
+      // Limit to max 5 images total
+      const totalImages = selectedFiles.length + filesArray.length;
+      if (totalImages > 5) {
+        setErrorMessage('Maximum 5 images allowed');
+        return;
+      }
+      
+      setSelectedFiles([...selectedFiles, ...filesArray]);
+    }
+  };
+  
+  // Remove a selected file
+  const removeSelectedFile = (index: number) => {
+    setSelectedFiles(selectedFiles.filter((_, i) => i !== index));
+  };
+
+  // Trigger file input click
+  const triggerFileInput = () => {
+    if (fileInputRef.current) {
+      fileInputRef.current.click();
+    }
+  };
+  
+  // Handle form input changes
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+    const { name, value } = e.target;
+    
+    if (name === 'price' || name === 'quantity') {
+      setProductForm({
+        ...productForm,
+        [name]: parseFloat(value) || 0
+      });
+    } else {
+      setProductForm({
+        ...productForm,
+        [name]: value
+      });
+    }
+  };
+  
+  // Upload images to Supabase storage
+  const uploadImages = async (): Promise<string[]> => {
+    if (selectedFiles.length === 0) return [];
+    
+    setIsUploading(true);
+    const imageUrls: string[] = [];
+    
+    try {
+      for (let i = 0; i < selectedFiles.length; i++) {
+        const file = selectedFiles[i];
+        const url = await uploadProductImage(file, file.name);
+        if (url) {
+          imageUrls.push(url);
+        }
+        // Update progress
+        setUploadProgress(Math.round(((i + 1) / selectedFiles.length) * 100));
+      }
+      return imageUrls;
+    } catch (error) {
+      console.error('Error uploading images:', error);
+      setErrorMessage('Failed to upload images');
+      return [];
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+    }
+  };
+  
+  // Submit the product form
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    // Validate form
+    if (!productForm.name || !productForm.description || !productForm.category || productForm.price <= 0 || productForm.quantity <= 0) {
+      setErrorMessage('Please fill in all required fields');
+      return;
+    }
+    
+    // Clear previous messages
+    setErrorMessage('');
+    setSuccessMessage('');
+    setLoading(true);
+    
+    try {
+      // Upload images first
+      const imageUrls = editingProduct?.images || [];
+      const newImageUrls = await uploadImages();
+      
+      // Combine existing and new images
+      const combinedImageUrls = [...imageUrls, ...newImageUrls];
+      
+      const productData: ProductFormData = {
+        ...productForm,
+        images: combinedImageUrls
+      };
+      
+      let result;
+      if (editingProduct) {
+        // Update existing product
+        result = await updateProduct(editingProduct.id, productData);
+        if (result) {
+          setSuccessMessage('Product updated successfully!');
+          // Refresh products list
+          loadSellerProducts();
+          // Reset form
+          resetForm();
+        }
+      } else {
+        // Create new product
+        result = await createProduct(productData);
+        if (result) {
+          setSuccessMessage('Product created successfully!');
+          // Reset form
+          resetForm();
+        }
+      }
+      
+      if (!result) {
+        setErrorMessage('Error saving product. Please try again.');
+      }
+    } catch (error) {
+      console.error('Error saving product:', error);
+      setErrorMessage('Failed to save product');
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Reset form and state
+  const resetForm = () => {
+    setProductForm({
+      name: '',
+      description: '',
+      price: 0,
+      category: '',
+      subcategory: '',
+      brand: '',
+      quantity: 0,
+      images: []
+    });
+    setSelectedFiles([]);
+    setEditingProduct(null);
+    setActiveTab('manage'); // Switch to manage tab after successful creation
+  };
+  
+  // Handle edit product button
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductForm({
+      name: product.name,
+      description: product.description,
+      price: product.price,
+      category: product.category,
+      subcategory: product.subcategory,
+      brand: product.brand,
+      quantity: product.quantity || 0,
+      images: product.images || []
+    });
+    setActiveTab('listing');
+  };
+  
+  // Handle delete product button
+  const handleDeleteProduct = async (product: Product) => {
+    setProductToDelete(product);
+    setShowDeleteDialog(true);
+  };
+
+  // Handle order details view
+  const handleViewOrderDetails = (order: OrderWithItems) => {
+    console.log('Order details:', order);
+    console.log('Customer name:', order.customer_name);
+    console.log('Customer email:', order.customer_email);
+    console.log('Customer address:', order.customer_address);
+    console.log('Phone:', order.phone);
+    console.log('Address:', order.address);
+    setSelectedOrder(order);
+    setShowOrderDetailsDialog(true);
+  };
+
+  // Confirm delete product
+  const confirmDeleteProduct = async () => {
+    if (!productToDelete) return;
+    
+    setIsLoadingProducts(true);
+    setShowDeleteDialog(false);
+    
+    try {
+      const success = await deleteProduct(productToDelete.id);
+      if (success) {
+        // Refresh products list
+        loadSellerProducts();
+        setSuccessMessage('Product deleted successfully');
+      } else {
+        setErrorMessage('Failed to delete product');
+      }
+    } catch (error) {
+      console.error('Error deleting product:', error);
+      setErrorMessage('Failed to delete product');
+    } finally {
+      setIsLoadingProducts(false);
+      setProductToDelete(null);
+    }
+  };
+
+  // Cancel delete product
+  const cancelDeleteProduct = () => {
+    setShowDeleteDialog(false);
+    setProductToDelete(null);
+  };
+  
+  // Display notification messages
+  const renderNotification = () => {
+    if (errorMessage) {
+      return (
+        <div className="bg-red-900 text-white p-3 rounded-md mb-4 flex items-center">
+          <AlertCircle size={18} className="mr-2" />
+          {errorMessage}
+          <button 
+            className="ml-auto text-white" 
+            onClick={() => setErrorMessage('')}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      );
+    }
+    
+    if (successMessage) {
+      return (
+        <div className="bg-green-900 text-white p-3 rounded-md mb-4 flex items-center">
+          <CheckCircle size={18} className="mr-2" />
+          {successMessage}
+          <button 
+            className="ml-auto text-white" 
+            onClick={() => setSuccessMessage('')}
+          >
+            <X size={16} />
+          </button>
+        </div>
+      );
+    }
+    
+    return null;
+  };
+
+  // Delete confirmation dialog
+  const renderDeleteDialog = () => {
+    if (!showDeleteDialog || !productToDelete) return null;
+
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className={cn(
+          "bg-cropsay-darkSecondary rounded-lg border border-cropsay-grayDark shadow-xl",
+          isMobile ? "w-full max-w-sm" : "w-full max-w-md"
+        )}>
+          <div className={cn("p-6", isMobile ? "p-4" : "p-6")}>
+            
+            
+            
+            
+            
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Vendor Application Form Component
+  const VendorApplicationForm = () => {
+    const [vendorForm, setVendorForm] = useState<VendorApplicationData>({
+      fullName: user?.user_metadata?.full_name || '',
+      email: user?.email || '',
+      businessName: '',
+      businessAddress: '',
+      phoneNumber: '',
+      businessType: '',
+      description: '',
+      website: '',
+      taxId: '',
+      agreedToTerms: false
+    });
+    
+    const [submitting, setSubmitting] = useState(false);
+    const [applicationSubmitted, setApplicationSubmitted] = useState(false);
+    
+    const handleVendorInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+      const { name, value, type } = e.target;
+      
+      if (type === 'checkbox') {
+        const checkbox = e.target as HTMLInputElement;
+        setVendorForm(prev => ({
+          ...prev,
+          [name]: checkbox.checked
+        }));
+      } else {
+        setVendorForm(prev => ({
+          ...prev,
+          [name]: value
+        }));
+      }
+    };
+    
+    const handleVendorSubmit = async (e: React.FormEvent) => {
+      e.preventDefault();
+      
+      // Validation
+      if (!vendorForm.fullName || !vendorForm.email || !vendorForm.businessName || 
+          !vendorForm.businessAddress || !vendorForm.phoneNumber || 
+          !vendorForm.businessType || !vendorForm.description || !vendorForm.agreedToTerms) {
+        setErrorMessage('Please fill in all required fields');
+        return;
+      }
+      
+      setErrorMessage('');
+      setSubmitting(true);
+      
+      try {
+        // Here you would implement the API call to submit the vendor application
+        // For now we'll just simulate a successful submission
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        
+        setSuccessMessage('Your vendor application has been submitted successfully! We will review it and get back to you soon.');
+        setApplicationSubmitted(true);
+      } catch (error) {
+        console.error('Error submitting vendor application:', error);
+        setErrorMessage('Failed to submit application. Please try again later.');
+      } finally {
+        setSubmitting(false);
+      }
+    };
+    
+    if (applicationSubmitted) {
+      return (
+        <div className="max-w-2xl mx-auto text-center py-8">
+          <div className="bg-cropsay-darkSecondary rounded-lg p-6">
+            <div className="w-16 h-16 bg-green-800/30 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle size={32} className="text-green-500" />
+            </div>
+            <h2 className="text-xl font-semibold mb-2">Application Submitted!</h2>
+            <p className="text-cropsay-grayText mb-6">
+              Thank you for applying to become a vendor on CropsayAI. Our team will review your application and contact you soon.
+            </p>
+            <div className="bg-cropsay-dark/50 rounded-lg p-4 mb-4">
+              <h3 className="font-medium mb-2">What happens next?</h3>
+              <ol className="list-decimal list-inside text-left text-sm space-y-2">
+                <li>Our team will review your application (usually within 2-3 business days)</li>
+                <li>We may contact you for additional information if needed</li>
+                <li>Once approved, you'll receive vendor credentials to access the seller platform</li>
+                <li>You can then start listing your products and managing your store</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      );
+    }
+    
+    return (
+      <div className="max-w-2xl mx-auto">
+        {renderNotification()}
+        
+        <div className="bg-cropsay-darkSecondary rounded-lg p-6 mb-6">
+          <h2 className="text-xl font-semibold mb-4">Become a Vendor</h2>
+          <p className="text-cropsay-grayText mb-6">
+            Join our marketplace to reach more customers and grow your agricultural business.
+            Complete this form to apply for a vendor account.
+          </p>
+          
+          <form onSubmit={handleVendorSubmit}>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="fullName" className="block text-sm font-medium mb-1">Full Name *</label>
+                  <input
+                    type="text"
+                    id="fullName"
+                    name="fullName"
+                    value={vendorForm.fullName}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="email" className="block text-sm font-medium mb-1">Email *</label>
+                  <input
+                    type="email"
+                    id="email"
+                    name="email"
+                    value={vendorForm.email}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  />
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="businessName" className="block text-sm font-medium mb-1">Business Name *</label>
+                <input
+                  type="text"
+                  id="businessName"
+                  name="businessName"
+                  value={vendorForm.businessName}
+                  onChange={handleVendorInputChange}
+                  className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label htmlFor="businessAddress" className="block text-sm font-medium mb-1">Business Address *</label>
+                <input
+                  type="text"
+                  id="businessAddress"
+                  name="businessAddress"
+                  value={vendorForm.businessAddress}
+                  onChange={handleVendorInputChange}
+                  className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  required
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="phoneNumber" className="block text-sm font-medium mb-1">Phone Number *</label>
+                  <input
+                    type="tel"
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={vendorForm.phoneNumber}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="businessType" className="block text-sm font-medium mb-1">Business Type *</label>
+                  <select
+                    id="businessType"
+                    name="businessType"
+                    value={vendorForm.businessType}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    required
+                  >
+                    <option value="">Select business type</option>
+                    <option value="farm">Farm</option>
+                    <option value="agricultural_supplier">Agricultural Supplier</option>
+                    <option value="seeds_nursery">Seeds & Nursery</option>
+                    <option value="equipment_dealer">Equipment Dealer</option>
+                    <option value="organic_producer">Organic Producer</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              
+              <div>
+                <label htmlFor="description" className="block text-sm font-medium mb-1">Business Description *</label>
+                <textarea
+                  id="description"
+                  name="description"
+                  value={vendorForm.description}
+                  onChange={handleVendorInputChange}
+                  rows={4}
+                  className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  required
+                  placeholder="Tell us about your business, products, and experience..."
+                />
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label htmlFor="website" className="block text-sm font-medium mb-1">Website (Optional)</label>
+                  <input
+                    type="url"
+                    id="website"
+                    name="website"
+                    value={vendorForm.website}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                    placeholder="https://yourbusiness.com"
+                  />
+                </div>
+                
+                <div>
+                  <label htmlFor="taxId" className="block text-sm font-medium mb-1">Tax ID/Business Registration (Optional)</label>
+                  <input
+                    type="text"
+                    id="taxId"
+                    name="taxId"
+                    value={vendorForm.taxId}
+                    onChange={handleVendorInputChange}
+                    className="bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full py-2 px-3 text-sm"
+                  />
+                </div>
+              </div>
+              
+              <div className="flex items-start mt-4">
+                <div className="flex items-center h-5">
+                  <input
+                    id="agreedToTerms"
+                    name="agreedToTerms"
+                    type="checkbox"
+                    checked={vendorForm.agreedToTerms}
+                    onChange={handleVendorInputChange}
+                    className="w-4 h-4 border border-cropsay-grayDark rounded bg-cropsay-dark focus:ring-cropsay-green"
+                    required
+                  />
+                </div>
+                <div className="ml-3 text-sm">
+                  <label htmlFor="agreedToTerms" className="text-cropsay-grayText">
+                    I agree to the <a href="#" className="text-cropsay-green hover:underline">Terms and Conditions</a> and <a href="#" className="text-cropsay-green hover:underline">Vendor Policies</a> *
+                  </label>
+                </div>
+              </div>
+            </div>
+            
+            <div className="mt-6">
+              <button
+                type="submit"
+                disabled={submitting}
+                className={cn(
+                  "w-full py-3 px-4 bg-gradient-to-r from-cropsay-green to-green-500 text-white rounded-md font-medium transition-all",
+                  submitting ? "opacity-70 cursor-not-allowed" : "hover:shadow-lg"
+                )}
+              >
+                {submitting ? (
+                  <div className="flex items-center justify-center">
+                    <Loader size={18} className="animate-spin mr-2" />
+                    Submitting Application...
+                  </div>
+                ) : "Submit Application"}
+              </button>
+            </div>
+          </form>
+        </div>
+        
+        <div className="bg-cropsay-dark rounded-lg p-6">
+          <h3 className="text-lg font-medium mb-4">Benefits of Becoming a Vendor</h3>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Expanded Reach</h4>
+                <p className="text-sm text-cropsay-grayText">Connect with farmers and agricultural professionals across the region</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Easy Management</h4>
+                <p className="text-sm text-cropsay-grayText">Powerful tools to manage your listings, inventory and orders</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Secure Payments</h4>
+                <p className="text-sm text-cropsay-grayText">Reliable payment processing with protection for vendors</p>
+              </div>
+            </div>
+            
+            <div className="flex items-start">
+              <div className="flex-shrink-0 w-8 h-8 bg-cropsay-green/20 rounded-full flex items-center justify-center mr-3">
+                <CheckCircle size={16} className="text-cropsay-green" />
+              </div>
+              <div>
+                <h4 className="font-medium mb-1">Analytics & Insights</h4>
+                <p className="text-sm text-cropsay-grayText">Gain valuable data on your sales and customer behavior</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  // Product listing form
+  const renderCreateListingForm = () => {
+    return (
+      <div className={cn("max-w-2xl mx-auto", isMobile ? "p-2" : "p-4")}>
+        {renderNotification()}
+        
+        <div className={cn("bg-cropsay-darkSecondary rounded-lg", isMobile ? "p-4" : "p-6")}>
+          <h2 className={cn("font-medium mb-6", isMobile ? "text-lg" : "text-xl")}>
+            {editingProduct ? 'Edit Product' : 'Create New Listing'}
+          </h2>
+          
+          <form onSubmit={handleSubmit}>
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+            
+          </form>
+        </div>
+      </div>
+    );
+  };
+  
+  // Product management responsive layout
+  const renderManageListings = () => {
+    return (
+      <div className={cn(isMobile ? "p-2" : "p-4")}>
+        {renderNotification()}
+        
+        {isLoadingProducts ? (
+          <div className="flex justify-center py-16">
+            <Loader size={36} className="animate-spin text-cropsay-green" />
+          </div>
+        ) : sellerProducts.length === 0 ? (
+          <div className="text-center py-16">
+            <div className="flex justify-center">
+              
+            </div>
+            <h3 className={cn("mt-6", isMobile ? "text-lg" : "text-xl")}>No Active Listings</h3>
+            <p className="text-cropsay-grayText mt-2">You don't have any product listings yet.</p>
+            <button 
+              className="primary-button mt-6 mx-auto"
+              onClick={() => setActiveTab('listing')}
+            >
+              Create Your First Listing
+            </button>
+          </div>
+        ) : (
+          <div>
+            <div className={cn("mb-4 items-center", isMobile ? "flex flex-col space-y-3" : "flex justify-between")}>
+              
+              
+            </div>
+            
+            {/* Mobile Card Layout */}
+            {isMobile ? (
+              <div className="space-y-3">
+                {sellerProducts.map((product) => (
+                ))}
+              </div>
+            ) : (
+              /* Desktop Table Layout */
+              <div className="bg-cropsay-darkSecondary rounded-lg overflow-hidden">
+                
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  // Orders management with responsive design
+  const renderOrders = () => {
+    return (
+      <div className={cn(isMobile ? "p-2" : "p-4")}>
+        {renderNotification()}
+        
+        {isLoadingOrders ? (
+          <div className="flex justify-center py-16">
+            <Loader size={36} className="animate-spin text-cropsay-green" />
+          </div>
+        ) : sellerOrders.length === 0 ? (
+          <div className="text-center py-16">
+            <h3 className={cn("mt-6", isMobile ? "text-lg" : "text-xl")}>No Orders Yet</h3>
+            <p className="text-cropsay-grayText mt-2">You don't have any orders yet.</p>
+          </div>
+        ) : (
+          <div>
+            {/* Orders list would go here */}
+          </div>
+        )}
+      </div>
+    );
+  };
+  
+  return (
+    <div className="h-full flex flex-col bg-cropsay-darkPrimary overflow-hidden">
+      {/* Enhanced Fixed Header with Breadcrumb */}
+      <div className="flex-shrink-0 bg-gradient-to-r from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] backdrop-blur-sm shadow-lg z-20">
+        <div className={cn(isMobile ? "px-4 py-0.5" : "px-8 py-3")}>
+          <div className="flex items-center justify-between py-2">
+            <div>
+              <h1 className={cn("font-bold text-white", isMobile ? "text-lg" : "text-2xl")}>
+                {isVendor ? "Seller Dashboard" : "Become a Vendor"}
+              </h1>
+              <div className="flex items-center text-cropsay-grayText text-sm">
+                <span>CropsayAI</span>
+                <ChevronRight size={14} className="mx-1" />
+                <span className="text-white">{isVendor ? "Seller Portal" : "Vendor Application"}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      {isVendor ? (
+        <>
+          {/* Enhanced Fixed Tab Navigation - Only for vendors */}
+          <div className="flex-shrink-0 bg-gradient-to-b from-[#1A1F2E] to-[#171C29] border-b border-[#2A3143] backdrop-blur-sm shadow-md z-10">
+            <div className={cn(isMobile ? "px-4 py-2" : "px-8 py-5")}>
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide">
+                <button 
+                  className={cn(
+                    "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
+                    isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
+                    activeTab === 'listing' 
+                      ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-[#374151]'
+                  )}
+                  onClick={() => setActiveTab('listing')}
+                >
+                  {isMobile ? "Create" : "Create Listing"}
+                </button>
+                <button 
+                  className={cn(
+                    "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
+                    isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
+                    activeTab === 'manage' 
+                      ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-[#374151]'
+                  )}
+                  onClick={() => setActiveTab('manage')}
+                >
+                  {isMobile ? "Manage" : "Manage Listings"}
+                </button>
+                <button 
+                  className={cn(
+                    "font-medium transition-all duration-200 rounded-md flex-1 whitespace-nowrap",
+                    isMobile ? "text-sm px-4 py-2" : "text-base px-8 py-3.5",
+                    activeTab === 'orders' 
+                      ? 'bg-gradient-to-r from-cropsay-green to-green-500 text-white shadow-lg' 
+                      : 'text-gray-300 hover:text-white hover:bg-[#374151]'
+                  )}
+                  onClick={() => setActiveTab('orders')}
+                >
+                  Orders
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          {/* Scrollable Content Area for vendors */}
+          <div className="flex-1 overflow-y-auto">
+            <div className={cn("min-h-full", isMobile ? "pt-2" : "pt-4")}>
+              {activeTab === 'listing' && renderCreateListingForm()}
+              {activeTab === 'manage' && renderManageListings()}
+              {activeTab === 'orders' && renderOrders()}
+            </div>
+          </div>
+          
+          {/* Delete Confirmation Dialog */}
+          {renderDeleteDialog()}
+        </>
+      ) : (
+        /* Content for non-vendor users - Application Form */
+        <div className="flex-1 overflow-y-auto py-4 px-4">
+          <VendorApplicationForm />
+        </div>
+      )}
+    </div>
+  );
+};
+
+export default SellPage;

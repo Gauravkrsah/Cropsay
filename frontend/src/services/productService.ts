@@ -69,6 +69,7 @@ export async function fetchProducts(): Promise<Product[]> {
 
 // Fetch products by seller ID
 export async function fetchSellerProducts(): Promise<Product[]> {
+  console.log('Fetching seller products...');
   const { data, error } = await supabase
     .rpc('get_seller_products');
 
@@ -77,6 +78,7 @@ export async function fetchSellerProducts(): Promise<Product[]> {
     return [];
   }
 
+  console.log('Seller products raw data:', data);
   return (data || []).map(mapSupabaseProductToProduct);
 }
 
