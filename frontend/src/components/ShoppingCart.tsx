@@ -7,6 +7,7 @@ import { useCart } from '@/contexts/CartContext';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useAuth } from '@/contexts/AuthContext';
+import { useIsMobile, useIsSmallMobile } from '@/hooks/use-mobile';
 import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
@@ -35,7 +36,8 @@ export const ShoppingCartButton = () => {
 
 export const CartItemQuantity: React.FC<{ id: number; quantity: number; className?: string; }> = ({ id, quantity, className }) => {
   const { updateQuantity } = useCart();
-  
+  const isMobile = useIsMobile();
+
   const handleDecrease = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event bubbling
     e.preventDefault(); // Prevent default action
@@ -46,16 +48,20 @@ export const CartItemQuantity: React.FC<{ id: number; quantity: number; classNam
       updateQuantity(id, 0);
     }
   };
-  
+
   const handleIncrease = (e: React.MouseEvent) => {
     e.stopPropagation(); // Prevent event bubbling
     e.preventDefault(); // Prevent default action
     updateQuantity(id, quantity + 1);
   };
-  
+
   return (
-    <div 
-      className={cn("flex items-center bg-[#2A3143] rounded-full h-8", className)} 
+    <div
+      className={cn(
+        "flex items-center bg-[#2A3143] rounded-full",
+        isMobile ? "h-6" : "h-8",
+        className
+      )}
       onClick={(e) => {
         e.stopPropagation();
         e.preventDefault();
@@ -64,26 +70,35 @@ export const CartItemQuantity: React.FC<{ id: number; quantity: number; classNam
       onPointerDown={(e) => e.stopPropagation()}
       onTouchStart={(e) => e.stopPropagation()}
     >
-      <button 
-        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-l-full transition-colors"
+      <button
+        className={cn(
+          "flex items-center justify-center text-gray-400 hover:text-white rounded-l-full transition-colors",
+          isMobile ? "h-6 w-6" : "h-8 w-8"
+        )}
         onClick={handleDecrease}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         aria-label="Decrease quantity"
       >
-        <Minus size={14} />
+        <Minus size={isMobile ? 10 : 14} />
       </button>
-      <span className="w-6 text-center text-sm">{quantity}</span>
-      <button 
-        className="h-8 w-8 flex items-center justify-center text-gray-400 hover:text-white rounded-r-full transition-colors"
+      <span className={cn(
+        "text-center",
+        isMobile ? "w-4 text-xs" : "w-6 text-sm"
+      )}>{quantity}</span>
+      <button
+        className={cn(
+          "flex items-center justify-center text-gray-400 hover:text-white rounded-r-full transition-colors",
+          isMobile ? "h-6 w-6" : "h-8 w-8"
+        )}
         onClick={handleIncrease}
         onMouseDown={(e) => e.stopPropagation()}
         onTouchStart={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         aria-label="Increase quantity"
       >
-        <Plus size={14} />
+        <Plus size={isMobile ? 10 : 14} />
       </button>
     </div>
   );
@@ -104,6 +119,8 @@ export const ShoppingCart = () => {
   const [pendingKhalti, setPendingKhalti] = useState(false);
   const [khaltiOrderProcessed, setKhaltiOrderProcessed] = useState(false);
   const { profile } = useAuth();
+  const isMobile = useIsMobile();
+  const isSmallMobile = useIsSmallMobile();
   
   // Pre-fill form with user profile data when available
   const { register, handleSubmit, formState: { errors }, reset, setValue } = useForm({
@@ -379,205 +396,358 @@ export const ShoppingCart = () => {
       {/* Cart Popup */}
       {isCartOpen && (
         <Dialog open={isCartOpen} onOpenChange={(open) => !open && closeCart()}>
-          <DialogContent className="p-0 max-w-3xl bg-[#10141E] text-gray-100 overflow-hidden border border-[#2A3143]">
-            <div className="flex justify-between items-center p-4 border-b border-[#2A3143]">
+          <DialogContent className={cn(
+            "p-0 bg-[#10141E] text-gray-100 overflow-hidden border border-[#2A3143]",
+            isMobile
+              ? "max-w-[90vw] max-h-[75vh] w-full h-full mx-auto mt-1 mb-6 rounded-2xl"
+              : "max-w-3xl rounded-xl"
+          )}>
+            <div className={cn(
+              "flex justify-between items-center border-b border-[#2A3143]",
+              isMobile ? "px-4 py-2.5" : "p-4"
+            )}>
               <div className="flex items-center">
-                <Button 
-                  variant="ghost" 
-                  size="icon" 
+                <Button
+                  variant="ghost"
+                  size="icon"
                   onClick={closeCart}
-                  className="rounded-full hover:bg-[#1E2735] h-8 w-8 mr-2 text-gray-300"
+                  className={cn(
+                    "rounded-full hover:bg-[#1E2735] text-gray-300 mr-2",
+                    isMobile ? "h-7 w-7" : "h-8 w-8"
+                  )}
                 >
-                  <ArrowLeft size={16} />
+                  <ArrowLeft size={isMobile ? 14 : 16} />
                 </Button>
-                <h2 className="text-xl font-bold">My Cart ({totalItems})</h2>
+                <h2 className={cn(
+                  "font-bold",
+                  isMobile ? "text-lg" : "text-xl"
+                )}>My Cart ({totalItems})</h2>
               </div>
             </div>
-            
+
             {items.length === 0 ? (
-              <div className="p-6 text-center">
+              <div className={cn(
+                "text-center",
+                isMobile ? "px-4 py-6" : "p-6"
+              )}>
                 <div className="flex justify-center mb-4">
-                  <ShoppingBag size={48} className="text-gray-500" />
+                  <ShoppingBag size={isMobile ? 40 : 48} className="text-gray-500" />
                 </div>
-                <h3 className="text-lg font-medium">Your cart is empty</h3>
-                <p className="text-gray-400 mt-1">Add items to get started</p>
-                <Button 
-                  className="mt-4 bg-green-500 hover:bg-green-600"
+                <h3 className={cn(
+                  "font-medium",
+                  isMobile ? "text-base" : "text-lg"
+                )}>Your cart is empty</h3>
+                <p className={cn(
+                  "text-gray-400 mt-1",
+                  isMobile ? "text-sm" : "text-base"
+                )}>Add items to get started</p>
+                <Button
+                  className={cn(
+                    "bg-green-500 hover:bg-green-600",
+                    isMobile ? "mt-3 h-9 text-sm" : "mt-4 h-11"
+                  )}
                   onClick={closeCart}
                 >
                   Continue Shopping
                 </Button>
               </div>
             ) : (
-              <div className="flex flex-col md:flex-row max-h-[90vh] overflow-hidden">
-                <div className="flex-1 overflow-hidden flex flex-col">
-                  <div className="bg-[#1E2735] p-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-full bg-[#2A3143] flex items-center justify-center">
-                        <Truck size={16} />
-                      </div>
-                      <div>
-                        <p className="font-medium">Delivery options</p>
-                        <p className="text-sm text-gray-400">Home delivery • 2-3 days</p>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {/* Fixed height product list with scroll enabled when more than 4 items */}
-                  <ScrollArea className="flex-1 p-4 max-h-[400px]" type="always">
-                    <div className="space-y-4">
-                      {items.map(item => (
-                        <div key={item.id} className="flex gap-4 py-2 border-b border-[#2A3143] last:border-0">
-                          <div className="w-16 h-16 overflow-hidden rounded-md flex-shrink-0">
-                            <Avatar className="w-16 h-16 border border-[#2A3143]">
-                              <AvatarImage src={item.image} alt={item.name} />
-                              <AvatarFallback className="bg-[#2A3143]">{item.name[0]}</AvatarFallback>
-                            </Avatar>
-                          </div>
-                          <div className="flex-1">
-                            <div className="flex justify-between">
-                              <div>
-                                <h4 className="font-medium">{item.name}</h4>
-                                <p className="text-sm text-gray-400">{item.category}</p>
+              isMobile ? (
+                // Mobile Layout - Single column with sticky sections
+                <div className="flex flex-col h-[calc(75vh-50px)] overflow-hidden">
+                  {/* Scrollable Products Section */}
+                  <div className="flex-1 min-h-0 overflow-hidden">
+                    <ScrollArea className="h-full px-4 py-2" type="always">
+                      <div className="space-y-1.5">
+                        {items.map(item => (
+                          <div key={item.id} className="flex gap-3 py-1.5 border-b border-[#2A3143] last:border-0">
+                            <div className="w-12 h-12 overflow-hidden rounded-md flex-shrink-0">
+                              <Avatar className="w-12 h-12 border border-[#2A3143]">
+                                <AvatarImage src={item.image} alt={item.name} />
+                                <AvatarFallback className="bg-[#2A3143]">{item.name[0]}</AvatarFallback>
+                              </Avatar>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between items-start">
+                                <div className="flex-1 min-w-0 mr-2">
+                                  <h4 className="font-medium text-sm truncate">{item.name}</h4>
+                                  <p className="text-xs text-gray-400 truncate">{item.category}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <div className="font-medium text-sm">रू {formatAmount(item.price * item.quantity)}</div>
+                                </div>
                               </div>
-                              <div className="text-right">
-                                <div className="font-medium">रू {formatAmount(item.price * item.quantity)}</div>
-                                <div className="text-sm text-gray-400">रू {formatAmount(item.price)} each</div>
+                              <div className="flex justify-between items-center mt-1">
+                                <CartItemQuantity id={item.id} quantity={item.quantity} />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-gray-400 hover:text-red-400 hover:bg-[#2A3143]/50 rounded-full"
+                                  onClick={() => removeItem(item.id)}
+                                >
+                                  <Trash2 size={12} />
+                                </Button>
                               </div>
                             </div>
-                            <div className="flex justify-between items-center mt-2">
-                              <CartItemQuantity id={item.id} quantity={item.quantity} />
-                              <Button 
-                                variant="ghost" 
-                                size="icon" 
-                                className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-[#2A3143]/50 rounded-full"
-                                onClick={() => removeItem(item.id)}
-                              >
-                                <Trash2 size={14} />
-                              </Button>
-                            </div>
                           </div>
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-                </div>
-
-                <div className="w-full md:w-72 border-t md:border-t-0 md:border-l border-[#2A3143] bg-[#1E2735] flex flex-col">
-                  <div className="p-4">
-                    <h3 className="font-bold mb-4">Order Summary</h3>
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <div className="text-gray-300">Items total</div>
-                        <span>रू {formatAmount(totalPrice)}</span>
+                        ))}
                       </div>
-                      <div className="flex justify-between">
-                        <div className="flex items-center gap-1 text-gray-300">
-                          <span>Delivery charge</span>
-                          <button className="text-gray-400">
-                            <Info size={12} />
-                          </button>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <span className="text-gray-400 line-through">रू {formatAmount(deliveryCharge)}</span>
-                          {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
-                        </div>
-                      </div>
-                      <div className="flex justify-between">
-                        <div className="flex items-center gap-1 text-gray-300">
-                          <span>Handling charge</span>
-                          <button className="text-gray-400">
-                            <Info size={12} />
-                          </button>
-                        </div>
-                        <span>रू {formatAmount(handlingCharge)}</span>
-                      </div>
-                      <div className="flex justify-between border-t border-[#2A3143] mt-3 pt-3 font-medium">
-                        <span>Grand total</span>
-                        <span>रू {formatAmount(grandTotal)}</span>
-                      </div>
-                    </div>
+                    </ScrollArea>
                   </div>
 
-                  <div className="p-4 border-t border-[#2A3143]">
-                    <div className="space-y-2 text-sm">
-                      <h4 className="font-medium mb-2">Payment Methods</h4>
-                      {/* Payment Option - Khalti */}
-                      <div onClick={() => setSelectedPayment("Khalti")}
-                        className={"cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors " + (selectedPayment === "Khalti" ? "border-green-500" : "border-transparent")}
-                      >
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
-                            <div className="bg-[#5C2D91] rounded-sm w-4 h-4 flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">K</span>
-                            </div>
-                          </div>
-                          <span>Khalti</span>
+                  {/* Sticky Bottom Section - Summary + Payment */}
+                  <div className="flex-shrink-0 bg-[#1E2735] border-t border-[#2A3143]">
+                    {/* Compact Order Summary */}
+                    <div className="px-4 py-2.5 border-b border-[#2A3143]">
+                      <div className="space-y-1 text-xs">
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Items ({totalItems})</span>
+                          <span>रू {formatAmount(totalPrice)}</span>
                         </div>
-                        <input type="radio" className="accent-green-500" name="payment" value="Khalti" checked={selectedPayment === "Khalti"} readOnly />
-                      </div>
-
-                      {/* Payment Option - eSewa */}
-                      <div onClick={() => setSelectedPayment("eSewa")}
-                        className={"cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors " + (selectedPayment === "eSewa" ? "border-green-500" : "border-transparent")}
-                      >
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
-                            <div className="bg-[#60BB46] rounded-sm w-4 h-4 flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">e</span>
-                            </div>
-                          </div>
-                          <span>eSewa</span>
+                        <div className="flex justify-between">
+                          <span className="text-gray-300">Delivery</span>
+                          <span className="text-green-400 font-medium">FREE</span>
                         </div>
-                        <input type="radio" className="accent-green-500" name="payment" value="eSewa" checked={selectedPayment === "eSewa"} readOnly />
-                      </div>
-
-                      {/* Payment Option - Fonepay */}
-                      <div onClick={() => setSelectedPayment("Fonepay")}
-                        className={"cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors " + (selectedPayment === "Fonepay" ? "border-green-500" : "border-transparent")}
-                      >
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
-                            <div className="bg-[#FF0000] rounded-sm w-4 h-4 flex items-center justify-center">
-                              <span className="text-white text-xs font-bold">F</span>
-                            </div>
-                          </div>
-                          <span>Fonepay</span>
+                        <div className="flex justify-between font-medium pt-1 border-t border-[#2A3143]">
+                          <span>Total</span>
+                          <span>रू {formatAmount(grandTotal)}</span>
                         </div>
-                        <input type="radio" className="accent-green-500" name="payment" value="Fonepay" checked={selectedPayment === "Fonepay"} readOnly />
-                      </div>
-
-                      {/* Payment Option - COD */}
-                      <div onClick={() => setSelectedPayment("COD")}
-                        className={"cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors " + (selectedPayment === "COD" ? "border-green-500" : "border-transparent")}
-                      >
-                        <div className="flex items-center">
-                          <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
-                            <CreditCard size={16} />
-                          </div>
-                          <span>COD</span>
-                        </div>
-                        <input type="radio" className="accent-green-500" name="payment" value="COD" checked={selectedPayment === "COD"} readOnly />
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="mt-auto p-4 border-t border-[#2A3143]">
-                    <Button
-                      className="w-full bg-green-500 hover:bg-green-600 text-white h-11"
-                      onClick={() => {
-                        if (!user) {
-                          setShowLoginPrompt(true);
-                          return;
-                        }
-                        setShowCheckout(true);
-                      }}
-                    >
-                      Proceed to Payment • रू {formatAmount(grandTotal)}
-                    </Button>
+
+                    {/* Compact Payment Selection */}
+                    <div className="px-4 pt-2 pb-7">
+                      <div className="flex gap-1.5 mb-1.5">
+                        {[
+                          { key: "Khalti", label: "K", color: "#5C2D91" },
+                          { key: "eSewa", label: "e", color: "#60BB46" },
+                          { key: "Fonepay", label: "F", color: "#FF0000" },
+                          { key: "COD", label: "💳", color: "#2A3143" }
+                        ].map(payment => (
+                          <button
+                            key={payment.key}
+                            onClick={() => setSelectedPayment(payment.key)}
+                            className={cn(
+                              "flex-1 px-1.5 py-1.5 rounded-lg border transition-colors flex items-center justify-center gap-1",
+                              selectedPayment === payment.key
+                                ? "border-green-500 bg-green-500/10"
+                                : "border-[#2A3143] bg-[#10141E]"
+                            )}
+                          >
+                            <div
+                              className="w-3 h-3 rounded-sm flex items-center justify-center"
+                              style={{ backgroundColor: payment.color }}
+                            >
+                              <span className="text-white text-[7px] font-bold">{payment.label}</span>
+                            </div>
+                            <span className="text-[10px] font-medium">{payment.key}</span>
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Payment Button */}
+                      <Button
+                        className="w-full bg-green-500 hover:bg-green-600 text-white h-10 text-sm rounded-lg mx-0 py-2.5"
+                        onClick={() => {
+                          if (!user) {
+                            setShowLoginPrompt(true);
+                            return;
+                          }
+                          setShowCheckout(true);
+                        }}
+                      >
+                        Pay रू {formatAmount(grandTotal)}
+                      </Button>
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                // Desktop Layout - Keep existing layout
+                <div className="flex flex-col md:flex-row max-h-[90vh] overflow-hidden">
+                  <div className="flex-1 overflow-hidden flex flex-col">
+                    <div className="bg-[#1E2735] p-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-[#2A3143] flex items-center justify-center">
+                          <Truck size={16} />
+                        </div>
+                        <div>
+                          <p className="font-medium">Delivery options</p>
+                          <p className="text-sm text-gray-400">Home delivery • 2-3 days</p>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop product list */}
+                    <ScrollArea className="flex-1 p-4 max-h-[450px]" type="always">
+                      <div className="space-y-4">
+                        {items.map(item => (
+                          <div key={item.id} className="flex gap-4 py-2 border-b border-[#2A3143] last:border-0">
+                            <div className="w-16 h-16 overflow-hidden rounded-md flex-shrink-0">
+                              <Avatar className="w-16 h-16 border border-[#2A3143]">
+                                <AvatarImage src={item.image} alt={item.name} />
+                                <AvatarFallback className="bg-[#2A3143]">{item.name[0]}</AvatarFallback>
+                              </Avatar>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex justify-between">
+                                <div className="flex-1 min-w-0 mr-2">
+                                  <h4 className="font-medium truncate">{item.name}</h4>
+                                  <p className="text-sm text-gray-400 truncate">{item.category}</p>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <div className="font-medium">रू {formatAmount(item.price * item.quantity)}</div>
+                                  <div className="text-sm text-gray-400">रू {formatAmount(item.price)} each</div>
+                                </div>
+                              </div>
+                              <div className="flex justify-between items-center mt-2">
+                                <CartItemQuantity id={item.id} quantity={item.quantity} />
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-[#2A3143]/50 rounded-full"
+                                  onClick={() => removeItem(item.id)}
+                                >
+                                  <Trash2 size={14} />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+
+                  {/* Desktop Order Summary */}
+                  <div className="w-full md:w-72 border-t md:border-t-0 md:border-l border-[#2A3143] bg-[#1E2735] flex flex-col">
+                    <div className="p-4">
+                      <h3 className="font-bold text-lg mb-4">Order Summary</h3>
+                      <div className="space-y-2 text-sm">
+                        <div className="flex justify-between">
+                          <div className="text-gray-300">Items total</div>
+                          <span>रू {formatAmount(totalPrice)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <div className="flex items-center gap-1 text-gray-300">
+                            <span>Delivery charge</span>
+                            <button className="text-gray-400">
+                              <Info size={12} />
+                            </button>
+                          </div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-gray-400 line-through">रू {formatAmount(deliveryCharge)}</span>
+                            {isFreeDelivery && <span className="text-green-400 font-medium">FREE</span>}
+                          </div>
+                        </div>
+                        <div className="flex justify-between">
+                          <div className="flex items-center gap-1 text-gray-300">
+                            <span>Handling charge</span>
+                            <button className="text-gray-400">
+                              <Info size={12} />
+                            </button>
+                          </div>
+                          <span>रू {formatAmount(handlingCharge)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-[#2A3143] mt-3 pt-3 font-medium">
+                          <span>Grand total</span>
+                          <span>रू {formatAmount(grandTotal)}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop Payment Methods */}
+                    <div className="p-4 border-t border-[#2A3143]">
+                      <div className="space-y-2 text-sm">
+                        <h4 className="font-medium text-base mb-2">Payment Methods</h4>
+                        {/* Payment Option - Khalti */}
+                        <div onClick={() => setSelectedPayment("Khalti")}
+                          className={cn(
+                            "cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors",
+                            selectedPayment === "Khalti" ? "border-green-500" : "border-transparent"
+                          )}
+                        >
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
+                              <div className="bg-[#5C2D91] rounded-sm w-4 h-4 flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">K</span>
+                              </div>
+                            </div>
+                            <span>Khalti</span>
+                          </div>
+                          <input type="radio" className="accent-green-500" name="payment" value="Khalti" checked={selectedPayment === "Khalti"} readOnly />
+                        </div>
+
+                        {/* Payment Option - eSewa */}
+                        <div onClick={() => setSelectedPayment("eSewa")}
+                          className={cn(
+                            "cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors",
+                            selectedPayment === "eSewa" ? "border-green-500" : "border-transparent"
+                          )}
+                        >
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
+                              <div className="bg-[#60BB46] rounded-sm w-4 h-4 flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">e</span>
+                              </div>
+                            </div>
+                            <span>eSewa</span>
+                          </div>
+                          <input type="radio" className="accent-green-500" name="payment" value="eSewa" checked={selectedPayment === "eSewa"} readOnly />
+                        </div>
+
+                        {/* Payment Option - Fonepay */}
+                        <div onClick={() => setSelectedPayment("Fonepay")}
+                          className={cn(
+                            "cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors",
+                            selectedPayment === "Fonepay" ? "border-green-500" : "border-transparent"
+                          )}
+                        >
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
+                              <div className="bg-[#FF0000] rounded-sm w-4 h-4 flex items-center justify-center">
+                                <span className="text-white text-xs font-bold">F</span>
+                              </div>
+                            </div>
+                            <span>Fonepay</span>
+                          </div>
+                          <input type="radio" className="accent-green-500" name="payment" value="Fonepay" checked={selectedPayment === "Fonepay"} readOnly />
+                        </div>
+
+                        {/* Payment Option - COD */}
+                        <div onClick={() => setSelectedPayment("COD")}
+                          className={cn(
+                            "cursor-pointer bg-[#10141E] rounded-md p-3 flex items-center justify-between border transition-colors",
+                            selectedPayment === "COD" ? "border-green-500" : "border-transparent"
+                          )}
+                        >
+                          <div className="flex items-center">
+                            <div className="w-8 h-8 bg-[#2A3143] rounded-md flex items-center justify-center mr-2">
+                              <CreditCard size={16} />
+                            </div>
+                            <span>COD</span>
+                          </div>
+                          <input type="radio" className="accent-green-500" name="payment" value="COD" checked={selectedPayment === "COD"} readOnly />
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Desktop Payment Button */}
+                    <div className="mt-auto p-4 border-t border-[#2A3143]">
+                      <Button
+                        className="w-full bg-green-500 hover:bg-green-600 text-white h-11"
+                        onClick={() => {
+                          if (!user) {
+                            setShowLoginPrompt(true);
+                            return;
+                          }
+                          setShowCheckout(true);
+                        }}
+                      >
+                        Proceed to Payment • रू {formatAmount(grandTotal)}
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )
             )}
           </DialogContent>
         </Dialog>
@@ -586,80 +756,147 @@ export const ShoppingCart = () => {
       {/* Checkout Popup */}
       {showCheckout && (
         <UIDialog open={showCheckout} onOpenChange={setShowCheckout}>
-          <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
-            <DialogHeader>
-              <DialogTitle>Checkout</DialogTitle>
-              <DialogDescription>
-                Please fill in your details to complete the order.
-              </DialogDescription>
-            </DialogHeader>            <form onSubmit={handleSubmit(onCheckout)} className="space-y-4 mt-4">
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm">Full Name</label>
-                  {profile?.full_name && <span className="text-xs text-green-400">From your profile</span>}
+          <UIDialogContent className={cn(
+            "bg-[#10141E] text-gray-100 border border-[#2A3143] p-0 overflow-hidden",
+            isMobile
+              ? "max-w-[90vw] w-full mx-auto mt-4 mb-8 rounded-2xl max-h-[85vh]"
+              : "max-w-md w-full rounded-xl"
+          )}>
+            <div className={cn(
+              "p-4",
+              isMobile ? "p-4" : "p-6"
+            )}>
+              <DialogHeader className="space-y-2 mb-4">
+                <DialogTitle className={cn(
+                  "text-center font-semibold",
+                  isMobile ? "text-lg" : "text-xl"
+                )}>Checkout</DialogTitle>
+                <DialogDescription className={cn(
+                  "text-center text-gray-400",
+                  isMobile ? "text-sm" : "text-base"
+                )}>
+                  Please fill in your details to complete the order.
+                </DialogDescription>
+              </DialogHeader>              <form onSubmit={handleSubmit(onCheckout)} className={cn(
+                "space-y-3",
+                isMobile ? "space-y-3" : "space-y-4"
+              )}>
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className={cn(
+                      "block font-medium",
+                      isMobile ? "text-sm" : "text-sm"
+                    )}>Full Name</label>
+                    {profile?.full_name && <span className="text-xs text-green-400">From your profile</span>}
+                  </div>
+                  <Input
+                    {...register('name', nameValidation)}
+                    placeholder="Your Name"
+                    className={cn(
+                      "bg-[#1E2735] border-[#2A3143] rounded-lg transition-colors",
+                      profile?.full_name ? 'border-green-600/40' : '',
+                      isMobile ? "h-11 text-sm" : "h-10"
+                    )}
+                  />
+                  {errors.name && <span className="text-red-400 text-xs mt-1 block">{errors.name?.message?.toString()}</span>}
                 </div>
-                <Input 
-                  {...register('name', nameValidation)} 
-                  placeholder="Your Name" 
-                  className={`bg-[#1E2735] border-[#2A3143] ${profile?.full_name ? 'border-green-600/40' : ''}`} 
-                />
-                {errors.name && <span className="text-red-400 text-xs">{errors.name?.message?.toString()}</span>}
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm">Phone Number</label>
-                  {profile?.phone && <span className="text-xs text-green-400">From your profile</span>}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className={cn(
+                      "block font-medium",
+                      isMobile ? "text-sm" : "text-sm"
+                    )}>Phone Number</label>
+                    {profile?.phone && <span className="text-xs text-green-400">From your profile</span>}
+                  </div>
+                  <Input
+                    {...register('phone', phoneValidation)}
+                    placeholder="98XXXXXXXX"
+                    className={cn(
+                      "bg-[#1E2735] border-[#2A3143] rounded-lg transition-colors",
+                      profile?.phone ? 'border-green-600/40' : '',
+                      isMobile ? "h-11 text-sm" : "h-10"
+                    )}
+                  />
+                  {errors.phone && <span className="text-red-400 text-xs mt-1 block">{errors.phone?.message?.toString()}</span>}
                 </div>
-                <Input 
-                  {...register('phone', phoneValidation)} 
-                  placeholder="98XXXXXXXX" 
-                  className={`bg-[#1E2735] border-[#2A3143] ${profile?.phone ? 'border-green-600/40' : ''}`}
-                />
-                {errors.phone && <span className="text-red-400 text-xs">{errors.phone?.message?.toString()}</span>}
-              </div>
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-sm">Delivery Address</label>
-                  {profile?.address && <span className="text-xs text-green-400">From your profile</span>}
+                <div>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className={cn(
+                      "block font-medium",
+                      isMobile ? "text-sm" : "text-sm"
+                    )}>Delivery Address</label>
+                    {profile?.address && <span className="text-xs text-green-400">From your profile</span>}
+                  </div>
+                  <Input
+                    {...register('address', { required: 'Address is required' })}
+                    placeholder="Delivery Address"
+                    className={cn(
+                      "bg-[#1E2735] border-[#2A3143] rounded-lg transition-colors",
+                      profile?.address ? 'border-green-600/40' : '',
+                      isMobile ? "h-11 text-sm" : "h-10"
+                    )}
+                  />
+                  {errors.address && <span className="text-red-400 text-xs mt-1 block">{errors.address?.message?.toString()}</span>}
                 </div>
-                <Input 
-                  {...register('address', { required: 'Address is required' })} 
-                  placeholder="Delivery Address" 
-                  className={`bg-[#1E2735] border-[#2A3143] ${profile?.address ? 'border-green-600/40' : ''}`}
-                />
-                {errors.address && <span className="text-red-400 text-xs">{errors.address?.message?.toString()}</span>}
-              </div>
-              {selectedPayment === 'Khalti' && (
-                <div className="bg-[#232B3B] p-3 rounded-md text-xs text-purple-300 border border-purple-700">
-                  <b>Khalti Test Mode</b><br />
-                  No real money will be charged.
-                </div>
-              )}
-              {selectedPayment === 'eSewa' && (
-                <div className="bg-[#232B3B] p-3 rounded-md text-xs text-green-300 border border-green-700">
-                  <b>eSewa Test Mode</b><br />
-                  Test ID: 9806800001<br />Password: Nepal@123<br />Merchant ID: EPAYTEST<br />No real money will be charged.
-                </div>
-              )}
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setShowCheckout(false)}>
-                  Cancel
-                </Button>
-                {selectedPayment === 'Khalti' ? (
-                  <Button
-                    type="submit"
-                    className="bg-[#5C2D91] hover:bg-[#47216e] text-white"
-                    disabled={isProcessing}
-                  >
-                    {isProcessing ? 'Processing...' : 'Pay with Khalti'}
-                  </Button>
-                ) : (
-                  <Button type="submit" className="bg-green-500 hover:bg-green-600 text-white">
-                    {selectedPayment === 'COD' ? 'Place Order (COD)' : `Pay with ${selectedPayment}`}
-                  </Button>
+                {selectedPayment === 'Khalti' && (
+                  <div className={cn(
+                    "bg-[#232B3B] p-3 rounded-lg text-purple-300 border border-purple-700/50",
+                    isMobile ? "text-xs" : "text-xs"
+                  )}>
+                    <b>Khalti Test Mode</b><br />
+                    No real money will be charged.
+                  </div>
                 )}
-              </DialogFooter>
-            </form>
+                {selectedPayment === 'eSewa' && (
+                  <div className={cn(
+                    "bg-[#232B3B] p-3 rounded-lg text-green-300 border border-green-700/50",
+                    isMobile ? "text-xs" : "text-xs"
+                  )}>
+                    <b>eSewa Test Mode</b><br />
+                    Test ID: 9806800001<br />Password: Nepal@123<br />Merchant ID: EPAYTEST<br />No real money will be charged.
+                  </div>
+                )}
+
+                <div className={cn(
+                  "flex gap-3 pt-2",
+                  isMobile ? "flex-col gap-2" : "flex-row gap-3"
+                )}>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setShowCheckout(false)}
+                    className={cn(
+                      "border-[#2A3143] text-gray-300 hover:bg-[#1E2735] rounded-lg",
+                      isMobile ? "h-11 text-sm order-2" : "h-10"
+                    )}
+                  >
+                    Cancel
+                  </Button>
+                  {selectedPayment === 'Khalti' ? (
+                    <Button
+                      type="submit"
+                      className={cn(
+                        "bg-[#5C2D91] hover:bg-[#47216e] text-white rounded-lg transition-colors",
+                        isMobile ? "h-11 text-sm order-1 flex-1" : "h-10 flex-1"
+                      )}
+                      disabled={isProcessing}
+                    >
+                      {isProcessing ? 'Processing...' : 'Pay with Khalti'}
+                    </Button>
+                  ) : (
+                    <Button
+                      type="submit"
+                      className={cn(
+                        "bg-green-500 hover:bg-green-600 text-white rounded-lg transition-colors",
+                        isMobile ? "h-11 text-sm order-1 flex-1" : "h-10 flex-1"
+                      )}
+                    >
+                      {selectedPayment === 'COD' ? 'Place Order (COD)' : `Pay with ${selectedPayment}`}
+                    </Button>
+                  )}
+                </div>
+              </form>
+            </div>
           </UIDialogContent>
         </UIDialog>
       )}

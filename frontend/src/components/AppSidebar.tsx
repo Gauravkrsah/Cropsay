@@ -1,12 +1,19 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Home, MessageSquare, ShoppingBag, DollarSign, BookOpen, Compass, Menu, X, LogIn } from 'lucide-react';
+import { Home, MessageSquare, ShoppingBag, DollarSign, BookOpen, Compass, X, LogIn, User, HelpCircle, LogOut } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { UserProfileMenu } from './UserProfileMenu';
 import { useIsMobile, useScreenSize, useIsSmallMobile } from '@/hooks/use-mobile';
+import { Dialog as UIDialog, DialogContent as UIDialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { getOrdersByUser, cancelOrder, deleteOrder } from '@/services/orderService';
+import { toast } from '@/components/ui/use-toast';
 
 const navItems = [
   { icon: Home, text: 'Home', path: '/' },
@@ -36,9 +43,20 @@ export const AppSidebar = ({
     return true; // Default to collapsed
   });
   const [isReady, setIsReady] = useState(false);
+  const [showProfile, setShowProfile] = useState(false);
+  const [showOrders, setShowOrders] = useState(false);
+  const [orders, setOrders] = useState<any[]>([]);
+  const [editMode, setEditMode] = useState(false);
+  const [formData, setFormData] = useState({
+    full_name: '',
+    bio: '',
+    phone: '',
+    address: '',
+  });
+
   const location = useLocation();
   const navigate = useNavigate();
-  const { user, profile } = useAuth();
+  const { user, profile, signOut, updateProfile } = useAuth();
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
   const screenSize = useScreenSize();
@@ -50,6 +68,67 @@ export const AppSidebar = ({
     }, 50);
     return () => clearTimeout(timer);
   }, []);
+
+  // Update form data when profile changes
+  useEffect(() => {
+    if (profile) {
+      setFormData({
+        full_name: profile.full_name || '',
+        bio: profile.bio || '',
+        phone: profile.phone || '',
+        address: profile.address || '',
+      });
+    }
+  }, [profile]);
+
+  // Load orders when orders dialog is opened
+  useEffect(() => {
+    if (showOrders && user) {
+      getOrdersByUser(user.id).then(setOrders);
+    }
+  }, [showOrders, user]);
+
+  // Handler functions
+  const handleCancelOrder = async (orderId: string) => {
+    try {
+      await cancelOrder(orderId);
+      if (user) {
+        const updatedOrders = await getOrdersByUser(user.id);
+        setOrders(updatedOrders);
+      }
+    } catch (err) {
+      console.error('Failed to cancel order', err);
+    }
+  };
+
+  const handleDeleteOrder = async (orderId: string) => {
+    try {
+      await deleteOrder(orderId);
+      if (user) {
+        const updatedOrders = await getOrdersByUser(user.id);
+        setOrders(updatedOrders);
+      }
+      toast({
+        title: 'Order Deleted',
+        description: 'Order has been deleted from your history.',
+      });
+    } catch (err) {
+      console.error('Failed to delete order', err);
+    }
+  };
+
+  const handleProfileSubmit = async () => {
+    if (!user) return;
+
+    const success = await updateProfile(formData);
+    if (success) {
+      setEditMode(false);
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been updated successfully.',
+      });
+    }
+  };
 
   // Auto-collapse sidebar on mobile, but only after initial load
   useEffect(() => {
@@ -266,12 +345,14 @@ export const AppSidebar = ({
 
         {/* Mobile Sidebar */}
         <div className={cn(
-          "fixed left-0 top-0 h-full bg-gradient-to-b from-[#0A0E16] to-[#10141E] z-[101] transition-all duration-300 ease-out shadow-2xl border-r border-[#1E2735] mobile-nav-stable",
+          "fixed left-0 top-0 bg-gradient-to-b from-[#0A0E16] to-[#10141E] z-[101] transition-all duration-300 ease-out shadow-2xl border-r border-[#1E2735] mobile-nav-stable flex flex-col",
+          // Height accounting for bottom navigation
+          isSmallMobile ? "h-[calc(100vh-64px)]" : "h-[calc(100vh-80px)]",
           // Responsive width based on screen size
-          isSmallMobile 
-            ? "w-[280px] max-w-[90vw]" 
-            : screenSize === 'mobile' 
-              ? "w-[320px] max-w-[85vw]" 
+          isSmallMobile
+            ? "w-[280px] max-w-[90vw]"
+            : screenSize === 'mobile'
+              ? "w-[320px] max-w-[85vw]"
               : "w-[350px] max-w-[80vw]",
           mobileMenuOpen ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
         )}>
@@ -301,8 +382,8 @@ export const AppSidebar = ({
 
           {/* Mobile Navigation */}
           <div className={cn(
-            "flex-1 overflow-y-auto",
-            isSmallMobile ? "p-3" : "p-4"
+            "flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent",
+            isSmallMobile ? "p-3 pb-6" : "p-4 pb-8"
           )}>
             <div className="mb-4">
               <p className={cn(
@@ -358,14 +439,22 @@ export const AppSidebar = ({
 
           {/* Mobile User Section */}
           <div className={cn(
-            "border-t border-[#1E2735]/50 bg-gradient-to-r from-[#0A0E16] to-[#10141E]",
+            "border-t border-[#1E2735]/50 bg-gradient-to-r from-[#0A0E16] to-[#10141E] flex-shrink-0",
             isSmallMobile ? "p-3" : "p-4"
           )}>
             {user ? (
-              <div className={cn(
-                "flex items-center gap-3 bg-gradient-to-r from-[#1E2735] to-[#2A3143] rounded-xl border border-[#2A3143]",
-                isSmallMobile ? "p-2.5" : "p-3"
-              )}>
+              <div className="space-y-3">
+                {/* User Info with Profile Click and Logout */}
+                <button
+                onClick={() => {
+                  setShowProfile(true);
+                  setMobileMenuOpen(false);
+                }}
+                className={cn(
+                  "w-full flex items-center gap-3 bg-gradient-to-r from-[#1E2735] to-[#2A3143] rounded-xl border border-[#2A3143] hover:from-[#2A3143] hover:to-[#3A4153] transition-all duration-200 cursor-pointer",
+                  isSmallMobile ? "p-2.5" : "p-3"
+                )}
+              >
                 <div className={cn(
                   "bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0",
                   isSmallMobile ? "w-7 h-7" : "w-8 h-8"
@@ -377,23 +466,34 @@ export const AppSidebar = ({
                     {(profile?.full_name || 'U').charAt(0).toUpperCase()}
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
+                <div className="flex-1 min-w-0 text-left">
                   <p className={cn(
-                    "font-medium text-white truncate",
+                    "font-medium text-white truncate text-left",
                     isSmallMobile ? "text-xs" : "text-sm"
                   )}>
                     {profile?.full_name || 'User'}
                   </p>
                   <p className={cn(
-                    "text-gray-400 truncate",
+                    "text-gray-400 truncate text-left",
                     isSmallMobile ? "text-[10px]" : "text-xs"
                   )}>
                     {user.email || 'user@example.com'}
                   </p>
                 </div>
-                <div className="flex-shrink-0">
-                  <UserProfileMenu />
-                </div>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation(); // Prevent profile click when clicking logout
+                    signOut();
+                    setMobileMenuOpen(false);
+                  }}
+                  className={cn(
+                    "flex items-center justify-center rounded-lg bg-red-500/20 text-red-400 hover:bg-red-500/30 hover:text-red-300 transition-all duration-200 flex-shrink-0",
+                    isSmallMobile ? "w-6 h-6" : "w-7 h-7"
+                  )}
+                >
+                  <LogOut size={isSmallMobile ? 12 : 14} />
+                </button>
+              </button>
               </div>
             ) : (
               <Button
@@ -409,6 +509,200 @@ export const AppSidebar = ({
             )}
           </div>
         </div>
+
+        {/* Profile Dialog */}
+        <UIDialog open={showProfile} onOpenChange={(open) => {
+          if (!open) {
+            setEditMode(false);
+          }
+          setShowProfile(open);
+        }}>
+          <UIDialogContent className="max-w-md w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
+            <DialogHeader>
+              <DialogTitle>User Profile</DialogTitle>
+              <DialogDescription>{editMode ? 'Edit your profile details' : 'Account details'}</DialogDescription>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-4">
+              <Avatar className="w-20 h-20 border border-[#2A3143]">
+                <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || 'User'} />
+                <AvatarFallback className="bg-green-600 text-white text-2xl">
+                  {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                </AvatarFallback>
+              </Avatar>
+              {editMode ? (
+                <div className="w-full space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="full_name">Full Name</Label>
+                    <Input
+                      id="full_name"
+                      type="text"
+                      value={formData.full_name}
+                      onChange={(e) => setFormData(prev => ({ ...prev, full_name: e.target.value }))}
+                      className="bg-[#1E2735] border-[#2A3143] text-gray-100"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="phone">Phone</Label>
+                    <Input
+                      id="phone"
+                      type="tel"
+                      value={formData.phone}
+                      onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+                      className="bg-[#1E2735] border-[#2A3143] text-gray-100"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="address">Address</Label>
+                    <Textarea
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+                      className="bg-[#1E2735] border-[#2A3143] text-gray-100"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="bio">Bio</Label>
+                    <Textarea
+                      id="bio"
+                      value={formData.bio}
+                      onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                      className="bg-[#1E2735] border-[#2A3143] text-gray-100"
+                      rows={3}
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="w-full space-y-3">
+                  <div className="text-center">
+                    <h3 className="text-lg font-semibold text-white">{profile?.full_name || 'User'}</h3>
+                    <p className="text-gray-400">{user?.email}</p>
+                  </div>
+                  {profile?.phone && (
+                    <div className="bg-[#1E2735] p-3 rounded-lg">
+                      <p className="text-sm text-gray-400">Phone</p>
+                      <p className="text-white">{profile.phone}</p>
+                    </div>
+                  )}
+                  {profile?.address && (
+                    <div className="bg-[#1E2735] p-3 rounded-lg">
+                      <p className="text-sm text-gray-400">Address</p>
+                      <p className="text-white">{profile.address}</p>
+                    </div>
+                  )}
+                  {profile?.bio && (
+                    <div className="bg-[#1E2735] p-3 rounded-lg">
+                      <p className="text-sm text-gray-400">Bio</p>
+                      <p className="text-white">{profile.bio}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+            <DialogFooter>
+              {editMode ? (
+                <div className="flex gap-2 w-full">
+                  <Button
+                    variant="outline"
+                    onClick={() => setEditMode(false)}
+                    className="flex-1 border-[#2A3143] text-gray-300 hover:bg-[#1E2735]"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    onClick={handleProfileSubmit}
+                    className="flex-1 bg-green-600 hover:bg-green-700"
+                  >
+                    Save Changes
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => setEditMode(true)}
+                  className="w-full bg-green-600 hover:bg-green-700"
+                >
+                  Edit Profile
+                </Button>
+              )}
+            </DialogFooter>
+          </UIDialogContent>
+        </UIDialog>
+
+        {/* Orders Dialog */}
+        <UIDialog open={showOrders} onOpenChange={setShowOrders}>
+          <UIDialogContent className="max-w-2xl w-full bg-[#10141E] text-gray-100 border border-[#2A3143] max-h-[80vh] overflow-hidden">
+            <DialogHeader>
+              <DialogTitle>My Orders</DialogTitle>
+              <DialogDescription>View and manage your order history</DialogDescription>
+            </DialogHeader>
+            <div className="max-h-96 overflow-y-auto">
+              {orders.length === 0 ? (
+                <div className="text-center py-8">
+                  <ShoppingBag className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                  <p className="text-gray-400">No orders found</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {orders.map((order) => (
+                    <div key={order.id} className="bg-[#1E2735] p-4 rounded-lg border border-[#2A3143]">
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <p className="font-medium text-white">Order #{order.id.slice(0, 8)}</p>
+                          <p className="text-sm text-gray-400">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-medium text-green-400">Rs. {order.total_amount}</p>
+                          <span className={`text-xs px-2 py-1 rounded-full ${
+                            order.status === 'completed' ? 'bg-green-500/20 text-green-400' :
+                            order.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
+                            order.status === 'cancelled' ? 'bg-red-500/20 text-red-400' :
+                            'bg-gray-500/20 text-gray-400'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </div>
+                      </div>
+                      {order.items && order.items.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-sm text-gray-400 mb-1">Items:</p>
+                          <div className="space-y-1">
+                            {order.items.map((item: any, index: number) => (
+                              <p key={index} className="text-sm text-gray-300">
+                                {item.quantity}x {item.product_name} - Rs. {item.price}
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                      <div className="flex gap-2 mt-3">
+                        {order.status === 'pending' && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => handleCancelOrder(order.id)}
+                            className="border-red-500/50 text-red-400 hover:bg-red-500/10"
+                          >
+                            Cancel Order
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="border-[#2A3143] text-gray-400 hover:bg-[#1E2735]"
+                        >
+                          Delete
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </UIDialogContent>
+        </UIDialog>
       </>
     );
   }

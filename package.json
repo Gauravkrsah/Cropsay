@@ -8,6 +8,7 @@
     "dev:local": "vite",
     "build": "npm run build:local --prefix frontend",
     "build:local": "vite build",
+    "build:dist": "node scripts/build-dist.js",
     "preview": "npm run preview:local --prefix frontend",
     "preview:local": "vite preview",
     "lint": "npm run lint:local --prefix frontend",
@@ -15,7 +16,8 @@
     "start:gemini": "node backend/start-gemini-proxy.js",
     "start:nlp": "node backend/start-nlp-service.js",
     "start:khalti": "node backend/start-khalti-server.js",
-    "start:all": "concurrently \"npm run dev\" \"npm run start:gemini\" \"npm run start:nlp\" \"npm run start:khalti\""
+    "start:all": "concurrently \"npm run dev\" \"npm run start:gemini\" \"npm run start:nlp\" \"npm run start:khalti\"",
+    "start:production": "node dist/server.js"
   },
   "dependencies": {
     "@fontsource/dm-sans": "^5.2.5",

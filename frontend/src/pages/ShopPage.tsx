@@ -2,18 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Search, Filter, ShoppingCartIcon, X, ShoppingBag, Home, ChevronRight, Leaf, Zap, Wrench, Package, Star } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { CartItemQuantity, ShoppingCart, ShoppingCartButton } from '@/components/ShoppingCart';
-import { getRecommendationsFromChat } from '@/services/recommendationService';
-import { getCategories, getSubcategories, Product, getRecommendedProducts } from '@/data/productData';
+import { ShoppingCart } from '@/components/ShoppingCart';
+import { getCategories, Product } from '@/data/productData';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   fetchProducts,
   searchProducts,
-  getProductsByCategory,
-  getNewestProducts
+  getProductsByCategory
 } from '@/services/productService';
 import { getOrdersByUser } from '@/services/orderService';
-import { testSupabaseConnection, testProductsAccess, insertTestProduct } from '@/services/testSupabase';
 import ProductCard from '@/components/ProductCard';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
@@ -264,12 +261,12 @@ const ShopPage = () => {
       <div className="flex flex-col h-screen bg-[#1E2735] relative">
       {/* Combined Header Container - Breadcrumb, Actions, Categories, and Sort */}
       <div className={cn(
-        "z-[40] bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] shadow-lg transition-all duration-300",
-        isMobile ? "fixed top-[48px] left-0 right-0 shadow-md" : "fixed top-0 left-0 right-0" /* Added shadow to mobile header */
-      )} style={isMobile ? { minHeight: "auto" } : { marginLeft: "5.7rem", minHeight: "112px" }}>
+        "z-[40] bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] transition-all duration-300",
+        isMobile ? "fixed top-[56px] left-0 right-0 shadow-xl" : "fixed top-0 left-0 right-0 shadow-lg" /* Enhanced shadow for better separation */
+      )} style={isMobile ? { minHeight: "auto", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" } : { marginLeft: "5.7rem", minHeight: "112px" }}>
         {/* Breadcrumb and Actions Row */}
         <div className={cn(
-          isMobile ? "px-4 py-1" : "px-8 py-2.5" // Reduced vertical padding for mobile, spacious for desktop
+          isMobile ? "px-4 py-2.5" : "px-8 py-2.5" // Increased vertical padding for mobile for better spacing
         )}>
           <div className="flex items-center justify-between">
             {/* Left - Breadcrumb */}
@@ -384,17 +381,17 @@ const ShopPage = () => {
         {/* Categories, Product count and Sort row */}
         <div className={cn(
           "border-t border-[#2A3143] bg-gradient-to-b from-[#1A1F2E] to-[#171C29] backdrop-blur-sm",
-          isMobile ? "px-4 py-1" : "px-8 py-2" // Reduced padding for mobile, kept same for desktop
+          isMobile ? "px-4 py-3" : "px-8 py-2" // Increased padding for mobile for better spacing
         )}>
           {/* Mobile layout - stacked */}
           {isMobile ? (
-            <div className="flex flex-col space-y-1 min-h-[64px]"> {/* Reduced spacing for more compact layout */}
+            <div className="flex flex-col space-y-2.5 min-h-[76px]"> {/* Increased spacing and min-height for better mobile UX */}
               {/* Categories */}
-              <div className="flex gap-1 overflow-x-auto scrollbar-hide -mx-1 px-1"> {/* Tighter spacing between buttons */}
+              <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1"> {/* Increased spacing between category buttons */}
                 <button
                   onClick={() => setActiveCategory('All Products')}
                   className={cn(
-                    "flex-shrink-0 px-2.5 py-1 rounded-full text-sm font-medium transition-all duration-200 border shadow-sm", // More compact for mobile
+                    "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border shadow-sm", // Increased padding for better touch targets
                     activeCategory === 'All Products'
                       ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-md"
                       : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
@@ -407,7 +404,7 @@ const ShopPage = () => {
                     key={category}
                     onClick={() => setActiveCategory(category)}
                     className={cn(
-                      "flex-shrink-0 px-2.5 py-1 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-1 shadow-sm", // More compact for mobile
+                      "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-1 shadow-sm", // Increased padding for better touch targets
                       activeCategory === category
                         ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-md"
                         : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
@@ -426,12 +423,12 @@ const ShopPage = () => {
                 <p className="text-sm text-gray-400 font-medium whitespace-nowrap">
                   {filteredProducts.length} products
                 </p>
-                <div className="flex items-center gap-1 ml-2"> {/* Tighter gap for mobile */}
+                <div className="flex items-center gap-2 ml-2"> {/* Increased gap for better mobile spacing */}
                   <span className="text-sm text-gray-400 font-medium whitespace-nowrap">Sort:</span>
                   <select
                     value={sortBy}
                     onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
-                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-2 py-0.5 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[100px] shadow-sm"
+                    className="bg-gradient-to-b from-[#10141E] to-[#0D1015] border border-[#2A3143] rounded-lg px-2.5 py-1 text-sm text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none min-w-[100px] shadow-sm"
                   >
                     <option value="popular">Popular</option>
                     <option value="price-low">Price: Low to High</option>
@@ -504,8 +501,8 @@ const ShopPage = () => {
       </div>
 
       {/* Products Grid - Only this section scrollable */}
-      <div className="flex-1" style={{ 
-        paddingTop: isMobile ? "112px" : "calc(64px + 48px + 16px)", /* Mobile: header height (48px top nav + ~64px for header) */
+      <div className="flex-1" style={{
+        paddingTop: isMobile ? "156px" : "calc(64px + 48px + 16px)", /* Mobile: increased padding to prevent products from hiding under sort section */
       }}>
         <div className="h-full overflow-y-auto custom-scrollbar product-container">
           <div className={cn(

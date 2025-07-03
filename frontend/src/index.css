@@ -503,6 +503,99 @@
   .quantity-control {
     @apply flex items-center bg-green-500 text-white rounded-md overflow-hidden;
   }
+
+  /* Mobile cart optimizations */
+  .mobile-cart-modal {
+    @apply max-w-[90vw] max-h-[75vh] w-full h-full mx-auto my-4 rounded-2xl;
+  }
+
+  .mobile-cart-content {
+    @apply flex flex-col max-h-[calc(75vh-50px)];
+  }
+
+  /* Mobile payment buttons */
+  .mobile-payment-buttons {
+    @apply flex gap-1.5;
+  }
+
+  .mobile-payment-button {
+    @apply flex-1 px-1.5 py-1.5 rounded-lg border transition-colors flex items-center justify-center gap-1;
+  }
+
+  .mobile-payment-button.selected {
+    @apply border-green-500 bg-green-500/10;
+  }
+
+  .mobile-payment-button:not(.selected) {
+    @apply border-[#2A3143] bg-[#10141E];
+  }
+
+  /* Ensure dialog is centered on mobile */
+  @media (max-width: 768px) {
+    [data-radix-dialog-content] {
+      left: 50% !important;
+      transform: translateX(-50%) translateY(-50%) !important;
+      margin: 0 !important;
+      border-radius: 1rem !important;
+    }
+  }
+
+  .mobile-cart-item {
+    @apply flex gap-3 py-1.5 border-b border-[#2A3143] last:border-0;
+  }
+
+  .mobile-cart-item-image {
+    @apply w-12 h-12 overflow-hidden rounded-md flex-shrink-0;
+  }
+
+  .mobile-cart-item-content {
+    @apply flex-1 min-w-0;
+  }
+
+  .mobile-cart-summary {
+    @apply p-3 text-xs space-y-2;
+  }
+
+  .mobile-payment-option {
+    @apply cursor-pointer bg-[#10141E] rounded-md p-2 flex items-center justify-between border transition-colors;
+  }
+
+  .mobile-payment-icon {
+    @apply w-6 h-6 bg-[#2A3143] rounded-md flex items-center justify-center mr-2;
+  }
+
+  /* Mobile cart redesign specific styles */
+  .mobile-cart-redesign {
+    @apply flex flex-col h-[calc(85vh-60px)] overflow-hidden;
+  }
+
+  .mobile-cart-products-scroll {
+    @apply flex-1 min-h-0 overflow-hidden;
+  }
+
+  .mobile-cart-sticky-bottom {
+    @apply flex-shrink-0 bg-[#1E2735] border-t border-[#2A3143];
+  }
+
+  .mobile-cart-compact-summary {
+    @apply px-4 py-2.5 border-b border-[#2A3143];
+  }
+
+  .mobile-cart-payment-grid {
+    @apply flex gap-2 mb-3;
+  }
+
+  .mobile-cart-payment-button {
+    @apply flex-1 p-2 rounded-md border transition-colors flex items-center justify-center gap-1;
+  }
+
+  .mobile-cart-payment-selected {
+    @apply border-green-500 bg-green-500/10;
+  }
+
+  .mobile-cart-payment-unselected {
+    @apply border-[#2A3143] bg-[#10141E];
+  }
   
   .quantity-button {
     @apply p-1 hover:bg-green-600 transition-colors text-white font-bold w-8 h-full flex items-center justify-center;
