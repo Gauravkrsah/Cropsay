@@ -2363,7 +2363,7 @@ const SellPage = () => {
   return (
     <div className="h-full flex flex-col bg-cropsay-darkPrimary overflow-hidden">
       {/* Enhanced Fixed Header with Breadcrumb */}
-      <div className="sticky top-0 bg-gradient-to-r from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] backdrop-blur-sm shadow-lg z-20">
+      <div className="flex-shrink-0 bg-gradient-to-r from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] backdrop-blur-sm shadow-lg z-20">
         <div className={cn(isMobile ? "px-4 py-0.5" : "px-8 py-3")}>
           <div className="flex items-center justify-between py-2">
             <div>
@@ -2371,9 +2371,9 @@ const SellPage = () => {
                 {isVendor ? "Seller Dashboard" : "Become a Vendor"}
               </h1>
               <div className="flex items-center text-cropsay-grayText text-sm">
-                <Home size={14} className="mr-1" />
+                <span>CropsayAI</span>
                 <ChevronRight size={14} className="mx-1" />
-                <span>Sell</span>
+                <span className="text-white">{isVendor ? "Seller Portal" : "Vendor Application"}</span>
               </div>
             </div>
           </div>
