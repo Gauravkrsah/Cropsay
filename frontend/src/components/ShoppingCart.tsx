@@ -155,7 +155,7 @@ export const ShoppingCart = () => {
 
   // Khalti config (for frontend, only public key is used for widget, but payment is initiated via backend)
   const khaltiConfig = {
-    publicKey: 'c68726c852d943aab3b886bd381d3af7', // Live public key
+    publicKey: 'c6b0a2b92ba0486fa4073e650cf566f2', // Live public key
     productIdentity: 'cropsay-cart',
     productName: 'Cropsay Order',
     productUrl: window.location.origin,
@@ -210,10 +210,12 @@ export const ShoppingCart = () => {
         payment_method,
         ...(paymentPayload ? { payment_payload: paymentPayload } : {})
       } as any);
+
+      // Clear cart and close modals
+      clearCart();
       setShowCheckout(false);
       closeCart();
       reset();
-      clearCart();
       setOrderComplete(true);
       // Optionally: show success toast
     } catch (e) {
@@ -261,7 +263,12 @@ export const ShoppingCart = () => {
           },
           onError: (err) => {
             setIsProcessing(false);
-            alert('Khalti Payment Failed: ' + (err?.detail || 'Unknown error'));
+            console.error('Khalti payment error:', err);
+            toast({
+              title: 'Payment Failed',
+              description: err?.message || 'Khalti payment failed. Please try again.',
+              variant: 'destructive',
+            });
           },
           onSuccess: () => {
             // Optionally, you can show a message or spinner here
@@ -325,13 +332,21 @@ export const ShoppingCart = () => {
         if (order) {
           setKhaltiOrderProcessed(true); // Mark as processed to prevent duplicate saves
           setIsProcessing(true);
+
+          // Clear cart immediately
+          clearCart();
+
           saveOrder(order)
             .then(() => {
-              setOrderComplete(true);
-              clearCart();
+              // Reset form data
               reset();
+
+              // Clean up localStorage
               localStorage.removeItem('pendingKhaltiOrder');
               localStorage.removeItem('khaltiPaymentSuccess');
+
+              // Show order complete popup
+              setOrderComplete(true);
             })
             .catch(() => {
               setKhaltiOrderProcessed(false); // Reset on failure
@@ -350,10 +365,15 @@ export const ShoppingCart = () => {
 
     // Recovery: Check if we've returned from Khalti through any method
     const khaltiParam = searchParams.get('khalti');
+    const paymentParam = searchParams.get('payment');
+
+
+
     if (
       (window.location.pathname.startsWith('/payment/success') ||
       localStorage.getItem('khaltiPaymentSuccess') === '1' ||
-      khaltiParam === 'success') && 
+      khaltiParam === 'success' ||
+      paymentParam === 'success') &&
       !khaltiOrderProcessed // Only proceed if not already processed
     ) {
       // Only try to save if there is a pending order
@@ -361,13 +381,29 @@ export const ShoppingCart = () => {
       if (stored) {
         setKhaltiOrderProcessed(true); // Mark as processed to prevent duplicate saves
         setIsProcessing(true);
+
+        // Clear cart immediately to prevent it from being restored
+        clearCart();
+
         saveOrder(JSON.parse(stored))
           .then(() => {
-            setOrderComplete(true);
-            clearCart();
+            // Reset form data
             reset();
+
+            // Clean up localStorage
             localStorage.removeItem('pendingKhaltiOrder');
             localStorage.removeItem('khaltiPaymentSuccess');
+
+            // Clean up URL parameters
+            if (paymentParam === 'success' || khaltiParam === 'success') {
+              const newUrl = new URL(window.location);
+              newUrl.searchParams.delete('payment');
+              newUrl.searchParams.delete('khalti');
+              window.history.replaceState({}, '', newUrl);
+            }
+
+            // Show order complete popup
+            setOrderComplete(true);
           })
           .catch(() => {
             setKhaltiOrderProcessed(false); // Reset on failure
@@ -379,13 +415,16 @@ export const ShoppingCart = () => {
           })
           .finally(() => setIsProcessing(false));
       } else {
-        // No pending order, just clean up the flag
+        // No pending order, just clean up the flag and URL
         localStorage.removeItem('khaltiPaymentSuccess');
+        if (paymentParam === 'success' || khaltiParam === 'success') {
+          const newUrl = new URL(window.location);
+          newUrl.searchParams.delete('payment');
+          newUrl.searchParams.delete('khalti');
+          window.history.replaceState({}, '', newUrl);
+        }
       }
-      // Optionally, redirect to home or orders after a short delay
-      setTimeout(() => {
-        window.location.href = '/orders';
-      }, 1500);
+      // Don't redirect automatically - let the order complete popup handle it
     }
 
     return () => window.removeEventListener('message', handleKhaltiMessage);
@@ -906,16 +945,35 @@ export const ShoppingCart = () => {
         <UIDialog open={orderComplete} onOpenChange={setOrderComplete}>
           <UIDialogContent className="max-w-lg w-full bg-[#10141E] text-gray-100 border border-[#2A3143]">
             <DialogHeader>
-              <DialogTitle>Order Placed Successfully!</DialogTitle>
-              <DialogDescription>
-                Your order has been placed and saved to your order history.
+              <DialogTitle className="text-green-400 flex items-center gap-2">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                </svg>
+                Payment Successful!
+              </DialogTitle>
+              <DialogDescription className="text-gray-300">
+                Your order has been placed successfully and items have been removed from your cart.
+                Would you like to view your order details?
               </DialogDescription>
             </DialogHeader>
-            <div className="mt-4">
-              <Button className="w-full bg-green-500 hover:bg-green-600 text-white" onClick={() => { setOrderComplete(false); navigate('/orders'); }}>
-                View Order History
+            <DialogFooter className="flex flex-col sm:flex-row gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1 border-gray-600 text-gray-300 hover:bg-gray-800"
+                onClick={() => setOrderComplete(false)}
+              >
+                Continue Shopping
               </Button>
-            </div>
+              <Button
+                className="flex-1 bg-green-500 hover:bg-green-600 text-white"
+                onClick={() => {
+                  setOrderComplete(false);
+                  navigate('/orders');
+                }}
+              >
+                View Order
+              </Button>
+            </DialogFooter>
           </UIDialogContent>
         </UIDialog>
       )}

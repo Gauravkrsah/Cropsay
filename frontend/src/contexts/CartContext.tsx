@@ -50,10 +50,28 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Load cart from localStorage when component mounts or user changes
   useEffect(() => {
-    const savedCart = localStorage.getItem(getCartStorageKey());
+    // Check if we're in a payment success flow - if so, don't load cart from localStorage
+    const urlParams = new URLSearchParams(window.location.search);
+    const isPaymentSuccess =
+      window.location.pathname.startsWith('/payment/success') ||
+      localStorage.getItem('khaltiPaymentSuccess') === '1' ||
+      urlParams.get('khalti') === 'success' ||
+      urlParams.get('payment') === 'success';
+
+    if (isPaymentSuccess) {
+      setItems([]);
+      const storageKey = getCartStorageKey();
+      localStorage.removeItem(storageKey);
+      return;
+    }
+
+    const storageKey = getCartStorageKey();
+    const savedCart = localStorage.getItem(storageKey);
+
     if (savedCart) {
       try {
-        setItems(JSON.parse(savedCart));
+        const parsedCart = JSON.parse(savedCart);
+        setItems(parsedCart);
       } catch (error) {
         console.error('Failed to parse saved cart', error);
         setItems([]);
@@ -66,8 +84,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   // Save cart to localStorage whenever it changes
   useEffect(() => {
-    localStorage.setItem(getCartStorageKey(), JSON.stringify(items));
-  }, [items, getCartStorageKey]);  
+    const storageKey = getCartStorageKey();
+    localStorage.setItem(storageKey, JSON.stringify(items));
+  }, [items, getCartStorageKey]);
 
   // Optimized function to add an item to the cart
   const addItem = useCallback((product: Omit<CartItem, 'quantity'>) => {
@@ -149,7 +168,8 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
   
   const clearCart = useCallback(() => {
     setItems([]);
-    localStorage.removeItem(getCartStorageKey());
+    const storageKey = getCartStorageKey();
+    localStorage.removeItem(storageKey);
   }, [getCartStorageKey]);
   
   const openCart = useCallback(() => {

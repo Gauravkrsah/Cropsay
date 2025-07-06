@@ -2,13 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router-dom';
 import { AppSidebar } from './AppSidebar';
 import { ExpertPanel } from './ExpertPanel';
-import { BookOpen, ShoppingBag, Users, HeadphonesIcon, HelpCircle, PhoneCall, MessageCircle, Home, MessageSquare, Menu, MoreHorizontal, Search, ShoppingCartIcon } from 'lucide-react';
+import { BookOpen, ShoppingBag, Users, HeadphonesIcon, PhoneCall, MessageCircle, Home, MessageSquare, Menu, ListCollapse, Search, ShoppingCartIcon, Package, TrendingUp, Calendar, BarChart3, Plus, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ShoppingCart } from './ShoppingCart';
 import { UserProfilePopup } from './UserProfilePopup';
-import { useIsMobile, useScreenSize, useIsSmallMobile } from '@/hooks/use-mobile';
+import { OrdersPopup } from './OrdersPopup';
+import { SupportPopup } from './SupportPopup';
+import { useIsMobile, useIsSmallMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 import { 
   Tooltip, 
@@ -33,13 +35,17 @@ export const AppLayout = () => {
   const [activeBottomTab, setActiveBottomTab] = useState('');
   const [isLayoutReady, setIsLayoutReady] = useState(false);
   const [currentPlaceholderIndex, setCurrentPlaceholderIndex] = useState(0);
-  const { openCart, totalItems, items } = useCart();
+  const [showOrdersPopup, setShowOrdersPopup] = useState(false);
+  const [showSupportPopup, setShowSupportPopup] = useState(false);
+  const { openCart, items } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
-  const screenSize = useScreenSize();
+
+  // Check if user is a vendor (has @cropsay.com domain)
+  const isVendor = user?.email?.endsWith('@cropsay.com') || false;
 
   // Search suggestions for animated placeholder
   const searchSuggestions = [
@@ -539,7 +545,7 @@ export const AppLayout = () => {
                     : "text-gray-400 hover:text-white hover:bg-[#1E2735]"
                 )}
               >
-                <MoreHorizontal size={isSmallMobile ? 18 : 22} />
+                <ListCollapse size={isSmallMobile ? 18 : 22} />
                 <span className="font-medium">More</span>
               </Button>
 
@@ -570,126 +576,162 @@ export const AppLayout = () => {
               className="fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
               onClick={() => setMoreMenuOpen(false)}
             />
-            <div className="fixed bottom-20 left-0 right-0 bg-gradient-to-t from-[#0A0E16] to-[#10141E] border-t border-[#1E2735] z-50 rounded-t-2xl shadow-2xl backdrop-blur-lg">
-              <div className="p-6">
+            <div className="fixed bottom-20 left-0 right-0 bg-gradient-to-t from-[#0A0E16] to-[#10141E] border-t border-[#1E2735] z-50 rounded-t-2xl shadow-2xl backdrop-blur-lg max-h-[70vh] overflow-hidden">
+              <div className="p-4">
                 {/* Drag handle */}
-                <div className="w-10 h-1.5 bg-gray-500 rounded-full mx-auto mb-6" />
+                <div className="w-10 h-1.5 bg-gray-500 rounded-full mx-auto mb-4" />
 
                 {/* Header */}
-                <div className="text-center mb-6">
-                  <h3 className="text-xl font-bold text-white mb-2">Quick Access</h3>
-                  <p className="text-gray-400 text-sm">
-                    {location.pathname === '/chat'
-                      ? 'Access expert features and support'
-                      : 'More options coming soon'
-                    }
-                  </p>
+                <div className="text-center mb-4">
+                  <h3 className="text-lg font-bold text-white mb-1">Quick Access</h3>
+                  <p className="text-gray-400 text-xs">Access expert features and support</p>
                 </div>
 
-                {/* Show expert features only on chat page */}
-                {location.pathname === '/chat' ? (
-                  <>
-                    {/* Options Grid */}
-                    <div className="grid grid-cols-2 gap-4 mb-4 px-2">
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          openSourcesPanel();
-                        }}
-                        disabled={!sourcesAvailable}
-                        className={cn(
-                          "flex flex-col items-center gap-3 p-6 h-auto rounded-xl transition-all duration-200 border",
-                          !sourcesAvailable
-                            ? "bg-gray-800/50 border-gray-700 opacity-50 cursor-not-allowed"
-                            : "bg-gradient-to-br from-blue-500/10 to-blue-600/5 border-blue-500/20 hover:border-blue-400/40 hover:bg-blue-500/20"
-                        )}
-                      >
-                        <div className={cn(
-                          "p-3 rounded-full mx-auto mb-1",
-                          !sourcesAvailable ? "bg-gray-700" : "bg-blue-500/20"
-                        )}>
-                          <BookOpen size={24} className={!sourcesAvailable ? "text-gray-500" : "text-blue-400"} />
-                        </div>
-                        <div className="text-center w-full">
-                          <span className="text-sm font-medium text-white">Sources</span>
-                          <p className="text-xs text-gray-400 mt-1">Expert references</p>
-                        </div>
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          openProductsPanel();
-                        }}
-                        className="flex flex-col items-center gap-3 p-6 h-auto bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 hover:border-green-400/40 hover:bg-green-500/20 rounded-xl transition-all duration-200"
-                      >
-                        <div className="p-3 rounded-full bg-green-500/20 mx-auto mb-1">
-                          <ShoppingBag size={24} className="text-green-400" />
-                        </div>
-                        <div className="text-center w-full">
-                          <span className="text-sm font-medium text-white">Products</span>
-                          <p className="text-xs text-gray-400 mt-1">Recommendations</p>
-                        </div>
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          openExpertsPanel();
-                        }}
-                        className="flex flex-col items-center gap-3 p-6 h-auto bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 hover:border-purple-400/40 hover:bg-purple-500/20 rounded-xl transition-all duration-200"
-                      >
-                        <div className="p-3 rounded-full bg-purple-500/20 mx-auto mb-1">
-                          <Users size={24} className="text-purple-400" />
-                        </div>
-                        <div className="text-center w-full">
-                          <span className="text-sm font-medium text-white">Experts</span>
-                          <p className="text-xs text-gray-400 mt-1">Chat with pros</p>
-                        </div>
-                      </Button>
-
-                      <Button
-                        variant="ghost"
-                        onClick={() => {
-                          openSupportPanel();
-                        }}
-                        className="flex flex-col items-center gap-3 p-6 h-auto bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 hover:border-orange-400/40 hover:bg-orange-500/20 rounded-xl transition-all duration-200"
-                      >
-                        <div className="p-3 rounded-full bg-orange-500/20 mx-auto mb-1">
-                          <HeadphonesIcon size={24} className="text-orange-400" />
-                        </div>
-                        <div className="text-center w-full">
-                          <span className="text-sm font-medium text-white">Support</span>
-                          <p className="text-xs text-gray-400 mt-1">Get help</p>
-                        </div>
-                      </Button>
+                {/* Scrollable Options Grid */}
+                <div className="relative">
+                  <div className="max-h-[50vh] overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent">
+                    <div className="grid grid-cols-2 gap-3 mb-4 px-1">
+                  {/* Orders - Available for all users */}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowOrdersPopup(true);
+                      setMoreMenuOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-blue-500/10 to-blue-600/5 border border-blue-500/20 hover:border-blue-400/40 hover:bg-blue-500/20 rounded-lg transition-all duration-200"
+                  >
+                    <div className="p-2 rounded-full bg-blue-500/20 mx-auto">
+                      <Package size={20} className="text-blue-400" />
                     </div>
-                  </>
-                ) : (
-                  /* Show placeholder content for other pages */
-                  <div className="text-center py-8">
-                    <div className="p-4 rounded-full bg-gray-700/50 w-16 h-16 mx-auto mb-4 flex items-center justify-center">
-                      <MessageCircle size={24} className="text-gray-400" />
+                    <div className="text-center w-full">
+                      <span className="text-xs font-medium text-white">Orders</span>
+                      <p className="text-[10px] text-gray-400">Order history</p>
                     </div>
-                    <p className="text-gray-400 text-sm mb-2">Expert features available in Chat</p>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setMoreMenuOpen(false);
-                        navigate('/chat');
-                      }}
-                      className="bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-gray-300"
-                    >
-                      Go to Chat
-                    </Button>
+                  </Button>
+
+                  {/* Support - Available for all users */}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      setShowSupportPopup(true);
+                      setMoreMenuOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-orange-500/10 to-orange-600/5 border border-orange-500/20 hover:border-orange-400/40 hover:bg-orange-500/20 rounded-lg transition-all duration-200"
+                  >
+                    <div className="p-2 rounded-full bg-orange-500/20 mx-auto">
+                      <HeadphonesIcon size={20} className="text-orange-400" />
+                    </div>
+                    <div className="text-center w-full">
+                      <span className="text-xs font-medium text-white">Support</span>
+                      <p className="text-[10px] text-gray-400">Get help</p>
+                    </div>
+                  </Button>
+
+                  {/* Trending - Available for all users */}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      navigate('/explore');
+                      setMoreMenuOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-green-500/10 to-green-600/5 border border-green-500/20 hover:border-green-400/40 hover:bg-green-500/20 rounded-lg transition-all duration-200"
+                  >
+                    <div className="p-2 rounded-full bg-green-500/20 mx-auto">
+                      <TrendingUp size={20} className="text-green-400" />
+                    </div>
+                    <div className="text-center w-full">
+                      <span className="text-xs font-medium text-white">Trending</span>
+                      <p className="text-[10px] text-gray-400">Popular items</p>
+                    </div>
+                  </Button>
+
+                  {/* Events Community - Available for all users */}
+                  <Button
+                    variant="ghost"
+                    onClick={() => {
+                      // Navigate to events/community page (placeholder for now)
+                      setMoreMenuOpen(false);
+                    }}
+                    className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-purple-500/10 to-purple-600/5 border border-purple-500/20 hover:border-purple-400/40 hover:bg-purple-500/20 rounded-lg transition-all duration-200"
+                  >
+                    <div className="p-2 rounded-full bg-purple-500/20 mx-auto">
+                      <Calendar size={20} className="text-purple-400" />
+                    </div>
+                    <div className="text-center w-full">
+                      <span className="text-xs font-medium text-white">Events</span>
+                      <p className="text-[10px] text-gray-400">Community</p>
+                    </div>
+                  </Button>
+
+                  {/* Vendor-specific options */}
+                  {isVendor && (
+                    <>
+                      {/* Create Listing */}
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          navigate('/sell');
+                          setMoreMenuOpen(false);
+                        }}
+                        className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-cyan-500/10 to-cyan-600/5 border border-cyan-500/20 hover:border-cyan-400/40 hover:bg-cyan-500/20 rounded-lg transition-all duration-200"
+                      >
+                        <div className="p-2 rounded-full bg-cyan-500/20 mx-auto">
+                          <Plus size={20} className="text-cyan-400" />
+                        </div>
+                        <div className="text-center w-full">
+                          <span className="text-xs font-medium text-white">Create</span>
+                          <p className="text-[10px] text-gray-400">New listing</p>
+                        </div>
+                      </Button>
+
+                      {/* Manage Listings */}
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          navigate('/sell');
+                          setMoreMenuOpen(false);
+                        }}
+                        className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 border border-yellow-500/20 hover:border-yellow-400/40 hover:bg-yellow-500/20 rounded-lg transition-all duration-200"
+                      >
+                        <div className="p-2 rounded-full bg-yellow-500/20 mx-auto">
+                          <Settings size={20} className="text-yellow-400" />
+                        </div>
+                        <div className="text-center w-full">
+                          <span className="text-xs font-medium text-white">Manage</span>
+                          <p className="text-[10px] text-gray-400">Listings</p>
+                        </div>
+                      </Button>
+
+                      {/* Analytics */}
+                      <Button
+                        variant="ghost"
+                        onClick={() => {
+                          navigate('/sell');
+                          setMoreMenuOpen(false);
+                        }}
+                        className="flex flex-col items-center gap-2 p-4 h-auto bg-gradient-to-br from-pink-500/10 to-pink-600/5 border border-pink-500/20 hover:border-pink-400/40 hover:bg-pink-500/20 rounded-lg transition-all duration-200"
+                      >
+                        <div className="p-2 rounded-full bg-pink-500/20 mx-auto">
+                          <BarChart3 size={20} className="text-pink-400" />
+                        </div>
+                        <div className="text-center w-full">
+                          <span className="text-xs font-medium text-white">Analytics</span>
+                          <p className="text-[10px] text-gray-400">Sales data</p>
+                        </div>
+                      </Button>
+                    </>
+                  )}
+                    </div>
                   </div>
-                )}
+                  {/* Fade indicator for scrollable content */}
+                  <div className="absolute bottom-0 left-0 right-0 h-4 bg-gradient-to-t from-[#10141E] to-transparent pointer-events-none"></div>
+                </div>
 
                 {/* Close button */}
                 <Button
                   variant="outline"
                   onClick={() => setMoreMenuOpen(false)}
-                  className="w-full mt-4 bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-gray-300"
+                  className="w-full mt-3 bg-[#1E2735] border-[#2A3143] hover:bg-[#2A3143] text-gray-300"
                 >
                   Close
                 </Button>
@@ -724,9 +766,21 @@ export const AppLayout = () => {
         />
           {/* Shopping Cart Component */}
         <ShoppingCart />
-        
+
         {/* Profile Popup for first-time users */}
         {user && <UserProfilePopup />}
+
+        {/* Orders Popup */}
+        <OrdersPopup
+          isOpen={showOrdersPopup}
+          onClose={() => setShowOrdersPopup(false)}
+        />
+
+        {/* Support Popup */}
+        <SupportPopup
+          isOpen={showSupportPopup}
+          onClose={() => setShowSupportPopup(false)}
+        />
       </div>
     </div>
     </>

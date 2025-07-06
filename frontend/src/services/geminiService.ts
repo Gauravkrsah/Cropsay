@@ -228,7 +228,7 @@ export const geminiService = {
         // If streaming is requested, we need to send the standard response as a stream
         for (const char of nonAgriculturalResponse) {
           onTokenReceived(char);
-          await new Promise(resolve => setTimeout(resolve, 10)); // Small delay to simulate streaming
+          await new Promise(resolve => setTimeout(resolve, 12)); // 12ms delay for faster streaming
         }
       }
       
@@ -264,12 +264,18 @@ Provide a helpful, informative response with practical advice. Focus exclusively
           const streamResult = await model.generateContentStream(prompt);
           let fullText = '';
           
-          // Process the stream
+          // Process the stream with character-by-character delivery
           for await (const chunk of streamResult.stream) {
             const chunkText = chunk.text();
             if (chunkText) {
               fullText += chunkText;
-              onTokenReceived(chunkText);
+
+              // Stream character by character for smooth effect
+              for (const char of chunkText) {
+                onTokenReceived(char);
+                // Small delay for smooth character-by-character streaming
+                await new Promise(resolve => setTimeout(resolve, 12));
+              }
             }
           }
           
@@ -307,7 +313,7 @@ Provide a helpful, informative response with practical advice. Focus exclusively
               // Stream the fallback text character by character
               for (const char of fallbackText) {
                 onTokenReceived(char);
-                await new Promise(resolve => setTimeout(resolve, 5));
+                await new Promise(resolve => setTimeout(resolve, 12));
               }
               return fallbackText;
             }
@@ -330,7 +336,7 @@ Provide a helpful, informative response with practical advice. Focus exclusively
           const errorResponse = "I'm sorry, I'm having trouble connecting to my agricultural knowledge base right now. Please try again in a moment.";
           for (const char of errorResponse) {
             onTokenReceived(char);
-            await new Promise(resolve => setTimeout(resolve, 5));
+            await new Promise(resolve => setTimeout(resolve, 12));
           }
           return errorResponse;
         }

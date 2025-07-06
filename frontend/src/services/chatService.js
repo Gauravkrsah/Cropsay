@@ -57,27 +57,37 @@ export const chatService = {
     // Security check: Verify the user is authenticated and the userId matches the authenticated user
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       // If there's no active session, user is not authenticated
       // For product recommendations, we'll still allow access to chat history
       // using the localStorage ID for non-authenticated users
       if (!session) {
-        console.log('No authenticated session found, using localStorage ID');
+        console.log('No authenticated session found, using localStorage ID for user:', userId);
         // Continue with the request using the localStorage ID
         // This allows product recommendations to work for non-authenticated users
         // while still preventing access to other users' data
         // (since localStorage IDs are unique per browser)
         return chatService.getLocalChatSessions(userId);
       }
-      
+
+      // Check if the userId is a localStorage-based ID (starts with 'user_')
+      if (userId.startsWith('user_')) {
+        console.log('Detected localStorage-based userId, switching to authenticated user sessions');
+        // User has logged in but we're still using the old localStorage ID
+        // Switch to the authenticated user's sessions
+        return chatService.getSupabaseChatSessions(session.user.id);
+      }
+
       // Ensure the requested userId matches the authenticated user's ID
       if (userId !== session.user.id) {
         console.error('Security violation: Attempted to access chat history of another user');
+        console.log('Requested userId:', userId, 'Authenticated userId:', session.user.id);
         throw new Error('Unauthorized access to chat history');
       }
       return chatService.getSupabaseChatSessions(userId);
     } catch (error) {
       console.error('Authentication check failed:', error);
+      // Return empty array instead of throwing to prevent app crashes
       return [];
     }
   },

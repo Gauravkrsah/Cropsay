@@ -1357,9 +1357,10 @@ const SellPage = () => {
         
         <div className="bg-cropsay-darkSecondary rounded-lg overflow-hidden">
           <div className="p-4 border-b border-cropsay-grayDark">
-            <div className={cn("mb-4", isMobile ? "space-y-3" : "flex items-center justify-between gap-4")}>
+            {/* Search and Action Buttons Row */}
+            <div className={cn("mb-3", isMobile ? "flex items-center gap-2" : "flex items-center justify-between gap-4")}>
               {/* Search */}
-              <div className={cn("relative", isMobile ? "w-full" : "w-64")}>
+              <div className={cn("relative", isMobile ? "flex-1" : "w-64")}>
                 <Search size={16} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText" />
                 <input
                   type="text"
@@ -1369,99 +1370,97 @@ const SellPage = () => {
                   className="pl-9 pr-3 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
                 />
               </div>
-              
-              <div className={cn(isMobile ? "grid grid-cols-2 gap-2" : "flex items-center gap-2")}>
-                {/* Date Filter */}
-                <div className="relative">
-                  <select
-                    value={dateFilter}
-                    onChange={(e) => setDateFilter(e.target.value)}
-                    className="pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
-                  >
-                    <option value="all">All Time</option>
-                    <option value="today">Today</option>
-                    <option value="week">This Week</option>
-                    <option value="month">This Month</option>
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
-                </div>
-                
-                {/* Status Filter */}
-                <div className="relative">
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
-                    className="pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
-                  >
-                    <option value="all">All Statuses</option>
-                    <option value="pending">Pending</option>
-                    <option value="processing">Processing</option>
-                    <option value="shipped">Shipped</option>
-                    <option value="delivered">Delivered</option>
-                    <option value="cancelled">Cancelled</option>
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
-                </div>
-                
-                {/* Sort By */}
-                <div className="relative">
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value)}
-                    className="pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md w-full text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors"
-                  >
-                    <option value="date_desc">Newest First</option>
-                    <option value="date_asc">Oldest First</option>
-                    <option value="total_desc">Highest Amount</option>
-                    <option value="total_asc">Lowest Amount</option>
-                  </select>
-                  <ChevronDown size={14} className="absolute right-3 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
-                </div>
-                
+
+              {/* Action Buttons - Icons Only */}
+              <div className="flex items-center gap-2">
                 {/* Download Orders Button */}
                 <button
                   onClick={handleDownloadOrders}
-                  className={cn(
-                    "text-white bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center",
-                    isMobile ? "py-2 w-full col-span-2" : "px-3 py-2"
-                  )}
+                  className="p-2 text-white bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center"
                   title="Download orders data as CSV"
                 >
-                  <Download size={14} className={cn("text-cropsay-grayText", isMobile ? "mr-2" : "")} />
-                  <span className={isMobile ? "" : "sr-only"}>Download Orders</span>
+                  <Download size={16} className="text-cropsay-grayText" />
                 </button>
-                
-                {/* Action Buttons */}
-                <div className={cn("flex gap-2", isMobile ? "col-span-2" : "")}>
-                  {/* Refresh Button */}
-                  <button
-                    onClick={() => loadSellerOrders()}
-                    className={cn(
-                      "text-white bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center",
-                      isMobile ? "flex-1 py-2" : "px-3 py-2"
-                    )}
-                    title="Refresh order data"
-                  >
-                    <RefreshCw size={14} className={cn("text-cropsay-grayText", isMobile ? "mr-2" : "")} />
-                    <span className={isMobile ? "" : "sr-only"}>Refresh</span>
-                  </button>
-                  
-                  {/* Analytics Button */}
-                  <button
-                    onClick={handleShowAnalytics}
-                    className={cn(
-                      "text-white bg-cropsay-darkSecondary border border-cropsay-green hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center",
-                      isMobile ? "flex-1 py-2" : "px-3 py-2"
-                    )}
-                    title="View order analytics"
-                  >
-                    <BarChart3 size={14} className={cn("text-cropsay-green", isMobile ? "mr-2" : "")} />
-                    <span className={isMobile ? "" : "sr-only"}>Analytics</span>
-                  </button>
-                </div>
+
+                {/* Refresh Button */}
+                <button
+                  onClick={() => loadSellerOrders()}
+                  className="p-2 text-white bg-cropsay-dark border border-cropsay-grayDark hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center"
+                  title="Refresh order data"
+                >
+                  <RefreshCw size={16} className="text-cropsay-grayText" />
+                </button>
+
+                {/* Analytics Button */}
+                <button
+                  onClick={handleShowAnalytics}
+                  className="p-2 text-white bg-cropsay-darkSecondary border border-cropsay-green hover:bg-cropsay-grayDark rounded-md transition-colors flex items-center justify-center"
+                  title="View order analytics"
+                >
+                  <BarChart3 size={16} className="text-cropsay-green" />
+                </button>
               </div>
             </div>
-            
+
+            {/* Filters Row */}
+            <div className={cn("mb-4", isMobile ? "flex items-center gap-2 overflow-x-auto" : "flex items-center gap-3")}>
+              {/* Date Filter */}
+              <div className="relative flex-shrink-0">
+                <select
+                  value={dateFilter}
+                  onChange={(e) => setDateFilter(e.target.value)}
+                  className={cn(
+                    "pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors",
+                    isMobile ? "min-w-[100px]" : "w-auto"
+                  )}
+                >
+                  <option value="all">All</option>
+                  <option value="today">Today</option>
+                  <option value="week">Week</option>
+                  <option value="month">Month</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
+              </div>
+
+              {/* Sort By */}
+              <div className="relative flex-shrink-0">
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value)}
+                  className={cn(
+                    "pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors",
+                    isMobile ? "min-w-[120px]" : "w-auto"
+                  )}
+                >
+                  <option value="date_desc">Newest First</option>
+                  <option value="date_asc">Oldest First</option>
+                  <option value="total_desc">Highest Amount</option>
+                  <option value="total_asc">Lowest Amount</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
+              </div>
+
+              {/* Status Filter */}
+              <div className="relative flex-shrink-0">
+                <select
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  className={cn(
+                    "pl-3 pr-8 py-2 bg-cropsay-dark border border-cropsay-grayDark rounded-md text-sm appearance-none focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none transition-colors",
+                    isMobile ? "min-w-[120px]" : "w-auto"
+                  )}
+                >
+                  <option value="all">All Statuses</option>
+                  <option value="pending">Pending</option>
+                  <option value="processing">Processing</option>
+                  <option value="shipped">Shipped</option>
+                  <option value="delivered">Delivered</option>
+                  <option value="cancelled">Cancelled</option>
+                </select>
+                <ChevronDown size={14} className="absolute right-2 top-1/2 transform -translate-y-1/2 text-cropsay-grayText pointer-events-none" />
+              </div>
+            </div>
+
             <div className="text-xs text-cropsay-grayText">
               Showing {sortedOrders.length} {sortedOrders.length === 1 ? 'order' : 'orders'}
             </div>
@@ -2364,17 +2363,19 @@ const SellPage = () => {
     <div className="h-full flex flex-col bg-cropsay-darkPrimary overflow-hidden">
       {/* Enhanced Fixed Header with Breadcrumb */}
       <div className="flex-shrink-0 bg-gradient-to-r from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] backdrop-blur-sm shadow-lg z-20">
-        <div className={cn(isMobile ? "px-4 py-0.5" : "px-8 py-3")}>
-          <div className="flex items-center justify-between py-2">
-            <div>
-              <h1 className={cn("font-bold text-white", isMobile ? "text-lg" : "text-2xl")}>
+        <div className={cn(isMobile ? "px-4 py-1" : "px-8 py-3")}>
+          <div className={cn("flex items-center", isMobile ? "justify-between py-1" : "justify-between py-2")}>
+            <div className={cn("flex items-center", isMobile ? "space-x-2" : "flex-col items-start")}>
+              {/* Breadcrumb with Home icon */}
+              <div className="flex items-center text-cropsay-grayText text-sm">
+                <Home size={16} className="text-cropsay-grayText" />
+                <ChevronRight size={14} className="mx-1" />
+                <span className="text-white">{isVendor ? "Sell" : "Vendor Application"}</span>
+              </div>
+              {/* Title */}
+              <h1 className={cn("font-bold text-white", isMobile ? "text-sm" : "text-2xl mt-1")}>
                 {isVendor ? "Seller Dashboard" : "Become a Vendor"}
               </h1>
-              <div className="flex items-center text-cropsay-grayText text-sm">
-                <span>CropsayAI</span>
-                <ChevronRight size={14} className="mx-1" />
-                <span className="text-white">{isVendor ? "Seller Portal" : "Vendor Application"}</span>
-              </div>
             </div>
           </div>
         </div>

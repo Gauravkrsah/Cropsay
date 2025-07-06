@@ -20,6 +20,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { PurchaseProvider } from "./contexts/PurchaseContext";
 import ProductDetailPage from "./pages/ProductDetailPage";
 import MinimalOrderHistoryPage from "./pages/MinimalOrderHistoryPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 
 const queryClient = new QueryClient();
 
@@ -43,6 +44,7 @@ const App = () => (
                 <Route path="/explore" element={<ExplorePage />} />
                 <Route path="/search" element={<SearchPage />} />
                 <Route path="/orders" element={<MinimalOrderHistoryPage />} />
+                <Route path="/payment/success" element={<PaymentSuccessPage />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>

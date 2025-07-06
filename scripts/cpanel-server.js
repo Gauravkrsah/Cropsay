@@ -72,47 +72,114 @@ app.post('/api/generate', async (req, res) => {
 });
 
 // Khalti payment endpoints
+const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY || 'fb72e11e14004dd4ba652bb211a7d506';
+
 app.post('/api/khalti/initiate', async (req, res) => {
+  console.log('Khalti initiate request received');
+  console.log('Request body:', JSON.stringify(req.body, null, 2));
+
   try {
-    const { amount, purchase_order_id, purchase_order_name, customer_info } = req.body;
-    
-    // Khalti payment initiation logic
-    const khaltiPayload = {
-      return_url: process.env.KHALTI_RETURN_URL || `${req.protocol}://${req.get('host')}/payment/success`,
-      website_url: process.env.KHALTI_WEBSITE_URL || `${req.protocol}://${req.get('host')}`,
-      amount: amount * 100, // Convert to paisa
+    const {
+      return_url,
+      website_url,
+      amount,
       purchase_order_id,
       purchase_order_name,
       customer_info
+    } = req.body;
+
+    // Validate required fields
+    if (!amount || !purchase_order_id || !purchase_order_name || !customer_info) {
+      return res.status(400).json({
+        error: {
+          detail: 'Missing required fields: amount, purchase_order_id, purchase_order_name, customer_info'
+        }
+      });
+    }
+
+    const payload = {
+      return_url: return_url || `${req.protocol}://${req.get('host')}/payment/success`,
+      website_url: website_url || `${req.protocol}://${req.get('host')}`,
+      amount: parseInt(amount), // Ensure amount is integer
+      purchase_order_id,
+      purchase_order_name,
+      customer_info: {
+        name: customer_info.name || 'Customer',
+        email: customer_info.email || 'customer@example.com',
+        phone: customer_info.phone || '9800000000'
+      }
     };
 
-    // In production, you would make actual API call to Khalti
-    // For now, return mock response
-    res.json({
-      pidx: 'mock_pidx_' + Date.now(),
-      payment_url: '/payment/mock',
-      expires_at: new Date(Date.now() + 30 * 60 * 1000).toISOString()
-    });
+    console.log('Sending to Khalti:', JSON.stringify(payload, null, 2));
+
+    const khaltiRes = await axios.post(
+      'https://a.khalti.com/api/v2/epayment/initiate/',
+      payload,
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000 // 10 second timeout
+      }
+    );
+
+    console.log('Khalti response:', khaltiRes.data);
+    res.json(khaltiRes.data);
+
   } catch (error) {
-    console.error('Khalti initiation error:', error);
-    res.status(500).json({ error: 'Payment initiation failed' });
+    console.error('Khalti initiation error:', error.response?.data || error.message);
+
+    const errorResponse = {
+      error: {
+        detail: error.response?.data?.detail || error.response?.data?.message || error.message || 'Payment initiation failed',
+        code: error.response?.status || 500,
+        khalti_error: error.response?.data
+      }
+    };
+
+    res.status(error.response?.status || 500).json(errorResponse);
   }
 });
 
 app.post('/api/khalti/verify', async (req, res) => {
+  console.log('Khalti verify request:', req.body);
+
   try {
     const { pidx } = req.body;
-    
-    // In production, verify with actual Khalti API
-    res.json({
-      pidx,
-      status: 'Completed',
-      transaction_id: 'mock_txn_' + Date.now(),
-      amount: 1000
-    });
+
+    if (!pidx) {
+      return res.status(400).json({
+        error: { detail: 'Missing pidx parameter' }
+      });
+    }
+
+    const khaltiRes = await axios.post(
+      'https://a.khalti.com/api/v2/epayment/lookup/',
+      { pidx },
+      {
+        headers: {
+          Authorization: `Key ${KHALTI_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 10000
+      }
+    );
+
+    console.log('Khalti verify response:', khaltiRes.data);
+    res.json(khaltiRes.data);
+
   } catch (error) {
-    console.error('Khalti verification error:', error);
-    res.status(500).json({ error: 'Payment verification failed' });
+    console.error('Khalti verify error:', error.response?.data || error.message);
+
+    const errorResponse = {
+      error: {
+        detail: error.response?.data?.detail || error.message || 'Payment verification failed',
+        code: error.response?.status || 500
+      }
+    };
+
+    res.status(error.response?.status || 500).json(errorResponse);
   }
 });
 

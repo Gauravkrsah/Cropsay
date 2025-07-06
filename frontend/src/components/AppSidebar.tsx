@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { Home, MessageSquare, ShoppingBag, DollarSign, BookOpen, Compass, X, LogIn, User, HelpCircle, LogOut } from 'lucide-react';
+import { Home, MessageSquare, ShoppingBag, DollarSign, BookOpen, Compass, X, LogIn, User, HelpCircle, LogOut, Camera, Upload } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,6 +14,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { getOrdersByUser, cancelOrder, deleteOrder } from '@/services/orderService';
 import { toast } from '@/components/ui/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 const navItems = [
   { icon: Home, text: 'Home', path: '/' },
@@ -53,6 +54,7 @@ export const AppSidebar = ({
     phone: '',
     address: '',
   });
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
 
   const location = useLocation();
   const navigate = useNavigate();
@@ -127,6 +129,85 @@ export const AppSidebar = ({
         title: 'Profile Updated',
         description: 'Your profile has been updated successfully.',
       });
+    }
+  };
+
+  // Upload avatar image to Supabase storage
+  // Note: Make sure 'avatars' storage bucket exists in Supabase
+  const uploadAvatarImage = async (file: File, fileName: string): Promise<string | null> => {
+    const filePath = `avatars/${fileName}`;
+
+    const { data, error } = await supabase
+      .storage
+      .from('avatars')
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: true // Allow overwriting existing files
+      });
+
+    if (error) {
+      console.error('Error uploading avatar:', error);
+      return null;
+    }
+
+    // Get the public URL for the avatar
+    const { data: publicURLData } = supabase
+      .storage
+      .from('avatars')
+      .getPublicUrl(data.path);
+
+    return publicURLData.publicUrl;
+  };
+
+  const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast({
+        title: 'Invalid File',
+        description: 'Please select an image file.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast({
+        title: 'File Too Large',
+        description: 'Please select an image smaller than 5MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    try {
+      // Upload to Supabase storage
+      const avatarUrl = await uploadAvatarImage(file, `${user.id}_${Date.now()}_${file.name}`);
+
+      if (avatarUrl) {
+        // Update the profile with new avatar URL
+        await updateProfile({ avatar_url: avatarUrl });
+        toast({
+          title: 'Profile Picture Updated',
+          description: 'Your profile picture has been updated successfully.',
+        });
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch (error) {
+      console.error('Avatar upload error:', error);
+      toast({
+        title: 'Upload Failed',
+        description: 'Failed to upload profile picture. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setUploadingAvatar(false);
     }
   };
 
@@ -445,7 +526,7 @@ export const AppSidebar = ({
             {user ? (
               <div className="space-y-3">
                 {/* User Info with Profile Click and Logout */}
-                <button
+                <div
                 onClick={() => {
                   setShowProfile(true);
                   setMobileMenuOpen(false);
@@ -456,15 +537,25 @@ export const AppSidebar = ({
                 )}
               >
                 <div className={cn(
-                  "bg-gradient-to-br from-green-400 to-green-600 rounded-full flex items-center justify-center flex-shrink-0",
+                  "rounded-full flex items-center justify-center flex-shrink-0 overflow-hidden",
                   isSmallMobile ? "w-7 h-7" : "w-8 h-8"
                 )}>
-                  <span className={cn(
-                    "text-white font-bold",
-                    isSmallMobile ? "text-xs" : "text-sm"
-                  )}>
-                    {(profile?.full_name || 'U').charAt(0).toUpperCase()}
-                  </span>
+                  {profile?.avatar_url ? (
+                    <img
+                      src={profile.avatar_url}
+                      alt={profile?.full_name || 'User'}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-green-400 to-green-600 flex items-center justify-center">
+                      <span className={cn(
+                        "text-white font-bold",
+                        isSmallMobile ? "text-xs" : "text-sm"
+                      )}>
+                        {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-1 min-w-0 text-left">
                   <p className={cn(
@@ -493,7 +584,7 @@ export const AppSidebar = ({
                 >
                   <LogOut size={isSmallMobile ? 12 : 14} />
                 </button>
-              </button>
+              </div>
               </div>
             ) : (
               <Button
@@ -523,12 +614,34 @@ export const AppSidebar = ({
               <DialogDescription>{editMode ? 'Edit your profile details' : 'Account details'}</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 py-4">
-              <Avatar className="w-20 h-20 border border-[#2A3143]">
-                <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || 'User'} />
-                <AvatarFallback className="bg-green-600 text-white text-2xl">
-                  {(profile?.full_name || 'U').charAt(0).toUpperCase()}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative group">
+                <Avatar className="w-20 h-20 border border-[#2A3143]">
+                  <AvatarImage src={profile?.avatar_url || ''} alt={profile?.full_name || 'User'} />
+                  <AvatarFallback className="bg-green-600 text-white text-2xl">
+                    {(profile?.full_name || 'U').charAt(0).toUpperCase()}
+                  </AvatarFallback>
+                </Avatar>
+                {editMode && (
+                  <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <label htmlFor="avatar-upload" className="cursor-pointer">
+                      <Upload className="w-6 h-6 text-white" />
+                      <input
+                        id="avatar-upload"
+                        type="file"
+                        accept="image/*"
+                        onChange={handleAvatarUpload}
+                        className="hidden"
+                        disabled={uploadingAvatar}
+                      />
+                    </label>
+                  </div>
+                )}
+                {uploadingAvatar && (
+                  <div className="absolute inset-0 bg-black/70 rounded-full flex items-center justify-center">
+                    <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                  </div>
+                )}
+              </div>
               {editMode ? (
                 <div className="w-full space-y-4">
                   <div className="space-y-2">

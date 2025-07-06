@@ -17,7 +17,7 @@ import { supabase, getUserId } from '@/integrations/supabase/supabaseClient';
 import { useAuth } from '@/contexts/AuthContext';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile, useIsSmallMobile } from '@/hooks/use-mobile';
 
 
 // Import custom fonts for better typography
@@ -76,10 +76,19 @@ const ChatPage = () => {
   const [isRecording, setIsRecording] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
+  const isSmallMobile = useIsSmallMobile();
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Hide scrollbars when chat page is active
+  useEffect(() => {
+    document.body.classList.add('chat-active');
+    return () => {
+      document.body.classList.remove('chat-active');
+    };
+  }, []);
 
   // Auto-resize textarea as content changes
   useEffect(() => {
@@ -133,6 +142,7 @@ const ChatPage = () => {
   useEffect(() => {
     if (user) {
       // Set userId to the authenticated user's ID
+      console.log('User authenticated, setting userId to:', user.id);
       setUserId(user.id);
     } else {
       // If user is null (logged out) and we had a previous session, reset to a new chat
@@ -147,27 +157,29 @@ const ChatPage = () => {
           timestamp: new Date(),
           messages: []
       };
-      
+
       // Reset state
       setCurrentChatId(newChatId);
       setMessages([]);
       setChatSessions([newSession]);
     }
-      
+
       // For non-authenticated users, use a temporary ID
-      setUserId(getUserId());
+      const tempUserId = getUserId();
+      console.log('User not authenticated, using temporary userId:', tempUserId);
+      setUserId(tempUserId);
     }
   }, [user]);
   
   // Load chat sessions from Supabase when component mounts and service is initialized
   useEffect(() => {
-    if (!serviceInitialized) return;
-    
+    if (!serviceInitialized || !userId) return;
+
     const loadChatSessions = async () => {
       try {
         setLoading(true);
         console.log('Loading chat sessions for user:', userId);
-        
+
         // If user is not logged in, just create a new empty session
         if (!user) {
           console.log('No user logged in, creating new empty session');
@@ -179,14 +191,14 @@ const ChatPage = () => {
             timestamp: new Date(),
             messages: []
           };
-          
+
           setChatSessions([newSession]);
           setCurrentChatId(newChatId);
           setLoading(false);
           return;
         }
-        
-        // Only load sessions from database if user is logged in
+
+        // Load sessions from database (authenticated users) or localStorage (non-authenticated)
         const sessions = await chatService.getChatSessions(userId);
         console.log('Loaded sessions:', sessions);
         
@@ -263,12 +275,27 @@ const ChatPage = () => {
   useEffect(() => {
     if (messagesEndRef.current) {
       // Use smooth scrolling on desktop, but instant on mobile for better performance
-      messagesEndRef.current.scrollIntoView({ 
+      messagesEndRef.current.scrollIntoView({
         behavior: isMobile ? 'auto' : 'smooth',
         block: 'end'
       });
     }
   }, [messages, isMobile]);
+
+  // Handle scroll detection for scroll-to-top button
+  useEffect(() => {
+    const chatContainer = chatContainerRef.current;
+    if (!chatContainer || !isMobile) return;
+
+    const handleScroll = () => {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainer;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      setShowScrollTop(!isNearBottom && scrollTop > 300);
+    };
+
+    chatContainer.addEventListener('scroll', handleScroll);
+    return () => chatContainer.removeEventListener('scroll', handleScroll);
+  }, [isMobile]);
 
   useEffect(() => {
     // Check if we have at least one pair of user message followed by assistant message
@@ -388,10 +415,13 @@ const ChatPage = () => {
               return updatedMessages;
             });
             
-            // Scroll to bottom as content streams in
-            setTimeout(() => {
-              messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-            }, 0);
+            // Scroll to bottom as content streams in - more frequent for smooth scrolling
+            if (messagesEndRef.current) {
+              messagesEndRef.current.scrollIntoView({
+                behavior: 'smooth',
+                block: 'end'
+              });
+            }
           }
         );
         
@@ -1371,17 +1401,25 @@ const ChatPage = () => {
   
   // Function to scroll to top of chat
   const scrollToTop = () => {
-    const chatContainer = document.querySelector('.mobile-chat-container');
-    if (chatContainer) {
-      chatContainer.scrollTo({
+    if (chatContainerRef.current) {
+      // Force scroll to absolute top
+      chatContainerRef.current.scrollTo({
         top: 0,
+        left: 0,
         behavior: 'smooth'
       });
+
+      // Also try setting scrollTop directly as a fallback
+      setTimeout(() => {
+        if (chatContainerRef.current) {
+          chatContainerRef.current.scrollTop = 0;
+        }
+      }, 300);
     }
   };
 
   return (
-    <div className={`flex flex-col ${isMobile ? 'h-[100svh] min-h-[400px] overflow-hidden mobile-scrollbar-none scrollbar-hide' : 'h-screen scrollbar-hide'}`}>
+    <div className={`flex flex-col chat-page-container ${isMobile ? 'h-[100svh] min-h-[400px] overflow-hidden mobile-scrollbar-none scrollbar-hide' : 'h-screen scrollbar-hide'}`}>
       {/* Header - Only show on desktop, mobile uses AppLayout header */}
       {!isMobile && (
         <div className="sticky top-0 z-40 p-4 flex justify-between items-center shadow-sm bg-[#1E2735] border-b border-cropsay-grayDark/30">
@@ -1439,7 +1477,10 @@ const ChatPage = () => {
 
       {/* Mobile Header - Fixed below app header with responsive positioning */}
       {isMobile && (
-        <div className="fixed left-0 right-0 z-30 py-1.5 px-2 flex justify-between items-center shadow-sm border-b border-cropsay-grayDark/30 backdrop-blur-md bg-[#1E2735]/75 mobile-chat-header-responsive">
+        <div
+          className="fixed left-0 right-0 z-30 py-1.5 px-2 flex justify-between items-center shadow-sm border-b border-cropsay-grayDark/30 backdrop-blur-md bg-[#1E2735]/75 mobile-chat-header-responsive"
+          style={{ top: isSmallMobile ? "48px" : "60px" }} // Exact positioning to eliminate gap
+        >
           <div className="flex items-center space-x-2">
             <div className="flex items-center gap-1.5 text-sm text-gray-400">
               <button 
@@ -1516,7 +1557,17 @@ const ChatPage = () => {
       )}
 
       {/* Main Chat Area - with responsive padding top to account for fixed header */}
-      <div className={`flex-1 ${isMobile ? 'overflow-y-auto mobile-chat-main-responsive pb-[85px] mobile-chat-container scrollbar-hide' : 'overflow-y-auto scrollbar-hide'} ${isMobile ? 'py-0' : 'py-6'} bg-[#1E2735] ${isMobile ? 'flex flex-col' : ''}`}>
+      <div
+        ref={chatContainerRef}
+        className={`flex-1 ${isMobile ? 'overflow-y-auto mobile-chat-main-responsive pb-[85px] mobile-chat-container scrollbar-hide' : 'overflow-y-auto scrollbar-hide'} ${isMobile ? 'py-0' : 'py-6'} bg-[#1E2735] ${isMobile ? 'flex flex-col' : ''}`}
+        style={{
+          scrollBehavior: 'smooth',
+          overflowAnchor: 'none',
+          ...(isMobile && {
+            paddingTop: isSmallMobile ? '90px' : '105px' // Account for fixed header height
+          })
+        }}
+      >
         {loading ? (
           <div className="h-full flex flex-col justify-center items-center">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-green-500"></div>
@@ -1524,64 +1575,85 @@ const ChatPage = () => {
           </div>
         ) : messages.length === 0 ? (
           <>
-            {/* Desktop version */}
+            {/* Desktop version - Improved sticky design */}
             {!isMobile && (
-              <div className="h-full flex flex-col justify-center items-center">
-                <div className="text-center max-w-2xl">
-                  <h2 className="text-4xl mb-8 font-bold">
-                    What do you want to know?
-                  </h2>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-8">
-                    {suggestionTopics.map((topic, index) => (
-                      <Card
-                        key={index}
-                        className="cursor-pointer hover:bg-[#2A3143] transition-colors bg-[#1E2735] border-[#2A3143]"
-                        onClick={() => setInput(topic.text)}
-                      >
-                        <CardContent className="p-4 flex items-center space-x-3">
-                          {topic.icon}
-                          <span className="text-sm">{topic.text}</span>
-                        </CardContent>
-                      </Card>
-                    ))}
+              <div className="h-full flex flex-col">
+                {/* Sticky header section */}
+                <div className="sticky top-0 z-40 bg-gradient-to-b from-[#1E2735] via-[#1E2735] to-[#1E2735]/95 backdrop-blur-sm border-b border-[#2A3143]/30">
+                  <div className="text-center py-8">
+                    <h2 className="text-4xl mb-2 font-bold bg-gradient-to-r from-white via-green-100 to-white bg-clip-text text-transparent">
+                      What do you want to know?
+                    </h2>
+                    <p className="text-gray-400 text-sm">Choose a topic below or ask your own question</p>
+                  </div>
+                </div>
+
+                {/* Fixed suggestion cards - non-scrollable */}
+                <div className="flex-1 flex items-center justify-center px-8">
+                  <div className="max-w-4xl w-full">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {suggestionTopics.map((topic, index) => (
+                        <Card
+                          key={index}
+                          className="cursor-pointer group hover:bg-gradient-to-r hover:from-[#2A3143] hover:to-[#1E2735] transition-all duration-300 bg-[#1E2735] border-[#2A3143] hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transform hover:scale-[1.02] active:scale-[0.98]"
+                          onClick={() => setInput(topic.text)}
+                        >
+                          <CardContent className="py-6 px-6 flex items-center space-x-4">
+                            <div className="flex-shrink-0 p-3 rounded-full bg-gradient-to-br from-[#2A3143] to-[#1E2735] group-hover:from-green-500/20 group-hover:to-green-600/10 transition-all duration-300">
+                              {topic.icon}
+                            </div>
+                            <span className="text-base font-medium text-white group-hover:text-green-100 transition-colors duration-300">{topic.text}</span>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
             
-            {/* Mobile version with compact layout */}
+            {/* Mobile version - Compact responsive design */}
             {isMobile && (
-              <div className="flex flex-col pt-4 pb-16 h-full">
-                <div className="flex-shrink-0 sticky top-[80px] bg-[#1E2735] py-3 px-4 text-center mb-4 z-30">
-                  <h2 className="text-xl font-bold text-white">
-                    What do you want to know?
-                  </h2>
-                </div>
-                <div className="flex-1 px-4 mt-2">
-                  <div className="grid grid-cols-1 gap-3">
-                    {suggestionTopics.map((topic, index) => (
-                      <Card
-                        key={index}
-                        className="cursor-pointer hover:bg-[#2A3143] transition-all duration-200 bg-[#1E2735] border-[#2A3143] hover:border-green-500/30 active:scale-[0.98]"
-                        onClick={() => setInput(topic.text)}
-                      >
-                        <CardContent className="py-3 px-4 flex items-center space-x-3">
-                          <div className="flex-shrink-0">
-                            {topic.icon}
-                          </div>
-                          <span className="text-sm text-gray-200 font-medium leading-relaxed">{topic.text}</span>
-                        </CardContent>
-                      </Card>
-                    ))}
+              <div className="fixed inset-0 top-[80px] bottom-[120px] flex flex-col overflow-hidden">
+                {/* Content container - centered layout */}
+                <div className="flex-1 flex flex-col justify-center px-3 overflow-hidden">
+                  <div className="w-full max-w-sm mx-auto">
+                    {/* Header text positioned just above cards */}
+                    <div className="text-center mb-4">
+                      <h2 className="text-xl mb-1 font-bold bg-gradient-to-r from-white via-green-100 to-white bg-clip-text text-transparent">
+                        What do you want to know?
+                      </h2>
+                      <p className="text-gray-400 text-xs">Choose a topic below or ask your own question</p>
+                    </div>
+
+                    {/* Suggestion cards */}
+                    <div className="space-y-2">
+                      {suggestionTopics.map((topic, index) => (
+                        <Card
+                          key={index}
+                          className="cursor-pointer group hover:bg-gradient-to-r hover:from-[#2A3143] hover:to-[#1E2735] transition-all duration-300 bg-[#1E2735] border-[#2A3143] hover:border-green-500/50 hover:shadow-lg hover:shadow-green-500/10 transform hover:scale-[1.01] active:scale-[0.98]"
+                          onClick={() => setInput(topic.text)}
+                        >
+                          <CardContent className="py-2.5 px-3 flex items-center space-x-3">
+                            <div className="flex-shrink-0 p-1.5 rounded-full bg-gradient-to-br from-[#2A3143] to-[#1E2735] group-hover:from-green-500/20 group-hover:to-green-600/10 transition-all duration-300">
+                              <div className="w-4 h-4 flex items-center justify-center">
+                                {topic.icon}
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium text-white group-hover:text-green-100 transition-colors duration-300 leading-tight">{topic.text}</span>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
                   </div>
                 </div>
               </div>
             )}
           </>
         ) : (
-          <div className={`${isMobile ? 'pb-24 pt-6 px-2 mobile-scrollbar-none scrollbar-hide' : 'pb-4 scrollbar-hide'} ${isMobile ? 'max-w-full' : 'max-w-4xl'} mx-auto`}>
+          <div className={`${isMobile ? 'pb-24 px-2 mobile-scrollbar-none scrollbar-hide mobile-chat-scroll-container' : 'pb-4 scrollbar-hide'} ${isMobile ? 'max-w-full' : 'max-w-4xl'} mx-auto`}>
             {messages.map((message, index) => (
-              <div key={message.id} className={`${isMobile ? 'mb-2' : 'mb-6'} group/message`}>
+              <div key={message.id} className={`${isMobile ? 'mb-2' : 'mb-6'} group/message ${index === 0 && isMobile ? 'mt-4' : ''}`}>
                 {editingMessageId === message.id ? (
                   <div className="flex flex-col space-y-2">
                     <textarea 

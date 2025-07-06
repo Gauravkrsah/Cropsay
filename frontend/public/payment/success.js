@@ -7,8 +7,8 @@ window.close();
 if (!window.opener) {
   // Set a flag in localStorage so the main app can detect payment success
   localStorage.setItem('khaltiPaymentSuccess', '1');
-  // Redirect to orders page after payment
-  window.location.href = '/orders';
+  // Redirect to shop page with payment success parameter
+  window.location.href = '/shop?payment=success';
 }
 
 // Optionally, show a message if not closed

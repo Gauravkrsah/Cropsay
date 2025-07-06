@@ -1,5 +1,4 @@
 "use client";
-import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -10,8 +9,8 @@ export const ChatTextGenerateEffect = ({
   text: string;
   isStreaming: boolean;
 }) => {
-  // Just display the text directly without any fancy effects
-  // This ensures the text is shown as it's being generated
+  // Display the text as it streams in from Gemini API
+  // No additional animation needed - the streaming is handled by the API
   
   // Render the text with markdown formatting
   const renderFormattedContent = (content: string) => {
@@ -67,11 +66,13 @@ export const ChatTextGenerateEffect = ({
     );
   };
 
-  // Render the content with a blinking cursor during streaming
+  // Render the streamed content with cursor
   return (
-    <>
+    <div className="relative">
       {renderFormattedContent(text)}
-      {isStreaming && <span className="cursor-blink">▋</span>}
-    </>
+      {isStreaming && (
+        <span className="inline-block w-0.5 h-5 bg-green-500 ml-1 typing-cursor">|</span>
+      )}
+    </div>
   );
 };

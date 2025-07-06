@@ -52,6 +52,11 @@
     height: calc(100vh - 100px);
     -webkit-overflow-scrolling: touch;
     overscroll-behavior-y: contain;
+    scroll-behavior: smooth;
+    overflow-anchor: none;
+    /* Ensure scrolling to absolute top */
+    scroll-padding-top: 0;
+    padding-top: 0;
   }
   
   /* Remove default scrollbar styles on mobile */
@@ -59,9 +64,38 @@
     scrollbar-width: none;
     -ms-overflow-style: none;
   }
-  
+
   .mobile-scrollbar-none::-webkit-scrollbar {
     display: none;
+  }
+
+  /* Smooth text generation cursor */
+  .typing-cursor {
+    animation: blink 1s infinite;
+  }
+
+  @keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
+  }
+
+  /* Mobile chat scroll fix */
+  .mobile-chat-scroll-container {
+    scroll-padding-top: 0 !important;
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  .mobile-chat-scroll-container:first-child {
+    margin-top: 0 !important;
+    padding-top: 0 !important;
+  }
+
+  /* Ensure first message is visible on mobile */
+  @media (max-width: 768px) {
+    .mobile-chat-scroll-container > div:first-child {
+      margin-top: 16px !important;
+    }
   }
   
   /* Chat input safe area handling */
@@ -919,5 +953,99 @@
   .mobile-consistent-gap {
     margin-top: 15px;
   }
+}
+
+/* Chat text generation effects */
+@keyframes typing-cursor {
+  0%, 50% { opacity: 1; }
+  51%, 100% { opacity: 0; }
+}
+
+.typing-cursor {
+  animation: typing-cursor 1s infinite;
+}
+
+/* Smooth text generation */
+.text-generation {
+  overflow-wrap: break-word;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Force hide all scrollbars on chat page */
+.chat-page-container {
+  overflow: hidden !important;
+}
+
+.chat-page-container * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.chat-page-container *::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+}
+
+/* Specific chat container scrollbar hiding */
+.mobile-chat-container {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.mobile-chat-container::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+}
+
+/* Hide any potential body/html scrollbars on chat page */
+body:has(.chat-page-container) {
+  overflow: hidden !important;
+}
+
+html:has(.chat-page-container) {
+  overflow: hidden !important;
+}
+
+/* Alternative approach - hide scrollbars globally when chat is active */
+.chat-active {
+  overflow: hidden !important;
+}
+
+.chat-active * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.chat-active *::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Force hide scrollbars on main app container */
+#root {
+  overflow: hidden !important;
+}
+
+#root * {
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+#root *::-webkit-scrollbar {
+  display: none !important;
+}
+
+/* Ensure no scrollbars on any container */
+.container, .main-container, .app-container {
+  overflow: hidden !important;
+  scrollbar-width: none !important;
+  -ms-overflow-style: none !important;
+}
+
+.container::-webkit-scrollbar,
+.main-container::-webkit-scrollbar,
+.app-container::-webkit-scrollbar {
+  display: none !important;
 }
 

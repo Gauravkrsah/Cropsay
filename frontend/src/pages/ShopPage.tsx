@@ -12,7 +12,7 @@ import {
 } from '@/services/productService';
 import { getOrdersByUser } from '@/services/orderService';
 import ProductCard from '@/components/ProductCard';
-import { useIsMobile } from '@/hooks/use-mobile';
+import { useIsMobile, useIsSmallMobile } from '@/hooks/use-mobile';
 import { cn } from '@/lib/utils';
 
 const ShopPage = () => {
@@ -37,6 +37,7 @@ const ShopPage = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const isMobile = useIsMobile();
+  const isSmallMobile = useIsSmallMobile();
 
   const categories = getCategories();
   
@@ -262,8 +263,12 @@ const ShopPage = () => {
       {/* Combined Header Container - Breadcrumb, Actions, Categories, and Sort */}
       <div className={cn(
         "z-[40] bg-gradient-to-b from-[#1E2735] to-[#1A1F2E] border-b border-[#2A3143] transition-all duration-300",
-        isMobile ? "fixed top-[56px] left-0 right-0 shadow-xl" : "fixed top-0 left-0 right-0 shadow-lg" /* Enhanced shadow for better separation */
-      )} style={isMobile ? { minHeight: "auto", boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04)" } : { marginLeft: "5.7rem", minHeight: "112px" }}>
+        isMobile ? "fixed left-0 right-0 shadow-xl" : "fixed top-0 left-0 right-0 shadow-lg" /* Remove top positioning to eliminate gap */
+      )} style={isMobile ? {
+        top: isSmallMobile ? "48px" : "60px", // Exact height calculation: small mobile (py-2 + content) vs regular mobile (py-3 + content)
+        minHeight: "auto",
+        boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.04)"
+      } : { marginLeft: "5.7rem", minHeight: "112px" }}>
         {/* Breadcrumb and Actions Row */}
         <div className={cn(
           isMobile ? "px-4 py-2.5" : "px-8 py-2.5" // Increased vertical padding for mobile for better spacing
@@ -502,7 +507,7 @@ const ShopPage = () => {
 
       {/* Products Grid - Only this section scrollable */}
       <div className="flex-1" style={{
-        paddingTop: isMobile ? "156px" : "calc(64px + 48px + 16px)", /* Mobile: increased padding to prevent products from hiding under sort section */
+        paddingTop: isMobile ? (isSmallMobile ? "140px" : "152px") : "calc(64px + 48px + 16px)", /* Mobile: dynamic padding based on header height */
       }}>
         <div className="h-full overflow-y-auto custom-scrollbar product-container">
           <div className={cn(
