@@ -1,0 +1,73 @@
+/* Profile Dialog Mobile Responsive Styles */
+
+/* Override default dialog styles for mobile profile dialogs */
+[data-radix-dialog-content] {
+  /* Mobile-first styles */
+  max-width: 280px !important;
+  width: 75vw !important;
+  max-height: 90vh !important;
+  border-radius: 12px !important;
+  margin: 0 16px !important;
+  padding: 16px !important;
+}
+
+/* Desktop and tablet styles */
+@media (min-width: 640px) {
+  [data-radix-dialog-content] {
+    max-width: 400px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+  }
+}
+
+/* Specific targeting for profile dialogs */
+.profile-dialog [data-radix-dialog-content] {
+  max-width: 280px !important;
+  width: 75vw !important;
+  max-height: 90vh !important;
+  border-radius: 12px !important;
+  margin: 0 16px !important;
+  padding: 16px !important;
+}
+
+@media (min-width: 640px) {
+  .profile-dialog [data-radix-dialog-content] {
+    max-width: 400px !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 24px !important;
+  }
+}
+
+/* Additional mobile optimizations */
+@media (max-width: 639px) {
+  /* Ensure dialog doesn't exceed screen bounds */
+  [data-radix-dialog-content] {
+    max-width: min(280px, calc(100vw - 32px)) !important;
+    width: min(75vw, calc(100vw - 32px)) !important;
+    left: 50% !important;
+    transform: translateX(-50%) translateY(-50%) !important;
+  }
+  
+  /* Compact form elements on mobile */
+  .profile-dialog input,
+  .profile-dialog textarea {
+    font-size: 14px !important;
+    padding: 8px 12px !important;
+  }
+  
+  .profile-dialog button {
+    font-size: 14px !important;
+    padding: 8px 16px !important;
+  }
+  
+  /* Reduce spacing on mobile */
+  .profile-dialog .space-y-2 > * + * {
+    margin-top: 8px !important;
+  }
+  
+  .profile-dialog .space-y-1 > * + * {
+    margin-top: 4px !important;
+  }
+}

@@ -228,7 +228,6 @@ export const geminiService = {
         // If streaming is requested, we need to send the standard response as a stream
         for (const char of nonAgriculturalResponse) {
           onTokenReceived(char);
-          await new Promise(resolve => setTimeout(resolve, 12)); // 12ms delay for faster streaming
         }
       }
       
@@ -270,11 +269,9 @@ Provide a helpful, informative response with practical advice. Focus exclusively
             if (chunkText) {
               fullText += chunkText;
 
-              // Stream character by character for smooth effect
+            // Stream character by character instantly
               for (const char of chunkText) {
                 onTokenReceived(char);
-                // Small delay for smooth character-by-character streaming
-                await new Promise(resolve => setTimeout(resolve, 12));
               }
             }
           }
@@ -310,10 +307,9 @@ Provide a helpful, informative response with practical advice. Focus exclusively
             const fallbackText = fallbackResult.response.text();
             
             if (fallbackText && fallbackText.trim() !== '') {
-              // Stream the fallback text character by character
+              // Stream the fallback text character by character instantly
               for (const char of fallbackText) {
                 onTokenReceived(char);
-                await new Promise(resolve => setTimeout(resolve, 12));
               }
               return fallbackText;
             }
@@ -336,7 +332,6 @@ Provide a helpful, informative response with practical advice. Focus exclusively
           const errorResponse = "I'm sorry, I'm having trouble connecting to my agricultural knowledge base right now. Please try again in a moment.";
           for (const char of errorResponse) {
             onTokenReceived(char);
-            await new Promise(resolve => setTimeout(resolve, 12));
           }
           return errorResponse;
         }

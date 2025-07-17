@@ -9,13 +9,9 @@ export const ChatTextGenerateEffect = ({
   text: string;
   isStreaming: boolean;
 }) => {
-  // Display the text as it streams in from Gemini API
-  // No additional animation needed - the streaming is handled by the API
-  
-  // Render the text with markdown formatting
+  // Render the text with markdown formatting instantly, no animation or cursor
   const renderFormattedContent = (content: string) => {
     if (!content) return null;
-    
     return (
       <div className="prose prose-invert max-w-none">
         <ReactMarkdown
@@ -33,7 +29,6 @@ export const ChatTextGenerateEffect = ({
                   String(children).includes("Optional Add-ons")) {
                 return <li className="font-semibold text-green-400 my-3" {...props}>{children}</li>;
               }
-              
               return (
                 <li className="flex items-start" {...props}>
                   <span className="mr-2 mt-1 text-green-400">•</span>
@@ -66,13 +61,10 @@ export const ChatTextGenerateEffect = ({
     );
   };
 
-  // Render the streamed content with cursor
+  // Render the streamed content instantly, no animation/cursor
   return (
     <div className="relative">
       {renderFormattedContent(text)}
-      {isStreaming && (
-        <span className="inline-block w-0.5 h-5 bg-green-500 ml-1 typing-cursor">|</span>
-      )}
     </div>
   );
 };

@@ -81,7 +81,21 @@ const ChatPage = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
-
+  // Ref to control streaming speed
+  const streamingSpeedRef = useRef<number>(5); // Default to 5ms
+  // Ref to control stopping the streaming
+  const stopRequestedRef = useRef<boolean>(false);
+  // Helper to access stopRequested in callbacks
+  const getStopRequested = () => stopRequestedRef.current;
+  // Pause/Resume state
+  const [isPaused, setIsPaused] = useState(false);
+  const isPausedRef = useRef(isPaused);
+  useEffect(() => { isPausedRef.current = isPaused; }, [isPaused]);
+  // Function to handle pause/resume streaming
+  const handlePauseResume = () => {
+    setIsPaused(prev => !prev);
+  };
+  
   // Hide scrollbars when chat page is active
   useEffect(() => {
     document.body.classList.add('chat-active');
@@ -379,31 +393,23 @@ const ChatPage = () => {
       const loadingMessage: Message = {
         id: tempId,
         role: 'assistant' as const,
-        content: '...',
+        content: '',
         timestamp: new Date(),
       };
-      
       setMessages([...newMessages, loadingMessage]);
-      
-      // Generate response using Gemini API
       setIsStreaming(true);
       let streamedContent = '';
-
+      let streamingStopped = false;
       try {
-        // Use the streaming API
         await geminiService.generateResponse(
-          newMessages.map(msg => ({ role: msg.role, content: msg.content }))
-          ,
-          (token) => {
-            // Update the content as tokens arrive
+          newMessages.map(msg => ({ role: msg.role, content: msg.content })),
+          async (token) => {
+            if (streamingStopped) return;
+            // Streaming is always instant, never paused
             streamedContent += token;
-            
-            // Update the message with the current streamed content
-
             setMessages(currentMessages => {
               const updatedMessages = [...currentMessages];
               const loadingMessageIndex = updatedMessages.findIndex(msg => msg.id === tempId);
-              
               if (loadingMessageIndex !== -1) {
                 const updatedMessage = {
                   ...updatedMessages[loadingMessageIndex],
@@ -411,20 +417,13 @@ const ChatPage = () => {
                 };
                 updatedMessages[loadingMessageIndex] = updatedMessage;
               }
-              
               return updatedMessages;
             });
-            
-            // Scroll to bottom as content streams in - more frequent for smooth scrolling
-            if (messagesEndRef.current) {
-              messagesEndRef.current.scrollIntoView({
-                behavior: 'smooth',
-                block: 'end'
-              });
-            }
-          }
+          },
+          // Ultra fast streaming: 0ms per character (instant)
         );
-        
+        streamingStopped = true;
+        setIsStreaming(false);
         // After streaming is complete, finalize the message
         const finalAiResponse: Message = {
           id: tempId,
@@ -432,68 +431,48 @@ const ChatPage = () => {
           content: streamedContent,
           timestamp: new Date(),
         };
-      
-  
         const updatedMessages = [...newMessages, finalAiResponse];
         setMessages(updatedMessages);
-      
-  
-        // Update the current chat session
         updateChatSession(updatedMessages);
       } catch (error) {
-        console.error('Error in streaming response:', error);
-        // Handle error if needed
-      } finally {
+        streamingStopped = true;
         setIsStreaming(false);
+        console.error('Error in streaming response:', error);
       }
-      
-      // Show login prompt for non-logged in users after they've received a response
       if (!user) {
         setTimeout(() => {
           setShowLoginPrompt(true);
         }, 1000);
       }
     } catch (error) {
+      setIsStreaming(false);
       console.error('Error generating response:', error);
-      
-      // Check if it's a quota limit error
       const isQuotaError = error?.message?.includes('quota') || 
                           error?.message?.includes('429') ||
                           error?.toString?.().includes('quota') ||
                           error?.toString?.().includes('429');
-      
       let errorMessage = "Failed to generate response. Please try again.";
       let errorTitle = "Error";
-      
       if (isQuotaError) {
         setQuotaExhausted(true);
         errorMessage = "We've reached our daily AI usage limit. Please try again tomorrow or contact support for premium access.";
         errorTitle = "Daily Limit Reached";
-        
-        // Add a fallback response for quota errors
         const quotaErrorResponse: Message = {
           id: tempId,
           role: 'assistant' as const,
           content: "I'm sorry, but we've reached our daily AI usage limit for today. This helps us manage costs while providing free access to agricultural information. Please try again tomorrow, or contact our support team if you need immediate assistance with urgent agricultural questions.",
           timestamp: new Date(),
         };
-        
         const updatedMessagesWithError = [...newMessages, quotaErrorResponse];
         setMessages(updatedMessagesWithError);
         updateChatSession(updatedMessagesWithError);
-        
-        // Set quota exhausted state
         setQuotaExhausted(true);
-        
-        // Show login prompt after a delay
         setTimeout(() => {
           setShowLoginPrompt(true);
         }, 1000);
       } else {
-        // Remove the loading message if there was a non-quota error
         setMessages(newMessages);
       }
-      
       toast({
         title: errorTitle,
         description: errorMessage,
@@ -1805,63 +1784,37 @@ const ChatPage = () => {
         )}
       </div>
       
-      {/* Chat Input */}
+      {/* Chat Input + Pause/Resume Button */}
       <div className={`${isMobile ? 'fixed bottom-[75px] left-0 right-0 z-30 p-2 mobile-chat-input' : 'sticky bottom-0 w-full py-5 bg-gradient-to-b from-[#1E2735]/80 to-[#1E2735] backdrop-blur-sm border-t border-[#2A3143]/30'}`}>
         <div className={`${isMobile ? 'max-w-full mx-2.5' : 'max-w-4xl px-6 md:px-12 lg:px-16'} mx-auto`}>
-          <form onSubmit={handleSubmit} className="relative flex flex-col">
-            <div className="relative flex items-center bg-[#10141E] rounded-xl border border-[#2A3143] shadow-lg hover:border-[#3A4153] focus-within:border-green-500/40 focus-within:shadow-[0_0_10px_rgba(34,197,94,0.1)] transition-all">
-              <textarea
-                ref={textareaRef}
-                value={input}
-                onChange={handleInputChange}
-                onKeyDown={handleKeyDown}
-                placeholder={quotaExhausted ? "Daily usage limit reached - try again tomorrow" : "Ask anything..."}
-                disabled={quotaExhausted}
-                className={`flex-1 ${isMobile ? 'py-3 pl-3 pr-14 mobile-scrollbar-none' : 'py-4 pl-4 pr-20'} bg-transparent border-none focus:ring-0 focus:outline-none text-white resize-none ${isMobile ? 'h-10' : 'h-12'} max-h-[200px] overflow-y-auto flex items-center`}
-                style={{ 
-                  minHeight: isMobile ? '42px' : '64px', 
-                  maxHeight: isMobile ? '80px' : '200px',
-                  lineHeight: isMobile ? '1.2' : '1.5'
-                }}
-                rows={1}
-              />
-
-              <div className={`absolute ${isMobile ? 'right-2' : 'right-3'} top-1/2 transform -translate-y-1/2 flex items-center justify-center ${isMobile ? 'space-x-1' : 'space-x-2'}`}>
-                <button
-                  type="button"
-                  onClick={handleMicClick}
-                  className={`${isMobile ? 'p-1' : 'p-1.5'} rounded-full transition-all ${
-                    isRecording
-                      ? 'text-white bg-red-500 hover:bg-red-600 animate-pulse'
-                      : 'text-gray-400 hover:text-white hover:bg-[#2A3143]/70'
-                  }`}
-                  title="Voice input"
-                >
-                  <Mic size={isMobile ? 16 : 18} className="opacity-90" />
-                </button>
-
-                <button
-                  type="submit"
-                  className={`${isMobile ? 'p-1' : 'p-1.5'} rounded-full transition-all ${
-                  input.trim() && canSendMessage() && !isStreaming
-                    ? 'text-white bg-green-600 hover:bg-green-500'
-                    : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'}`}
-                  disabled={!input.trim() || !canSendMessage() || isStreaming}
-                  title="Send message"
-                >
-                  <Send size={isMobile ? 16 : 18} className="opacity-90" />
-                </button>
-              </div>
+          <form onSubmit={handleSubmit} className="relative flex items-end">
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={handleInputChange}
+              onKeyDown={handleKeyDown}
+              placeholder={quotaExhausted ? "Daily usage limit reached - try again tomorrow" : "Ask anything..."}
+              disabled={quotaExhausted || isStreaming}
+              className={`flex-1 py-4 px-4 bg-[#10141E] border border-[#2A3143] focus:border-green-500 focus:ring-2 focus:ring-green-600/30 rounded-2xl text-white resize-none shadow-md transition-all duration-200 ${isMobile ? 'h-10' : 'h-12'} max-h-[200px] overflow-y-auto flex items-center`}
+              style={{
+                minHeight: isMobile ? '42px' : '64px',
+                maxHeight: isMobile ? '80px' : '200px',
+                lineHeight: isMobile ? '1.2' : '1.5',
+                borderWidth: '2px',
+              }}
+              rows={1}
+            />
+            <div className="absolute right-2 bottom-2 flex items-center space-x-1">
+              <button
+                type="submit"
+                className={`p-2 rounded-full transition-all ${input.trim() && canSendMessage() && !isStreaming ? 'text-white bg-green-600 hover:bg-green-500' : 'text-gray-500 bg-gray-700 cursor-not-allowed opacity-50'}`}
+                disabled={!input.trim() || !canSendMessage() || isStreaming}
+                title="Send message"
+              >
+                <Send size={isMobile ? 18 : 20} className="opacity-90" />
+              </button>
             </div>
-
-            {/* Info text below input - hidden on mobile */}
-            {!isMobile && (
-              <div className="text-xs text-center text-gray-500 mt-2 opacity-70 font-light">
-                {isStreaming ?
-                  'Generating response...' :
-                  'Cropsay AI provides information based on available data. Always verify critical information.'}
-              </div>
-            )}
+  {/* Send/Pause/Resume button logic */}
           </form>
         </div>
       </div>
