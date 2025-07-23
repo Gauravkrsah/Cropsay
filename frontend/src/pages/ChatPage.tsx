@@ -73,7 +73,10 @@ const ChatPage = () => {
   
   const { user } = useAuth(); // Get authentication state
   const [isStreaming, setIsStreaming] = useState(false);
+  const [isThinking, setIsThinking] = useState(false);
   const [isRecording, setIsRecording] = useState(false);
+  const [userScrolled, setUserScrolled] = useState(false);
+  const [isAddingNewMessage, setIsAddingNewMessage] = useState(false);
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const isSmallMobile = useIsSmallMobile();
@@ -285,30 +288,91 @@ const ChatPage = () => {
     loadChatSessions();
   }, [userId, serviceInitialized]);
 
-  // Enhanced scrolling effect for messages
+  // Enhanced scrolling effect for messages - only auto-scroll when appropriate
   useEffect(() => {
-    if (messagesEndRef.current) {
-      // Use smooth scrolling on desktop, but instant on mobile for better performance
+    if (!messagesEndRef.current || !chatContainerRef.current) return;
+
+    // Don't auto-scroll during streaming to allow user to scroll freely
+    if (isStreaming && !isAddingNewMessage) return;
+
+    const container = chatContainerRef.current;
+    const { scrollTop, scrollHeight, clientHeight } = container;
+    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
+
+    // Only auto-scroll in these specific cases:
+    // 1. User is at the bottom and hasn't manually scrolled away
+    // 2. It's a new conversation (first 2 messages)
+    // 3. A new message was just added (not streaming content updates)
+    const isNewConversation = messages.length <= 2;
+    const shouldAutoScroll = (isAtBottom && !userScrolled) || isNewConversation || isAddingNewMessage;
+
+    if (shouldAutoScroll) {
       messagesEndRef.current.scrollIntoView({
-        behavior: isMobile ? 'auto' : 'smooth',
+        behavior: isNewConversation ? 'auto' : 'smooth',
         block: 'end'
       });
     }
-  }, [messages, isMobile]);
+  }, [messages.length, isAddingNewMessage]); // Only trigger on message count change or new message flag
 
-  // Handle scroll detection for scroll-to-top button
+  // Handle scroll detection for scroll-to-top button and user scroll tracking
   useEffect(() => {
     const chatContainer = chatContainerRef.current;
-    if (!chatContainer || !isMobile) return;
+    if (!chatContainer) return;
+
+    let scrollTimeout: NodeJS.Timeout;
+    let isUserScrolling = false;
 
     const handleScroll = () => {
       const { scrollTop, scrollHeight, clientHeight } = chatContainer;
-      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
-      setShowScrollTop(!isNearBottom && scrollTop > 300);
+      const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
+      const isAtBottom = distanceFromBottom < 50;
+
+      // Show scroll-to-top button on mobile
+      if (isMobile) {
+        setShowScrollTop(!isAtBottom && scrollTop > 300);
+      }
+
+      // Only mark as user scrolled if they're significantly away from bottom
+      // and it's not an automatic scroll
+      if (!isUserScrolling && distanceFromBottom > 100) {
+        setUserScrolled(true);
+      }
+
+      // Reset user scroll state when they return to bottom
+      if (isAtBottom) {
+        clearTimeout(scrollTimeout);
+        scrollTimeout = setTimeout(() => {
+          setUserScrolled(false);
+          isUserScrolling = false;
+        }, 500);
+      }
+    };
+
+    // Detect programmatic scrolls vs user scrolls
+    const handleScrollStart = () => {
+      isUserScrolling = true;
+    };
+
+    const handleScrollEnd = () => {
+      setTimeout(() => {
+        isUserScrolling = false;
+      }, 100);
     };
 
     chatContainer.addEventListener('scroll', handleScroll);
-    return () => chatContainer.removeEventListener('scroll', handleScroll);
+    chatContainer.addEventListener('touchstart', handleScrollStart);
+    chatContainer.addEventListener('touchend', handleScrollEnd);
+    chatContainer.addEventListener('mousedown', handleScrollStart);
+    chatContainer.addEventListener('mouseup', handleScrollEnd);
+
+    return () => {
+      chatContainer.removeEventListener('scroll', handleScroll);
+      chatContainer.removeEventListener('touchstart', handleScrollStart);
+      chatContainer.removeEventListener('touchend', handleScrollEnd);
+      chatContainer.removeEventListener('mousedown', handleScrollStart);
+      chatContainer.removeEventListener('mouseup', handleScrollEnd);
+      clearTimeout(scrollTimeout);
+    };
   }, [isMobile]);
 
   useEffect(() => {
@@ -379,6 +443,7 @@ const ChatPage = () => {
     const newMessages = [...messages, userMessage];
     setMessages(newMessages);
     setInput('');
+    setIsAddingNewMessage(true);
     
     // Reset textarea height to default
     if (textareaRef.current) {
@@ -389,7 +454,10 @@ const ChatPage = () => {
     const tempId = (Date.now() + 1).toString();
     
     try {
-      // Show a loading state
+      // Show thinking indicator immediately
+      setIsThinking(true);
+
+      // Show a loading state with empty content
       const loadingMessage: Message = {
         id: tempId,
         role: 'assistant' as const,
@@ -398,33 +466,45 @@ const ChatPage = () => {
       };
       setMessages([...newMessages, loadingMessage]);
       setIsStreaming(true);
+      setIsAddingNewMessage(false);
+
       let streamedContent = '';
       let streamingStopped = false;
+
       try {
         await geminiService.generateResponse(
           newMessages.map(msg => ({ role: msg.role, content: msg.content })),
-          async (token) => {
+          (token) => {
             if (streamingStopped) return;
-            // Streaming is always instant, never paused
+
+            // Hide thinking animation on first token
+            if (streamedContent === '') {
+              setIsThinking(false);
+            }
+
+            // Accumulate streamed content
             streamedContent += token;
+
+            // Update messages immediately for smooth streaming
             setMessages(currentMessages => {
               const updatedMessages = [...currentMessages];
               const loadingMessageIndex = updatedMessages.findIndex(msg => msg.id === tempId);
               if (loadingMessageIndex !== -1) {
-                const updatedMessage = {
+                updatedMessages[loadingMessageIndex] = {
                   ...updatedMessages[loadingMessageIndex],
                   content: streamedContent
                 };
-                updatedMessages[loadingMessageIndex] = updatedMessage;
               }
               return updatedMessages;
             });
-          },
-          // Ultra fast streaming: 0ms per character (instant)
+          }
         );
         streamingStopped = true;
+        setIsThinking(false);
         setIsStreaming(false);
-        // After streaming is complete, finalize the message
+        setIsAddingNewMessage(false);
+
+        // After streaming is complete, finalize the message immediately
         const finalAiResponse: Message = {
           id: tempId,
           role: 'assistant' as const,
@@ -436,7 +516,9 @@ const ChatPage = () => {
         updateChatSession(updatedMessages);
       } catch (error) {
         streamingStopped = true;
+        setIsThinking(false);
         setIsStreaming(false);
+        setIsAddingNewMessage(false);
         console.error('Error in streaming response:', error);
       }
       if (!user) {
@@ -445,6 +527,7 @@ const ChatPage = () => {
         }, 1000);
       }
     } catch (error) {
+      setIsThinking(false);
       setIsStreaming(false);
       console.error('Error generating response:', error);
       const isQuotaError = error?.message?.includes('quota') || 
@@ -729,20 +812,120 @@ const ChatPage = () => {
   };
   
   const saveEditedMessage = async (messageId: string) => {
-    // Update the message in the current messages array
-    const updatedMessages = messages.map(msg => 
-      msg.id === messageId
-        ? { ...msg, content: editContent }
-        : msg
-    );
-    
-    setMessages(updatedMessages);
-    
-    // Also update the message in the chat session and Supabase
-    await updateChatSession(updatedMessages);
-    
-    // Reset editing state
-    cancelEditing();
+    if (!editContent.trim()) return;
+
+    // Find the index of the message being edited
+    const messageIndex = messages.findIndex(msg => msg.id === messageId);
+    if (messageIndex === -1) return;
+
+    const editedMessage = messages[messageIndex];
+
+    // If it's a user message, we need to regenerate the response
+    if (editedMessage.role === 'user') {
+      // Update the user message and remove all subsequent messages
+      const messagesUpToEdited = messages.slice(0, messageIndex);
+      const updatedUserMessage = { ...editedMessage, content: editContent.trim() };
+      const newMessages = [...messagesUpToEdited, updatedUserMessage];
+
+      setMessages(newMessages);
+
+      // Reset editing state
+      cancelEditing();
+
+      // Check if user can send this message (for rate limiting)
+      if (!canSendMessage()) {
+        setShowLoginPrompt(true);
+        return;
+      }
+
+      // Generate new response for the edited question
+      setIsAddingNewMessage(true);
+      setIsThinking(true);
+      setIsStreaming(true);
+
+      // Create a unique ID for the new response message
+      const tempId = (Date.now() + 1).toString();
+
+      // Add loading message for the new response
+      const loadingMessage: Message = {
+        id: tempId,
+        role: 'assistant' as const,
+        content: '',
+        timestamp: new Date(),
+      };
+
+      const messagesWithLoading = [...newMessages, loadingMessage];
+      setMessages(messagesWithLoading);
+
+      let streamedContent = '';
+      let streamingStopped = false;
+
+      try {
+        await geminiService.generateResponse(
+          newMessages.map(msg => ({ role: msg.role, content: msg.content })),
+          (token) => {
+            if (streamingStopped) return;
+
+            // Hide thinking animation on first token
+            if (streamedContent === '') {
+              setIsThinking(false);
+            }
+
+            // Accumulate streamed content
+            streamedContent += token;
+
+            // Update messages immediately for smooth streaming
+            setMessages(currentMessages => {
+              const updatedMessages = [...currentMessages];
+              const loadingMessageIndex = updatedMessages.findIndex(msg => msg.id === tempId);
+              if (loadingMessageIndex !== -1) {
+                updatedMessages[loadingMessageIndex] = {
+                  ...updatedMessages[loadingMessageIndex],
+                  content: streamedContent
+                };
+              }
+              return updatedMessages;
+            });
+          }
+        );
+        streamingStopped = true;
+        setIsThinking(false);
+        setIsStreaming(false);
+        setIsAddingNewMessage(false);
+
+        // After streaming is complete, finalize the message
+        const finalAiResponse: Message = {
+          id: tempId,
+          role: 'assistant' as const,
+          content: streamedContent,
+          timestamp: new Date(),
+        };
+        const finalMessages = [...newMessages, finalAiResponse];
+        setMessages(finalMessages);
+        updateChatSession(finalMessages);
+      } catch (error) {
+        streamingStopped = true;
+        setIsThinking(false);
+        setIsStreaming(false);
+        setIsAddingNewMessage(false);
+        console.error('Error generating response for edited message:', error);
+
+        // Remove the loading message on error
+        setMessages(newMessages);
+        updateChatSession(newMessages);
+      }
+    } else {
+      // For assistant messages, just update the content (existing behavior)
+      const updatedMessages = messages.map(msg =>
+        msg.id === messageId
+          ? { ...msg, content: editContent.trim() }
+          : msg
+      );
+
+      setMessages(updatedMessages);
+      await updateChatSession(updatedMessages);
+      cancelEditing();
+    }
   };
   
   const deleteMessage = async (messageId: string) => {
@@ -1664,8 +1847,8 @@ const ChatPage = () => {
                     {message.role === 'assistant' && (
                       <div className={`${isMobile ? 'px-2 py-1' : 'px-4 md:px-8 lg:px-10 py-4'} border-b border-[#2A3143]/20`}>
                         <div className={`prose prose-invert max-w-[95%] text-cropsay-lightText ${isMobile ? 'ml-1' : 'ml-8'}`}>
-                          {message.id === messages[messages.length - 1].id && isStreaming ? (
-                            <ChatTextGenerateEffect key={message.content} text={message.content} isStreaming={isStreaming} />
+                          {message.id === messages[messages.length - 1].id && (isStreaming || isThinking) ? (
+                            <ChatTextGenerateEffect key={message.content} text={message.content} isStreaming={isStreaming} isThinking={isThinking} />
                           ) : (
                             <div className="text-justify leading-7">{renderFormattedContent(message.content)
 }</div>

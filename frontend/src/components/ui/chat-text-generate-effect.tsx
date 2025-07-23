@@ -2,12 +2,32 @@
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
+// Custom CSS for visible thinking animation
+const thinkingStyles = `
+  @keyframes thinkingPulse {
+    0%, 100% {
+      opacity: 0.3;
+      transform: scale(0.8);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+  }
+
+  .thinking-dot {
+    animation: thinkingPulse 1.2s ease-in-out infinite;
+  }
+`;
+
 export const ChatTextGenerateEffect = ({
   text,
   isStreaming,
+  isThinking,
 }: {
   text: string;
   isStreaming: boolean;
+  isThinking?: boolean;
 }) => {
   // Render the text with markdown formatting instantly, no animation or cursor
   const renderFormattedContent = (content: string) => {
@@ -61,10 +81,43 @@ export const ChatTextGenerateEffect = ({
     );
   };
 
-  // Render the streamed content instantly, no animation/cursor
+  // Show thinking indicator when thinking and no content yet
+  if (isThinking && !text) {
+    return (
+      <>
+        <style>{thinkingStyles}</style>
+        <div className="relative py-3">
+          <div className="flex items-center justify-start">
+            <div className="flex space-x-2 items-center">
+              <div
+                className="w-3 h-3 bg-green-400 rounded-full thinking-dot"
+                style={{ animationDelay: '0ms' }}
+              ></div>
+              <div
+                className="w-3 h-3 bg-green-400 rounded-full thinking-dot"
+                style={{ animationDelay: '0.3s' }}
+              ></div>
+              <div
+                className="w-3 h-3 bg-green-400 rounded-full thinking-dot"
+                style={{ animationDelay: '0.6s' }}
+              ></div>
+            </div>
+          </div>
+        </div>
+      </>
+    );
+  }
+
+  // Render the streamed content smoothly without blinking
   return (
     <div className="relative">
-      {renderFormattedContent(text)}
+      <div className="prose prose-invert max-w-none">
+        {text && (
+          <div className="whitespace-pre-wrap break-words">
+            {renderFormattedContent(text)}
+          </div>
+        )}
+      </div>
     </div>
   );
 };
