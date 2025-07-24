@@ -17,6 +17,11 @@ export interface Product {
   images?: string[];
   sellerId?: string;
   createdAt?: string;
+  // New filtering fields
+  tags?: string[]; // e.g., ["Organic", "New", "Popular"]
+  isOrganic?: boolean;
+  plantType?: string; // For plants section only
+  originalPrice?: number; // For discount calculations
 }
 
 // Expanded product catalog based on the provided data
@@ -32,6 +37,9 @@ export const products: Product[] = [
     subcategory: "Vegetable Seeds",
     brand: "GrowBrand",
     inStock: true,
+    tags: ["Popular", "New"],
+    isOrganic: false,
+    originalPrice: 499.99,
   },
   {
     id: 2,
@@ -43,6 +51,8 @@ export const products: Product[] = [
     subcategory: "Vegetable Seeds",
     brand: "GrowBrand",
     inStock: true,
+    tags: ["Best Seller", "Organic"],
+    isOrganic: true,
   },
   {
     id: 3,
@@ -54,6 +64,8 @@ export const products: Product[] = [
     subcategory: "Vegetable Seeds",
     brand: "GrowBrand",
     inStock: true,
+    tags: ["Popular"],
+    isOrganic: false,
   },
   {
     id: 4,
@@ -65,6 +77,9 @@ export const products: Product[] = [
     subcategory: "Vegetable Seeds",
     brand: "GrowBrand",
     inStock: true,
+    tags: ["Premium"],
+    isOrganic: false,
+    originalPrice: 600.0,
   },
   {
     id: 5,
@@ -76,6 +91,8 @@ export const products: Product[] = [
     subcategory: "Vegetable Seeds",
     brand: "GrowBrand",
     inStock: true,
+    tags: ["Organic", "Popular"],
+    isOrganic: true,
   },
   {
     id: 6,
@@ -1622,17 +1639,77 @@ export const getProductsBySubcategory = (subcategory: string): Product[] => {
   return products.filter(product => product.subcategory === subcategory);
 };
 
+// New comprehensive category structure based on BigHaat model
+export const categoryStructure = {
+  "Seeds": [
+    "Vegetable Seeds",
+    "Fruit Seeds",
+    "Flower Seeds",
+    "Cereal Seeds (e.g. Maize, Paddy)",
+    "Oil-seed & Forage Seeds",
+    "Exotic / Polyhouse Seeds"
+  ],
+  "Crop Protection": [
+    "Insecticides",
+    "Fungicides",
+    "Herbicides",
+    "Bactericides / Biologicals",
+    "Seed Treatment Chemicals"
+  ],
+  "Crop Nutrition": [
+    "Macro Nutrients (NPK Blends)",
+    "Micro Nutrients (Zn, B, etc.)",
+    "Growth Promoters / Biostimulants",
+    "Soil Amendments (Humic Acid, Vermicompost)"
+  ],
+  "Equipments": [
+    "Farm Tools (Hand tools, Weeders)",
+    "Irrigation Equipment",
+    "Power Tools & Machinery",
+    "Nursery & Greenhouse Tools"
+  ],
+  "Animal Husbandry": [
+    "Feed & Supplements",
+    "Veterinary Medicines",
+    "Animal Housing & Accessories",
+    "Aquaculture"
+  ],
+  "Organic Farming Inputs": [
+    "Organic Fertilizers (Compost, Vermicompost)",
+    "Bio-Pesticides & Bio-Control",
+    "Organic Growth Promoters"
+  ],
+  "Plants & Gardening": [
+    "Indoor Plants",
+    "Outdoor Plants",
+    "Cacti & Succulents",
+    "Hanging Plants",
+    "Rare & Premium Plants",
+    "Plant + Pot Combos",
+    "Fertilizer Combos",
+    "Seasonal Flowers"
+  ],
+  "Organic & Natural Products": [
+    "Fresh Vegetables & Fruits",
+    "Rice, Millets, and Flours",
+    "Lentils & Beans",
+    "Pure Honey",
+    "Dairy Products (Ghee, Paneer)",
+    "Organic Oils & Spices",
+    "Frozen & Prepared Foods",
+    "Superfoods (Moringa, Flaxseed, etc.)"
+  ]
+};
+
 export const getCategories = (): string[] => {
-  return [...new Set(products.map(product => product.category))];
+  return Object.keys(categoryStructure);
 };
 
 export const getSubcategories = (category?: string): string[] => {
-  if (category) {
-    return [...new Set(products
-      .filter(product => product.category === category)
-      .map(product => product.subcategory))];
+  if (category && categoryStructure[category as keyof typeof categoryStructure]) {
+    return categoryStructure[category as keyof typeof categoryStructure];
   }
-  return [...new Set(products.map(product => product.subcategory))];
+  return Object.values(categoryStructure).flat();
 };
 
 /**
@@ -1685,6 +1762,170 @@ export const getRecommendedProducts = (
   
   return recommendations;
 };
+// Filter types and options
+export interface ProductFilters {
+  category?: string;
+  subcategory?: string;
+  priceRange?: {
+    min: number;
+    max: number;
+  };
+  availability?: 'all' | 'in_stock' | 'out_of_stock';
+  isOrganic?: boolean;
+  plantType?: string;
+  tags?: string[];
+  rating?: number; // minimum rating
+  useCaseInsensitiveMatch?: boolean; // Whether to use case-insensitive matching for category and subcategory
+  usePartialMatching?: boolean; // Whether to use partial matching for category and subcategory
+}
+
+export const priceRanges = [
+  { label: "Under ₹1,000", min: 0, max: 1000 },
+  { label: "₹1,000 - ₹2,500", min: 1000, max: 2500 },
+  { label: "₹2,500 - ₹5,000", min: 2500, max: 5000 },
+  { label: "₹5,000 - ₹10,000", min: 5000, max: 10000 },
+  { label: "Above ₹10,000", min: 10000, max: Infinity }
+];
+
+export const availableTags = ["Organic", "New", "Popular", "Premium", "Best Seller", "Limited Edition"];
+
+export const plantTypes = ["Indoor", "Outdoor", "Hanging", "Succulent", "Flowering", "Foliage"];
+
+// Filter products based on criteria
+export const filterProducts = (products: Product[], filters: ProductFilters): Product[] => {
+  // Log filtering operation for debugging
+  console.log(`Filtering ${products.length} products with filters:`,
+    JSON.stringify({
+      category: filters.category,
+      subcategory: filters.subcategory,
+      useCaseInsensitive: filters.useCaseInsensitiveMatch,
+      usePartialMatching: filters.usePartialMatching
+    })
+  );
+  
+  return products.filter(product => {
+    // Category filter with optional case-insensitive and partial matching
+    if (filters.category) {
+      if (filters.usePartialMatching) {
+        // Partial match (includes)
+        const productCategory = filters.useCaseInsensitiveMatch
+          ? product.category.toLowerCase()
+          : product.category;
+        
+        const filterCategory = filters.useCaseInsensitiveMatch
+          ? filters.category.toLowerCase()
+          : filters.category;
+        
+        if (!productCategory.includes(filterCategory) && !filterCategory.includes(productCategory)) {
+          return false;
+        }
+      } else if (filters.useCaseInsensitiveMatch) {
+        // Case-insensitive exact match
+        if (product.category.toLowerCase() !== filters.category.toLowerCase()) {
+          return false;
+        }
+      } else {
+        // Exact match
+        if (product.category !== filters.category) {
+          return false;
+        }
+      }
+    }
+
+    // Subcategory filter with optional case-insensitive and partial matching
+    if (filters.subcategory) {
+      if (filters.usePartialMatching) {
+        // Partial match (includes)
+        const productSubcategory = filters.useCaseInsensitiveMatch
+          ? product.subcategory.toLowerCase()
+          : product.subcategory;
+        
+        const filterSubcategory = filters.useCaseInsensitiveMatch
+          ? filters.subcategory.toLowerCase()
+          : filters.subcategory;
+        
+        if (!productSubcategory.includes(filterSubcategory) && !filterSubcategory.includes(productSubcategory)) {
+          return false;
+        }
+      } else if (filters.useCaseInsensitiveMatch) {
+        // Case-insensitive exact match
+        if (product.subcategory.toLowerCase() !== filters.subcategory.toLowerCase()) {
+          return false;
+        }
+      } else {
+        // Exact match
+        if (product.subcategory !== filters.subcategory) {
+          return false;
+        }
+      }
+    }
+
+    // Price range filter
+    if (filters.priceRange) {
+      const { min, max } = filters.priceRange;
+      if (product.price < min || product.price > max) {
+        return false;
+      }
+    }
+
+    // Availability filter
+    if (filters.availability === 'in_stock' && !product.inStock) {
+      return false;
+    }
+    if (filters.availability === 'out_of_stock' && product.inStock) {
+      return false;
+    }
+
+    // Organic filter
+    if (filters.isOrganic !== undefined && product.isOrganic !== filters.isOrganic) {
+      return false;
+    }
+
+    // Plant type filter (for plants section only)
+    if (filters.plantType) {
+      if (filters.useCaseInsensitiveMatch) {
+        // Case-insensitive match for plant type
+        if (!product.plantType || product.plantType.toLowerCase() !== filters.plantType.toLowerCase()) {
+          return false;
+        }
+      } else {
+        // Exact match
+        if (!product.plantType || product.plantType !== filters.plantType) {
+          return false;
+        }
+      }
+    }
+
+    // Tags filter
+    if (filters.tags && filters.tags.length > 0) {
+      const productTags = product.tags || [];
+      let hasMatchingTag = false;
+      
+      if (filters.useCaseInsensitiveMatch) {
+        // Case-insensitive tag matching
+        const lowerCaseTags = productTags.map(tag => tag.toLowerCase());
+        hasMatchingTag = filters.tags.some(tag =>
+          lowerCaseTags.includes(tag.toLowerCase())
+        );
+      } else {
+        // Exact tag matching
+        hasMatchingTag = filters.tags.some(tag => productTags.includes(tag));
+      }
+      
+      if (!hasMatchingTag) {
+        return false;
+      }
+    }
+
+    // Rating filter
+    if (filters.rating && product.rating < filters.rating) {
+      return false;
+    }
+
+    return true;
+  });
+};
+
 // Export categories and subcategories directly for easier imports
 export const categories = getCategories();
 export const subcategories = getSubcategories();

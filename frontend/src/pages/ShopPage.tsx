@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Search, Filter, ShoppingCartIcon, X, ShoppingBag, Home, ChevronRight, Leaf, Zap, Wrench, Package, Star } from 'lucide-react';
+import { Search, Filter, ShoppingCartIcon, X, ShoppingBag, Home, ChevronRight, ChevronLeft, Leaf, Zap, Wrench, Package, Star } from 'lucide-react';
 import { useCart } from '@/contexts/CartContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { ShoppingCart } from '@/components/ShoppingCart';
-import { getCategories, Product } from '@/data/productData';
+import { getCategories, getSubcategories, Product, ProductFilters, filterProducts, priceRanges, availableTags, plantTypes } from '@/data/productData';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   fetchProducts,
@@ -31,6 +31,34 @@ const ShopPage = () => {
   const [cancellingOrderId, setCancellingOrderId] = useState<string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
   const [showOrderDetails, setShowOrderDetails] = useState(false);
+
+  // Scroll state for categories and subcategories
+  const [canScrollCategoriesLeft, setCanScrollCategoriesLeft] = useState(false);
+  const [canScrollCategoriesRight, setCanScrollCategoriesRight] = useState(false);
+  const [canScrollSubcategoriesLeft, setCanScrollSubcategoriesLeft] = useState(false);
+  const [canScrollSubcategoriesRight, setCanScrollSubcategoriesRight] = useState(false);
+
+  // Refs for scroll containers
+  const categoriesScrollRef = React.useRef<HTMLDivElement>(null);
+  const subcategoriesScrollRef = React.useRef<HTMLDivElement>(null);
+
+  // New comprehensive filter state
+  const [filters, setFilters] = useState<ProductFilters>({
+    category: undefined,
+    subcategory: undefined,
+    priceRange: undefined,
+    availability: 'all',
+    isOrganic: undefined,
+    plantType: undefined,
+    tags: [],
+    rating: undefined
+  });
+  const [activeSubcategory, setActiveSubcategory] = useState<string>('');
+  const [selectedPriceRanges, setSelectedPriceRanges] = useState<string[]>([]);
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
+  const [selectedRating, setSelectedRating] = useState<number | null>(null);
+  const [organicFilter, setOrganicFilter] = useState<'all' | 'organic' | 'non-organic'>('all');
+  const [availabilityFilter, setAvailabilityFilter] = useState<'all' | 'in_stock' | 'out_of_stock'>('all');
 
   const { items, openCart } = useCart();
   const { user } = useAuth();
@@ -72,10 +100,14 @@ const ShopPage = () => {
       
       if (searchQuery.trim()) {
         fetchedProducts = await searchProducts(searchQuery);
+        console.log(`Fetched ${fetchedProducts.length} products matching search: "${searchQuery}"`);
       } else if (activeCategory === 'All Products') {
         fetchedProducts = await fetchProducts();
+        console.log(`Fetched all ${fetchedProducts.length} products`);
       } else {
+        // Fetch all products for the selected category to ensure we have complete data
         fetchedProducts = await getProductsByCategory(activeCategory);
+        console.log(`Fetched ${fetchedProducts.length} products for category: "${activeCategory}"`);
       }
       
       setProducts(fetchedProducts);
@@ -160,6 +192,74 @@ const ShopPage = () => {
     }
   }, [orders]);
 
+  // Scroll functions for categories
+  const scrollCategories = (direction: 'left' | 'right') => {
+    const container = categoriesScrollRef.current;
+    if (!container) return;
+
+    const scrollAmount = 200;
+    const newScrollLeft = direction === 'left'
+      ? container.scrollLeft - scrollAmount
+      : container.scrollLeft + scrollAmount;
+
+    container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+  };
+
+  const scrollSubcategories = (direction: 'left' | 'right') => {
+    const container = subcategoriesScrollRef.current;
+    if (!container) return;
+
+    const scrollAmount = 200;
+    const newScrollLeft = direction === 'left'
+      ? container.scrollLeft - scrollAmount
+      : container.scrollLeft + scrollAmount;
+
+    container.scrollTo({ left: newScrollLeft, behavior: 'smooth' });
+  };
+
+  // Check scroll positions
+  const checkScrollPosition = (container: HTMLDivElement, setCanScrollLeft: (value: boolean) => void, setCanScrollRight: (value: boolean) => void) => {
+    if (!container) return;
+
+    const { scrollLeft, scrollWidth, clientWidth } = container;
+    setCanScrollLeft(scrollLeft > 0);
+    setCanScrollRight(scrollLeft < scrollWidth - clientWidth - 1);
+  };
+
+  // Handle scroll events
+  const handleCategoriesScroll = () => {
+    checkScrollPosition(categoriesScrollRef.current!, setCanScrollCategoriesLeft, setCanScrollCategoriesRight);
+  };
+
+  const handleSubcategoriesScroll = () => {
+    checkScrollPosition(subcategoriesScrollRef.current!, setCanScrollSubcategoriesLeft, setCanScrollSubcategoriesRight);
+  };
+
+  // Initialize scroll positions
+  useEffect(() => {
+    const categoriesContainer = categoriesScrollRef.current;
+    const subcategoriesContainer = subcategoriesScrollRef.current;
+
+    if (categoriesContainer) {
+      checkScrollPosition(categoriesContainer, setCanScrollCategoriesLeft, setCanScrollCategoriesRight);
+      categoriesContainer.addEventListener('scroll', handleCategoriesScroll);
+    }
+
+    if (subcategoriesContainer) {
+      checkScrollPosition(subcategoriesContainer, setCanScrollSubcategoriesLeft, setCanScrollSubcategoriesRight);
+      subcategoriesContainer.addEventListener('scroll', handleSubcategoriesScroll);
+    }
+
+    return () => {
+      if (categoriesContainer) {
+        categoriesContainer.removeEventListener('scroll', handleCategoriesScroll);
+      }
+      if (subcategoriesContainer) {
+        subcategoriesContainer.removeEventListener('scroll', handleSubcategoriesScroll);
+      }
+    };
+  }, [activeCategory]); // Re-run when category changes to update subcategories scroll
+
   useEffect(() => {
     document.body.style.overflow = 'hidden';
     return () => {
@@ -170,6 +270,45 @@ const ShopPage = () => {
   useEffect(() => {
     loadProducts();
   }, [loadProducts]);
+  
+  // Effect to update subcategories when category changes
+  useEffect(() => {
+    if (activeCategory !== 'All Products') {
+      // Log available subcategories for this category
+      const subcategories = getSubcategories(activeCategory);
+      console.log(`Available subcategories for ${activeCategory}:`, subcategories);
+      
+      // Check if products have these subcategories
+      const productSubcategories = [...new Set(
+        products
+          .filter(p => p.category.toLowerCase() === activeCategory.toLowerCase())
+          .map(p => p.subcategory)
+      )];
+      
+      console.log(`Subcategories found in products for ${activeCategory}:`, productSubcategories);
+      
+      // Check for mismatches
+      const missingInProducts = subcategories.filter(
+        sub => !productSubcategories.some(prodSub =>
+          prodSub.toLowerCase() === sub.toLowerCase()
+        )
+      );
+      
+      const missingInDefinitions = productSubcategories.filter(
+        prodSub => !subcategories.some(sub =>
+          sub.toLowerCase() === prodSub.toLowerCase()
+        )
+      );
+      
+      if (missingInProducts.length > 0) {
+        console.warn(`Subcategories defined but not found in products:`, missingInProducts);
+      }
+      
+      if (missingInDefinitions.length > 0) {
+        console.warn(`Subcategories in products but not defined:`, missingInDefinitions);
+      }
+    }
+  }, [activeCategory, products]);
 
   useEffect(() => {
     const urlSearchQuery = searchParams.get('search');
@@ -178,9 +317,54 @@ const ShopPage = () => {
     }
   }, [searchParams]);
 
-  // Filter and sort products
+  // Filter and sort products with comprehensive filtering
   const filteredProducts = React.useMemo(() => {
     let filtered = [...products];
+    
+    console.log(`Filtering ${filtered.length} products with category: "${activeCategory}", subcategory: "${activeSubcategory}"`);
+
+    // Special handling for Plants & Gardening category
+    const isPlantsCategory = activeCategory.toLowerCase().includes('plants') ||
+                            activeCategory.toLowerCase().includes('gardening');
+    
+    // Apply comprehensive filters with improved case-insensitive matching
+    const currentFilters: ProductFilters = {
+      category: activeCategory === 'All Products' ? undefined : activeCategory,
+      subcategory: activeSubcategory || undefined,
+      priceRange: selectedPriceRanges.length > 0 ? {
+        min: Math.min(...selectedPriceRanges.map(range => {
+          const priceRange = priceRanges.find(pr => pr.label === range);
+          return priceRange ? priceRange.min : 0;
+        })),
+        max: Math.max(...selectedPriceRanges.map(range => {
+          const priceRange = priceRanges.find(pr => pr.label === range);
+          return priceRange ? priceRange.max : Infinity;
+        }))
+      } : undefined,
+      availability: availabilityFilter === 'all' ? undefined : availabilityFilter,
+      isOrganic: organicFilter === 'all' ? undefined : organicFilter === 'organic',
+      tags: selectedTags.length > 0 ? selectedTags : undefined,
+      rating: selectedRating || undefined,
+      useCaseInsensitiveMatch: true, // Enable case-insensitive matching
+      usePartialMatching: isPlantsCategory // Enable partial matching for Plants & Gardening
+    };
+
+    filtered = filterProducts(filtered, currentFilters);
+    console.log(`After filtering: ${filtered.length} products match the criteria`);
+    
+    // If we're in Plants & Gardening category and have no results, try a broader search
+    if (isPlantsCategory && filtered.length === 0 && activeSubcategory) {
+      console.log(`No products found for subcategory "${activeSubcategory}". Trying broader search...`);
+      
+      // Try matching by partial subcategory name
+      filtered = products.filter(product =>
+        product.category.toLowerCase().includes(activeCategory.toLowerCase()) &&
+        (product.subcategory.toLowerCase().includes(activeSubcategory.toLowerCase()) ||
+         activeSubcategory.toLowerCase().includes(product.subcategory.toLowerCase()))
+      );
+      
+      console.log(`Broader search found ${filtered.length} products`);
+    }
 
     // Sort products
     switch (sortBy) {
@@ -201,11 +385,17 @@ const ShopPage = () => {
     }
 
     return filtered;
-  }, [products, sortBy]);
+  }, [products, sortBy, activeCategory, activeSubcategory, selectedPriceRanges, availabilityFilter, organicFilter, selectedTags, selectedRating]);
 
   const clearFilters = () => {
     setActiveCategory('All Products');
+    setActiveSubcategory('');
     setSearchQuery('');
+    setSelectedPriceRanges([]);
+    setSelectedTags([]);
+    setSelectedRating(null);
+    setOrganicFilter('all');
+    setAvailabilityFilter('all');
     navigate('/shop', { replace: true });
   };
 
@@ -257,6 +447,26 @@ const ShopPage = () => {
         .search-placeholder {
           animation: fadeInOut 3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
           transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        /* Enhanced scrollbar hiding and smooth scrolling */
+        .category-scroll-container {
+          scrollbar-width: none;
+          -ms-overflow-style: none;
+          scroll-behavior: smooth;
+        }
+
+        .category-scroll-container::-webkit-scrollbar {
+          display: none;
+        }
+
+        /* Gradient fade effects for scroll arrows */
+        .scroll-fade-left {
+          background: linear-gradient(to right, rgba(26, 31, 46, 1) 0%, rgba(26, 31, 46, 0.8) 50%, rgba(26, 31, 46, 0) 100%);
+        }
+
+        .scroll-fade-right {
+          background: linear-gradient(to left, rgba(26, 31, 46, 1) 0%, rgba(26, 31, 46, 0.8) 50%, rgba(26, 31, 46, 0) 100%);
         }
       `}</style>
       <div className="flex flex-col h-screen bg-[#1E2735] relative">
@@ -392,14 +602,17 @@ const ShopPage = () => {
           {isMobile ? (
             <div className="flex flex-col space-y-2.5 min-h-[76px]"> {/* Increased spacing and min-height for better mobile UX */}
               {/* Categories */}
-              <div className="flex gap-2 overflow-x-auto scrollbar-hide -mx-1 px-1"> {/* Increased spacing between category buttons */}
+              <div className="flex gap-2.5 overflow-x-auto scrollbar-hide -mx-1 px-1"> {/* Increased spacing between category buttons */}
                 <button
-                  onClick={() => setActiveCategory('All Products')}
+                  onClick={() => {
+                    setActiveCategory('All Products');
+                    setActiveSubcategory('');
+                  }}
                   className={cn(
-                    "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border shadow-sm", // Increased padding for better touch targets
+                    "flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border-2 shadow-lg transform active:scale-95", // Enhanced mobile styling
                     activeCategory === 'All Products'
-                      ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-md"
-                      : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
+                      ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-[#4A5568]/25"
+                      : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-300 border-[#2A3143] active:bg-[#2A3143]"
                   )}
                 >
                   All
@@ -407,21 +620,60 @@ const ShopPage = () => {
                 {categories.map(category => (
                   <button
                     key={category}
-                    onClick={() => setActiveCategory(category)}
+                    onClick={() => {
+                      // Only reset subcategory when changing to a different category
+                      if (activeCategory !== category) {
+                        setActiveCategory(category);
+                        setActiveSubcategory(''); // Reset subcategory when changing category
+                      }
+                    }}
                     className={cn(
-                      "flex-shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 border flex items-center gap-1 shadow-sm", // Increased padding for better touch targets
+                      "flex-shrink-0 px-4 py-2 rounded-xl text-sm font-semibold transition-all duration-300 border-2 flex items-center gap-1.5 shadow-lg transform active:scale-95", // Enhanced mobile styling
                       activeCategory === category
-                        ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-md"
-                        : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143] hover:shadow-sm"
+                        ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-cropsay-green/25"
+                        : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-300 border-[#2A3143] active:bg-[#2A3143]"
                     )}
                   >
-                    {category === 'Seeds' && <Leaf size={14} className="flex-shrink-0" />}
-                    {category === 'Fertilizers' && <Zap size={14} className="flex-shrink-0" />}
-                    {category === 'Tools' && <Wrench size={14} className="flex-shrink-0" />}
+                    {category === 'Seeds' && <Leaf size={16} className="flex-shrink-0" />}
+                    {category === 'Crop Protection' && <Zap size={16} className="flex-shrink-0" />}
+                    {category === 'Crop Nutrition' && <Zap size={16} className="flex-shrink-0" />}
+                    {category === 'Equipments' && <Wrench size={16} className="flex-shrink-0" />}
+                    {category === 'Tools & Equipment' && <Wrench size={16} className="flex-shrink-0" />}
                     <span className="truncate">{category}</span>
                   </button>
                 ))}
               </div>
+
+              {/* Subcategories - Show when a category is selected */}
+              {activeCategory !== 'All Products' && (
+                <div className="flex gap-2.5 overflow-x-auto scrollbar-hide -mx-1 px-1 mt-2">
+                  <button
+                    onClick={() => setActiveSubcategory('')}
+                    className={cn(
+                      "flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 border-2 shadow-md transform active:scale-95",
+                      activeSubcategory === ''
+                        ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-[#4A5568]/20"
+                        : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-400 border-[#2A3143] active:bg-[#2A3143]"
+                    )}
+                  >
+                    All {activeCategory}
+                  </button>
+                  {getSubcategories(activeCategory).map(subcategory => (
+                    <button
+                      key={subcategory}
+                      onClick={() => setActiveSubcategory(subcategory)}
+                      className={cn(
+                        "flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all duration-300 border-2 shadow-md transform active:scale-95",
+                        activeSubcategory === subcategory
+                          ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-cropsay-green/20"
+                          : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-400 border-[#2A3143] active:bg-[#2A3143]"
+                      )}
+                    >
+                      <span className="truncate">{subcategory}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               
               {/* Product count and Sort */}
               <div className="flex items-center justify-between">
@@ -444,62 +696,175 @@ const ShopPage = () => {
               </div>
             </div>
           ) : (
-            /* Desktop layout - Single row with flex layout */
-            <div className="flex items-center justify-between h-12">
-              {/* Categories - Left */}
-              <div className="flex gap-3 overflow-x-auto scrollbar-hide max-w-[65%] transition-all duration-300">
-                <button
-                  onClick={() => setActiveCategory('All Products')}
-                  className={cn(
-                    "flex-shrink-0 px-4 py-1.5 rounded-full text-base font-medium transition-colors border",
-                    activeCategory === 'All Products'
-                      ? "bg-[#4A5568] text-white border-[#4A5568]"
-                      : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143]"
-                  )}
-                >
-                  All
-                </button>
-                {categories.map(category => (
+            /* Desktop layout - Categories and subcategories */
+            <div className="space-y-3">
+              {/* Main Categories Row */}
+              <div className="flex items-center justify-between">
+                {/* Categories with Scroll Arrows - Left */}
+                <div className="relative flex items-center max-w-[75%] transition-all duration-300">
+                  {/* Left Arrow */}
                   <button
-                    key={category}
-                    onClick={() => setActiveCategory(category)}
+                    onClick={() => scrollCategories('left')}
                     className={cn(
-                      "flex-shrink-0 px-4 py-1.5 rounded-full text-base font-medium transition-colors border flex items-center gap-2",
-                      activeCategory === category
-                        ? "bg-cropsay-green text-white border-cropsay-green"
-                        : "bg-transparent text-gray-300 hover:bg-[#2A3143] border-[#2A3143]"
+                      "absolute left-0 z-10 p-2 rounded-full scroll-fade-left transition-all duration-200 hover:bg-[#2A3143]",
+                      canScrollCategoriesLeft
+                        ? "opacity-100 cursor-pointer"
+                        : "opacity-0 cursor-default pointer-events-none"
                     )}
+                    disabled={!canScrollCategoriesLeft}
                   >
-                    {category === 'Seeds' && <Leaf size={16} className="flex-shrink-0" />}
-                    {category === 'Fertilizers' && <Zap size={16} className="flex-shrink-0" />}
-                    {category === 'Tools' && <Wrench size={16} className="flex-shrink-0" />}
-                    <span className="truncate">{category}</span>
+                    <ChevronLeft size={18} className="text-gray-300 hover:text-white" />
                   </button>
-                ))}
-              </div>
-              
-              {/* Right side - Product count and Sort in a single line */}
-              <div className="flex items-center gap-5 flex-shrink-0">
-                {/* Product count */}
-                <p className="text-base text-gray-400 whitespace-nowrap font-medium">
-                  {filteredProducts.length} products
-                </p>
 
-                {/* Sort */}
-                <div className="flex items-center gap-3">
-                  <span className="text-base text-gray-400 font-medium">Sort:</span>
-                  <select
-                    value={sortBy}
-                    onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
-                    className="bg-[#10141E] border border-[#2A3143] rounded-lg px-3 py-1.5 text-base text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none w-[130px]"
+                  {/* Categories Container */}
+                  <div
+                    ref={categoriesScrollRef}
+                    className="flex gap-3 overflow-x-auto category-scroll-container px-8 transition-all duration-300"
                   >
-                    <option value="popular">Popular</option>
-                    <option value="price-low">Price: Low</option>
-                    <option value="price-high">Price: High</option>
-                    <option value="newest">Newest</option>
-                  </select>
+                    <button
+                      onClick={() => {
+                        setActiveCategory('All Products');
+                        setActiveSubcategory('');
+                      }}
+                      className={cn(
+                        "flex-shrink-0 px-5 py-2 rounded-xl text-base font-semibold transition-all duration-300 border-2 shadow-lg hover:shadow-xl transform hover:scale-105",
+                        activeCategory === 'All Products'
+                          ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-[#4A5568]/25"
+                          : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-300 hover:text-white border-[#2A3143] hover:border-[#3A4153] hover:from-[#2A3143] hover:to-[#242936]"
+                      )}
+                    >
+                      All
+                    </button>
+                    {categories.map(category => (
+                      <button
+                        key={category}
+                        onClick={() => {
+                          // Only reset subcategory when changing to a different category
+                          if (activeCategory !== category) {
+                            setActiveCategory(category);
+                            setActiveSubcategory(''); // Reset subcategory when changing category
+                          }
+                        }}
+                        className={cn(
+                          "flex-shrink-0 px-5 py-2 rounded-xl text-base font-semibold transition-all duration-300 border-2 flex items-center gap-2.5 shadow-lg hover:shadow-xl transform hover:scale-105",
+                          activeCategory === category
+                            ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-cropsay-green/25"
+                            : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-300 hover:text-white border-[#2A3143] hover:border-[#3A4153] hover:from-[#2A3143] hover:to-[#242936]"
+                        )}
+                      >
+                        {category === 'Seeds' && <Leaf size={18} className="flex-shrink-0" />}
+                        {category === 'Crop Protection' && <Zap size={18} className="flex-shrink-0" />}
+                        {category === 'Crop Nutrition' && <Zap size={18} className="flex-shrink-0" />}
+                        {category === 'Equipments' && <Wrench size={18} className="flex-shrink-0" />}
+                        {category === 'Tools & Equipment' && <Wrench size={18} className="flex-shrink-0" />}
+                        <span className="truncate">{category}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Right Arrow */}
+                  <button
+                    onClick={() => scrollCategories('right')}
+                    className={cn(
+                      "absolute right-0 z-10 p-2 rounded-full scroll-fade-right transition-all duration-200 hover:bg-[#2A3143]",
+                      canScrollCategoriesRight
+                        ? "opacity-100 cursor-pointer"
+                        : "opacity-0 cursor-default pointer-events-none"
+                    )}
+                    disabled={!canScrollCategoriesRight}
+                  >
+                    <ChevronRight size={18} className="text-gray-300 hover:text-white" />
+                  </button>
+                </div>
+
+                {/* Right side - Product count and Sort in a single line */}
+                <div className="flex items-center gap-5 flex-shrink-0">
+                  {/* Product count */}
+                  <p className="text-base text-gray-400 whitespace-nowrap font-medium">
+                    {filteredProducts.length} products
+                  </p>
+
+                  {/* Sort */}
+                  <div className="flex items-center gap-3">
+                    <span className="text-base text-gray-400 font-medium">Sort:</span>
+                    <select
+                      value={sortBy}
+                      onChange={(e) => setSortBy(e.target.value as 'popular' | 'price-low' | 'price-high' | 'newest')}
+                      className="bg-[#10141E] border border-[#2A3143] rounded-lg px-3 py-1.5 text-base text-white focus:border-cropsay-green focus:ring-1 focus:ring-cropsay-green outline-none w-[130px]"
+                    >
+                      <option value="popular">Popular</option>
+                      <option value="price-low">Price: Low</option>
+                      <option value="price-high">Price: High</option>
+                      <option value="newest">Newest</option>
+                    </select>
+                  </div>
                 </div>
               </div>
+
+              {/* Subcategories Row with Scroll Arrows - Show when a category is selected */}
+              {activeCategory !== 'All Products' && (
+                <div className="relative flex items-center">
+                  {/* Left Arrow */}
+                  <button
+                    onClick={() => scrollSubcategories('left')}
+                    className={cn(
+                      "absolute left-0 z-10 p-1.5 rounded-full scroll-fade-left transition-all duration-200 hover:bg-[#2A3143]",
+                      canScrollSubcategoriesLeft
+                        ? "opacity-100 cursor-pointer"
+                        : "opacity-0 cursor-default pointer-events-none"
+                    )}
+                    disabled={!canScrollSubcategoriesLeft}
+                  >
+                    <ChevronLeft size={16} className="text-gray-400 hover:text-white" />
+                  </button>
+
+                  {/* Subcategories Container */}
+                  <div
+                    ref={subcategoriesScrollRef}
+                    className="flex gap-2.5 overflow-x-auto category-scroll-container px-6 transition-all duration-300"
+                  >
+                    <button
+                      onClick={() => setActiveSubcategory('')}
+                      className={cn(
+                        "flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 border shadow-md hover:shadow-lg transform hover:scale-105",
+                        activeSubcategory === ''
+                          ? "bg-gradient-to-r from-[#4A5568] to-[#525866] text-white border-[#4A5568] shadow-[#4A5568]/20"
+                          : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-400 hover:text-white border-[#2A3143] hover:border-[#3A4153] hover:from-[#2A3143] hover:to-[#242936]"
+                      )}
+                    >
+                      All {activeCategory}
+                    </button>
+                    {getSubcategories(activeCategory).map(subcategory => (
+                      <button
+                        key={subcategory}
+                        onClick={() => setActiveSubcategory(subcategory)}
+                        className={cn(
+                          "flex-shrink-0 px-4 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 border shadow-md hover:shadow-lg transform hover:scale-105",
+                          activeSubcategory === subcategory
+                            ? "bg-gradient-to-r from-cropsay-green to-green-500 text-white border-cropsay-green shadow-cropsay-green/20"
+                            : "bg-gradient-to-r from-[#1A1F2E] to-[#171C29] text-gray-400 hover:text-white border-[#2A3143] hover:border-[#3A4153] hover:from-[#2A3143] hover:to-[#242936]"
+                        )}
+                      >
+                        <span className="truncate">{subcategory}</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Right Arrow */}
+                  <button
+                    onClick={() => scrollSubcategories('right')}
+                    className={cn(
+                      "absolute right-0 z-10 p-1.5 rounded-full scroll-fade-right transition-all duration-200 hover:bg-[#2A3143]",
+                      canScrollSubcategoriesRight
+                        ? "opacity-100 cursor-pointer"
+                        : "opacity-0 cursor-default pointer-events-none"
+                    )}
+                    disabled={!canScrollSubcategoriesRight}
+                  >
+                    <ChevronRight size={16} className="text-gray-400 hover:text-white" />
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -507,7 +872,14 @@ const ShopPage = () => {
 
       {/* Products Grid - Only this section scrollable */}
       <div className="flex-1" style={{
-        paddingTop: isMobile ? (isSmallMobile ? "140px" : "152px") : "calc(64px + 48px + 16px)", /* Mobile: dynamic padding based on header height */
+        // Increase padding when subcategories are shown
+        paddingTop: isMobile
+          ? (isSmallMobile
+              ? (activeCategory !== 'All Products' ? "190px" : "150px") // Increased padding for mobile
+              : (activeCategory !== 'All Products' ? "202px" : "162px")) // Increased padding for mobile
+          : (activeCategory !== 'All Products'
+              ? "calc(64px + 48px + 16px + 48px)" // Increased padding for desktop
+              : "calc(64px + 48px + 16px + 8px)"), // Added small padding for desktop
       }}>
         <div className="h-full overflow-y-auto custom-scrollbar product-container">
           <div className={cn(
@@ -573,10 +945,12 @@ const ShopPage = () => {
             ) : (
               <div className={cn(
                 "grid",
-                isMobile 
+                isMobile
                   ? "grid-cols-2 gap-3" // Tighter gap for mobile
                   : "grid-cols-3 gap-4 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-7" // Responsive breakpoints
-              )}>
+              )}
+              style={{ minHeight: "calc(100vh - 300px)" }} // Ensure grid has minimum height to show scrollbar
+              >
                 {filteredProducts.map(product => (
                   <ProductCard
                     key={product.id}
@@ -631,7 +1005,7 @@ const ShopPage = () => {
                       checked={activeCategory === 'All Products'}
                       onChange={() => {
                         setActiveCategory('All Products');
-                        setShowFilters(false);
+                        setActiveSubcategory('');
                       }}
                       className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                     />
@@ -645,14 +1019,16 @@ const ShopPage = () => {
                         checked={activeCategory === category}
                         onChange={() => {
                           setActiveCategory(category);
-                          setShowFilters(false);
+                          setActiveSubcategory(''); // Reset subcategory when changing category
                         }}
                         className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                       />
                       <span className="ml-2 text-sm text-gray-300 flex items-center gap-2">
                         {category === 'Seeds' && <Leaf size={16} className="text-cropsay-green" />}
-                        {category === 'Fertilizers' && <Zap size={16} className="text-cropsay-green" />}
-                        {category === 'Tools' && <Wrench size={16} className="text-cropsay-green" />}
+                        {category === 'Crop Protection' && <Zap size={16} className="text-cropsay-green" />}
+                        {category === 'Crop Nutrition' && <Zap size={16} className="text-cropsay-green" />}
+                        {category === 'Equipments' && <Wrench size={16} className="text-cropsay-green" />}
+                        {category === 'Tools & Equipment' && <Wrench size={16} className="text-cropsay-green" />}
                         {category}
                       </span>
                     </label>
@@ -660,38 +1036,156 @@ const ShopPage = () => {
                 </div>
               </div>
 
+              {/* Subcategories - Show when a category is selected */}
+              {activeCategory !== 'All Products' && (
+                <div>
+                  <h3 className="text-base font-medium text-white mb-3">Subcategories</h3>
+                  <div className="space-y-2 max-h-40 overflow-y-auto">
+                    <label className="flex items-center cursor-pointer">
+                      <input
+                        type="radio"
+                        name="subcategory"
+                        checked={activeSubcategory === ''}
+                        onChange={() => setActiveSubcategory('')}
+                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">All {activeCategory}</span>
+                    </label>
+                    {getSubcategories(activeCategory).map((subcategory) => (
+                      <label key={subcategory} className="flex items-center cursor-pointer">
+                        <input
+                          type="radio"
+                          name="subcategory"
+                          checked={activeSubcategory === subcategory}
+                          onChange={() => setActiveSubcategory(subcategory)}
+                          className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                        />
+                        <span className="ml-2 text-sm text-gray-300">{subcategory}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Price Range */}
               <div>
                 <h3 className="text-base font-medium text-white mb-3">Price Range</h3>
                 <div className="space-y-2">
+                  {priceRanges.map((range) => (
+                    <label key={range.label} className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedPriceRanges.includes(range.label)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedPriceRanges([...selectedPriceRanges, range.label]);
+                          } else {
+                            setSelectedPriceRanges(selectedPriceRanges.filter(r => r !== range.label));
+                          }
+                        }}
+                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">{range.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Availability */}
+              <div>
+                <h3 className="text-base font-medium text-white mb-3">Availability</h3>
+                <div className="space-y-2">
                   <label className="flex items-center cursor-pointer">
                     <input
-                      type="checkbox"
-                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      type="radio"
+                      name="availability"
+                      checked={availabilityFilter === 'all'}
+                      onChange={() => setAvailabilityFilter('all')}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                     />
-                    <span className="ml-2 text-sm text-gray-300">Under ₹1,000</span>
+                    <span className="ml-2 text-sm text-gray-300">All Products</span>
                   </label>
                   <label className="flex items-center cursor-pointer">
                     <input
-                      type="checkbox"
-                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      type="radio"
+                      name="availability"
+                      checked={availabilityFilter === 'in_stock'}
+                      onChange={() => setAvailabilityFilter('in_stock')}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                     />
-                    <span className="ml-2 text-sm text-gray-300">₹1,000 - ₹2,500</span>
+                    <span className="ml-2 text-sm text-gray-300">In Stock</span>
                   </label>
                   <label className="flex items-center cursor-pointer">
                     <input
-                      type="checkbox"
-                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      type="radio"
+                      name="availability"
+                      checked={availabilityFilter === 'out_of_stock'}
+                      onChange={() => setAvailabilityFilter('out_of_stock')}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                     />
-                    <span className="ml-2 text-sm text-gray-300">₹2,500 - ₹5,000</span>
+                    <span className="ml-2 text-sm text-gray-300">Out of Stock</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Organic/Non-Organic */}
+              <div>
+                <h3 className="text-base font-medium text-white mb-3">Organic</h3>
+                <div className="space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="organic"
+                      checked={organicFilter === 'all'}
+                      onChange={() => setOrganicFilter('all')}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">All Products</span>
                   </label>
                   <label className="flex items-center cursor-pointer">
                     <input
-                      type="checkbox"
-                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      type="radio"
+                      name="organic"
+                      checked={organicFilter === 'organic'}
+                      onChange={() => setOrganicFilter('organic')}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                     />
-                    <span className="ml-2 text-sm text-gray-300">Above ₹5,000</span>
+                    <span className="ml-2 text-sm text-gray-300">Organic Only</span>
                   </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="organic"
+                      checked={organicFilter === 'non-organic'}
+                      onChange={() => setOrganicFilter('non-organic')}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">Non-Organic</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Product Tags */}
+              <div>
+                <h3 className="text-base font-medium text-white mb-3">Product Tags</h3>
+                <div className="space-y-2">
+                  {availableTags.map((tag) => (
+                    <label key={tag} className="flex items-center cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedTags.includes(tag)}
+                        onChange={(e) => {
+                          if (e.target.checked) {
+                            setSelectedTags([...selectedTags, tag]);
+                          } else {
+                            setSelectedTags(selectedTags.filter(t => t !== tag));
+                          }
+                        }}
+                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                      />
+                      <span className="ml-2 text-sm text-gray-300">{tag}</span>
+                    </label>
+                  ))}
                 </div>
               </div>
 
@@ -699,11 +1193,24 @@ const ShopPage = () => {
               <div>
                 <h3 className="text-base font-medium text-white mb-3">Rating</h3>
                 <div className="space-y-2">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="rating"
+                      checked={selectedRating === null}
+                      onChange={() => setSelectedRating(null)}
+                      className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
+                    />
+                    <span className="ml-2 text-sm text-gray-300">All Ratings</span>
+                  </label>
                   {[5, 4, 3, 2, 1].map((rating) => (
                     <label key={rating} className="flex items-center cursor-pointer">
                       <input
-                        type="checkbox"
-                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143] rounded"
+                        type="radio"
+                        name="rating"
+                        checked={selectedRating === rating}
+                        onChange={() => setSelectedRating(rating)}
+                        className="h-4 w-4 text-cropsay-green focus:ring-cropsay-green border-gray-400 bg-[#2A3143]"
                       />
                       <span className="ml-2 text-sm text-gray-300 flex items-center gap-1">
                         {Array.from({ length: rating }, (_, i) => (

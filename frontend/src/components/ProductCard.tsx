@@ -88,12 +88,17 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
         isMobile ? "h-[240px]" : "h-[260px]"
       )}
       onClick={handleClick}
+      data-product-id={product.id}
+      data-product-category={product.category}
+      data-product-subcategory={product.subcategory}
     >
       {/* Product image area - responsive sizing */}
       <div className={cn(
         "relative w-full mb-2 flex-shrink-0 bg-[#232936] rounded-lg overflow-hidden",
         isMobile ? "h-24" : "h-32"
-      )}>
+      )}
+      style={{ minHeight: isMobile ? "96px" : "128px" }} // Ensure minimum height for image container
+      >
         {product.images && product.images.length > 0 ? (
           <img
             src={product.images[0]}
@@ -134,7 +139,9 @@ const ProductCard: React.FC<ProductCardProps> = ({ product, onClick }) => {
           "text-cropsay-grayText text-left mb-1.5 flex items-center flex-shrink-0",
           isMobile ? "text-[10px] h-3" : "text-xs h-3"
         )}>
-          {product.subcategory || product.category}
+          <span className="truncate" title={product.subcategory || product.category}>
+            {product.subcategory || product.category}
+          </span>
         </div>
 
         {/* Price and Add to Cart section - responsive layout */}

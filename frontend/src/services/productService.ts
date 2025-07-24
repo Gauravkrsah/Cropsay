@@ -15,6 +15,11 @@ export type ProductFormData = {
   brand: string;
   quantity: number;
   images: string[];
+  // New fields for comprehensive product data
+  tags?: string[];
+  isOrganic?: boolean;
+  plantType?: string;
+  originalPrice?: number;
 };
 
 export type SupabaseProduct = {
@@ -318,10 +323,14 @@ export async function getNewestProducts(maxCount: number = 10): Promise<Product[
 }
 
 // Get products by category
-export async function getProductsByCategory(category: string, maxCount: number = 20): Promise<Product[]> {
+export async function getProductsByCategory(category: string, maxCount: number = 100): Promise<Product[]> {
   try {
     // Log for debugging
     console.log(`Calling getProductsByCategory with category: "${category}"`);
+    
+    // Special handling for Plants & Gardening category to ensure all products are displayed
+    const isPlantsCategory = category.toLowerCase().includes('plants') ||
+                            category.toLowerCase().includes('gardening');
     
     // Try direct query first (for more flexibility and better debugging)
     const { data, error } = await supabase
@@ -336,6 +345,8 @@ export async function getProductsByCategory(category: string, maxCount: number =
     }
 
     console.log(`Direct query found ${data?.length || 0} products for category "${category}"`);
+    
+    // Enhanced logging for better debugging
     if (data?.length) {
       // Log a sample product for debugging category values
       console.log('Sample product category values:', {
@@ -343,9 +354,70 @@ export async function getProductsByCategory(category: string, maxCount: number =
         requestedCategory: category,
         matches: data[0].category.toLowerCase() === category.toLowerCase()
       });
+      
+      // Log subcategory distribution for this category
+      const subcategories = [...new Set(data.map(p => p.subcategory))];
+      console.log(`Found ${subcategories.length} subcategories for category "${category}":`, subcategories);
+      
+      // Log count by subcategory
+      const subcategoryCounts = subcategories.map(sub => {
+        const count = data.filter(p => p.subcategory === sub).length;
+        return { subcategory: sub, count };
+      });
+      console.log('Product counts by subcategory:', subcategoryCounts);
+    } else {
+      console.warn(`No products found for category "${category}". Check if the category name matches the database.`);
+      
+      // If no products found with exact match, try a broader search
+      console.log('Attempting broader search for similar categories...');
+      const { data: allData, error: allError } = await supabase
+        .from('products')
+        .select('*');
+        
+      if (!allError && allData?.length) {
+        // Extract all unique categories from the database
+        const allCategories = [...new Set(allData.map(p => p.category))];
+        console.log('Available categories in database:', allCategories);
+        
+        // If this is the Plants & Gardening category, try to find products with similar categories
+        if (isPlantsCategory) {
+          const plantsProducts = allData.filter(p =>
+            p.category.toLowerCase().includes('plant') ||
+            p.category.toLowerCase().includes('garden') ||
+            p.subcategory.toLowerCase().includes('plant') ||
+            p.subcategory.toLowerCase().includes('garden')
+          );
+          
+          if (plantsProducts.length > 0) {
+            console.log(`Found ${plantsProducts.length} products related to plants/gardening using broader search`);
+            const mappedProducts = plantsProducts.map(mapSupabaseProductToProduct);
+            return mappedProducts;
+          }
+        }
+      }
     }
     
-    return (data || []).map(mapSupabaseProductToProduct);
+    // For Plants & Gardening category, ensure we get all related products
+    if (isPlantsCategory && (!data || data.length < 35)) {
+      console.log('Attempting to fetch all plants-related products...');
+      
+      // Try a broader query for plants-related products
+      const { data: plantsData, error: plantsError } = await supabase
+        .from('products')
+        .select('*')
+        .or(`category.ilike.%plant%,category.ilike.%garden%,subcategory.ilike.%plant%,subcategory.ilike.%garden%`)
+        .limit(maxCount);
+        
+      if (!plantsError && plantsData && plantsData.length > 0) {
+        console.log(`Found ${plantsData.length} plants-related products using broader search`);
+        const mappedProducts = plantsData.map(mapSupabaseProductToProduct);
+        return mappedProducts;
+      }
+    }
+    
+    const mappedProducts = (data || []).map(mapSupabaseProductToProduct);
+    console.log(`Returning ${mappedProducts.length} products for category "${category}"`);
+    return mappedProducts;
   } catch (error) {
     console.error('Exception fetching products by category:', error);
     return [];

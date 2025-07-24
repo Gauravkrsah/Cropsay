@@ -1,0 +1,6 @@
+name,category,subcategory,brand,description,price,quantity,originalPrice,productType,tags,imageUrls
+Organic Tomato Seeds,Seeds,Vegetable Seeds,GreenThumb,High-quality organic tomato seeds for your garden,250,100,300,Organic,"Organic,Premium,Best Seller","https://example.com/image1.jpg,https://example.com/image2.jpg"
+Fertilizer - All Purpose,Fertilizers,All Purpose,EcoGrow,Complete plant food for all types of plants,450,50,500,Regular,"Popular,Best Seller",https://example.com/fertilizer.jpg
+Garden Shovel,Tools,Hand Tools,GardenPro,Durable steel shovel with ergonomic handle,800,25,950,Regular,"Premium,Limited Edition","https://example.com/shovel1.jpg,https://example.com/shovel2.jpg"
+Neem Oil Spray,Pesticides,Organic,NatureCare,Natural pest control solution for organic gardening,350,75,400,Organic,"Organic,New,Popular",https://example.com/neem-oil.jpg
+Drip Irrigation Kit,Irrigation,Drip Systems,WaterWise,Complete drip irrigation system for small gardens,1200,15,1500,Regular,"Premium,Best Seller","https://example.com/drip1.jpg,https://example.com/drip2.jpg,https://example.com/drip3.jpg"

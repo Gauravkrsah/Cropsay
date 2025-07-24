@@ -521,7 +521,7 @@ export const AppSidebar = ({
           {/* Mobile User Section */}
           <div className={cn(
             "border-t border-[#1E2735]/50 bg-gradient-to-r from-[#0A0E16] to-[#10141E] flex-shrink-0",
-            isSmallMobile ? "p-3" : "p-4"
+            isSmallMobile ? "p-3 pb-6" : "p-4 pb-8"
           )}>
             {user ? (
               <div className="space-y-3">
