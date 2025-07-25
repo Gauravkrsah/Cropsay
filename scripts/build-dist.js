@@ -155,7 +155,7 @@ async function createProductionPackageJson() {
   const prodDependencies = {
     "@google/generative-ai": originalPackage.dependencies["@google/generative-ai"],
     "@supabase/supabase-js": originalPackage.dependencies["@supabase/supabase-js"],
-    "axios": originalPackage.dependencies["axios"],
+    "axios": "^1.6.8",
     "cors": originalPackage.dependencies["cors"],
     "dotenv": originalPackage.dependencies["dotenv"],
     "express": "^4.18.2",
@@ -538,6 +538,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import dotenv from 'dotenv';
+import axios from 'axios';
 
 // Load environment variables
 dotenv.config();
@@ -691,6 +692,114 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, { error: 'Failed to generate content' }, 500);
       }
       return;
+    }
+
+    // Khalti initiate endpoint
+    if (pathname === '/api/khalti/initiate' && req.method === 'POST') {
+      try {
+        const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY;
+        if (!KHALTI_SECRET_KEY) {
+          console.error('KHALTI_SECRET_KEY not found in environment variables');
+          sendJson(res, { error: 'Khalti secret key not configured on server' }, 500);
+          return;
+        }
+        
+        const body = await parseJsonBody(req);
+        
+        const {
+          return_url,
+          website_url,
+          amount,
+          purchase_order_id,
+          purchase_order_name,
+          customer_info
+        } = body;
+
+        if (!amount || !purchase_order_id || !purchase_order_name || !customer_info) {
+          sendJson(res, { error: { detail: 'Missing required fields' } }, 400);
+          return;
+        }
+
+        const payload = {
+          return_url: return_url || `https://${req.headers.host}/payment/success`,
+          website_url: website_url || `https://${req.headers.host}`,
+          amount: parseInt(amount),
+          purchase_order_id,
+          purchase_order_name,
+          customer_info
+        };
+        
+        const apiEndpoint = KHALTI_SECRET_KEY.startsWith('test_')
+          ? 'https://dev.khalti.com/api/v2/epayment/initiate/'
+          : 'https://a.khalti.com/api/v2/epayment/initiate/';
+
+        const khaltiRes = await axios.post(
+          apiEndpoint,
+          payload,
+          {
+            headers: {
+              Authorization: `Key ${KHALTI_SECRET_KEY}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        sendJson(res, khaltiRes.data);
+
+      } catch (err) {
+        console.error('Khalti initiate error:', err.response?.data || err.message);
+        const errorResponse = {
+          error: {
+            detail: err.response?.data?.detail || err.response?.data?.message || err.message || 'Payment initiation failed',
+            khalti_error: err.response?.data
+          }
+        };
+        sendJson(res, errorResponse, err.response?.status || 500);
+      }
+      return;
+    }
+
+    // Khalti verify endpoint
+    if (pathname === '/api/khalti/verify' && req.method === 'POST') {
+        try {
+            const KHALTI_SECRET_KEY = process.env.KHALTI_SECRET_KEY;
+            if (!KHALTI_SECRET_KEY) {
+              console.error('KHALTI_SECRET_KEY not found in environment variables');
+              sendJson(res, { error: 'Khalti secret key not configured on server' }, 500);
+              return;
+            }
+
+            const body = await parseJsonBody(req);
+            const { pidx } = body;
+
+            if (!pidx) {
+                sendJson(res, { error: { detail: 'Missing pidx parameter' } }, 400);
+                return;
+            }
+
+            const khaltiRes = await axios.post(
+                'https://a.khalti.com/api/v2/epayment/lookup/',
+                { pidx },
+                {
+                    headers: {
+                        Authorization: `Key ${KHALTI_SECRET_KEY}`,
+                        'Content-Type': 'application/json'
+                    }
+                }
+            );
+
+            sendJson(res, khaltiRes.data);
+
+        } catch (err) {
+            console.error('Khalti verify error:', err.response?.data || err.message);
+            const errorResponse = {
+                error: {
+                    detail: err.response?.data?.detail || err.message || 'Payment verification failed'
+                }
+            };
+            sendJson(res, errorResponse, err.response?.status || 500);
+        }
+        return;
     }
 
     // API not found
